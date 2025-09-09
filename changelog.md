@@ -4,7 +4,52 @@
 
 ## 2025-01-10
 
-### OpenSearch Dashboard修复和监控系统增强
+### AI引擎启动问题修复和服务优化
+
+#### ✅ AI引擎导入错误修复 (AI Engine Import Error Fix)
+
+**🔧 相对导入问题修复**
+- **问题识别**: AI引擎服务启动时出现 `ImportError: attempted relative import beyond top-level package`
+- **根本原因**: `core/predictor.py` 中使用了超出顶级包的相对导入
+- **修复方案**: 将相对导入 `from ..utils.data_processor` 改为绝对导入 `from utils.data_processor`
+- **服务状态**: 修复后AI引擎成功启动
+
+**🔧 异步方法调用问题修复**
+- **问题识别**: 服务启动时出现 `AttributeError: 'TimeSeriesProcessor' object has no attribute 'initialize'`
+- **修复方案**: 移除不存在的 `await self.data_processor.initialize()` 调用
+- **问题识别**: 服务启动时出现 `AttributeError: 'MetricsCollector' object has no attribute 'initialize'`
+- **修复方案**: 移除不存在的 `await metrics_collector.initialize()` 调用并简化初始化
+- **问题识别**: `/metrics` 端点出现 `object list can't be used in 'await' expression` 错误
+- **修复方案**: 移除 `metrics_collector.get_metrics()` 方法前的 `await` 关键字
+- **服务状态**: 所有API端点现已正常工作，返回200状态码
+
+**📊 服务验证**
+- **健康检查**: `/health` 端点正常返回200状态码
+- **指标监控**: `/metrics` 端点正常返回200状态码
+- **容器状态**: aiops-ai-engine容器状态为healthy
+- **端口映射**: 8000端口正常映射和访问
+
+### Docker部署修复和AI引擎配置优化 (Earlier Today)
+
+#### ✅ AI引擎容器挂载问题修复 (AI Engine Container Mount Issue Fix)
+
+**🔧 容器配置问题诊断和修复**
+- **问题识别**: 诊断ai-engine服务启动失败，错误信息显示只读文件系统无法创建挂载点
+- **根本原因**: docker-compose.yml中ai-engine服务同时配置了只读挂载`./ai-engine:/app:ro`和读写挂载`ai-logs:/app/logs`，导致冲突
+- **配置修复**: 重构卷挂载配置:
+  - 移除冲突的只读挂载 `./ai-engine:/app:ro`
+  - 保留日志卷挂载 `ai-logs:/app/logs`
+  - 添加精确的源码挂载 `./ai-engine/src:/app/src:ro`
+  - 添加依赖文件挂载 `./ai-engine/requirements.txt:/app/requirements.txt:ro`
+- **部署验证**: ai-engine服务现已正常启动，Docker部署脚本成功完成
+- **服务状态**: 所有14个服务运行正常，部署成功
+
+**📊 部署脚本优化**
+- **错误处理**: 改进了PowerShell命令分隔符兼容性
+- **服务监控**: 确保所有服务健康检查通过
+- **访问地址**: 提供完整的服务访问信息
+
+### OpenSearch Dashboard修复和监控系统增强 (Earlier Today)
 
 #### ✅ OpenSearch Dashboard配置修复 (OpenSearch Dashboard Configuration Fix)
 

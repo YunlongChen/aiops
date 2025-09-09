@@ -67,7 +67,7 @@ except ImportError:
     logging.warning("Prophet not available")
 
 from utils.logger import setup_logger
-from utils.data_processor import DataProcessor
+from utils.data_processor import TimeSeriesProcessor, ProcessingConfig
 from utils.cache import CacheManager
 
 logger = setup_logger(__name__)
@@ -85,7 +85,9 @@ class Predictor:
         """
         self.config = config
         self.model_manager = model_manager
-        self.data_processor = DataProcessor()
+        # 创建默认配置
+        config = ProcessingConfig()
+        self.data_processor = TimeSeriesProcessor(config)
         self.cache_manager = CacheManager()
         self.executor = ThreadPoolExecutor(max_workers=4)
         
@@ -122,8 +124,7 @@ class Predictor:
         try:
             logger.info("正在初始化预测器...")
             
-            # 初始化数据处理器
-            await self.data_processor.initialize()
+            # 数据处理器已在构造函数中初始化，无需额外初始化步骤
             
             # 初始化缓存管理器
             await self.cache_manager.initialize()

@@ -33,7 +33,7 @@ from core.predictor import Predictor
 from core.model_manager import ModelManager
 from core.decision_engine import DecisionEngine
 from utils.logger import setup_logger
-from utils.config import Config
+from utils.config import ConfigManager
 from utils.metrics import MetricsCollector
 
 # 配置日志
@@ -58,7 +58,7 @@ app.add_middleware(
 )
 
 # 全局变量
-config = Config()
+config = ConfigManager()
 anomaly_detector = None
 predictor = None
 model_manager = None
@@ -114,8 +114,7 @@ async def startup_event():
         decision_engine = DecisionEngine(config)
         await decision_engine.initialize()
         
-        metrics_collector = MetricsCollector(config)
-        await metrics_collector.initialize()
+        metrics_collector = MetricsCollector()
         
         logger.info("AI引擎服务启动成功")
         
@@ -164,7 +163,7 @@ async def get_metrics():
         raise HTTPException(status_code=503, detail="指标收集器未初始化")
     
     try:
-        metrics = await metrics_collector.get_metrics()
+        metrics = metrics_collector.get_metrics()
         return {"metrics": metrics, "timestamp": datetime.now().isoformat()}
     except Exception as e:
         logger.error(f"获取指标失败: {e}")
