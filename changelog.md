@@ -4,6 +4,32 @@
 
 ## 2025-01-09
 
+### .gitignore文件完善
+
+#### 📁 文件管理优化 (File Management Optimization)
+
+**🔧 .gitignore规则完善**
+- **IDE文件**: 添加.idea、.vscode等IDE相关文件忽略规则
+- **操作系统文件**: 添加.DS_Store、Thumbs.db等系统文件忽略规则
+- **日志文件**: 添加各类日志文件忽略规则（*.log、npm-debug.log等）
+- **依赖包**: 添加node_modules、__pycache__等依赖目录忽略规则
+- **缓存文件**: 添加各类缓存文件和临时文件忽略规则
+- **环境变量**: 添加.env相关文件忽略规则
+- **测试覆盖率**: 添加coverage、.pytest_cache等测试文件忽略规则
+- **编译产物**: 添加build、dist等编译输出目录忽略规则
+- **AI模型文件**: 添加大型模型文件忽略规则（*.pkl、*.h5、*.pt等）
+- **监控数据**: 添加prometheus-data、grafana-data等数据目录忽略规则
+- **证书密钥**: 添加*.pem、*.key等敏感文件忽略规则
+- **配置覆盖**: 添加本地配置文件忽略规则
+
+**📊 改进效果**
+- 减少不必要文件的版本控制
+- 提高Git操作效率
+- 保护敏感信息安全
+- 减小仓库体积
+
+## 2025-01-09 (Docker服务修复)
+
 ### Docker Compose服务修复和优化
 
 #### 🔧 问题修复 (Bug Fixes)
