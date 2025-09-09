@@ -129,7 +129,7 @@ New-NetFirewallRule -DisplayName "AIOps-Grafana" -Direction Inbound -Protocol TC
 
 ```powershell
 # 克隆项目到本地
-git clone https://github.com/your-org/aiops.git
+git clone https://github.com/YunlongChen/aiops.git
 cd aiops
 ```
 
@@ -1878,7 +1878,7 @@ spec:
 
 - **技术支持邮箱**: support@aiops.com
 - **文档网站**: https://docs.aiops.com
-- **GitHub仓库**: https://github.com/your-org/aiops
+- **GitHub仓库**: https://github.com/YunlongChen/aiops
 - **社区论坛**: https://community.aiops.com
 
 ### 支持级别

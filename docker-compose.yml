@@ -423,6 +423,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
+      - redis-data:/data
       - ./configs/redis:/usr/local/etc/redis:ro
     networks:
       - backend
@@ -459,13 +460,35 @@ services:
       timeout: 10s
       retries: 3
 
-# 添加PostgreSQL数据卷
+# Docker存储卷定义
+# 使用Docker管理的存储卷，提供更好的性能和可移植性
 volumes:
+  # 监控数据存储
   prometheus-data:
+    driver: local
   grafana-data:
+    driver: local
+  
+  # 日志处理存储
   elasticsearch-data:
+    driver: local
+  
+  # AI引擎存储
   ai-models:
+    driver: local
   ai-logs:
+    driver: local
+  
+  # 自愈系统存储
   ansible-playbooks:
+    driver: local
+  
+  # 网络和安全存储
   traefik-certs:
+    driver: local
+  
+  # 数据库存储
   postgres-data:
+    driver: local
+  redis-data:
+    driver: local
