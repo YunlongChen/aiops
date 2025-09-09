@@ -1,0 +1,309 @@
+# Business Metrics Rules Configuration
+# AIOps-Platform 业务指标监控规则配置
+# 版本: 2.0.0
+# 创建时间: 2025-01-10
+# 用途: 监控关键业务指标和KPI
+
+groups:
+  # ===========================================
+  # 用户行为监控规则
+  # ===========================================
+  - name: user_behavior.rules
+    interval: 60s
+    rules:
+      # 活跃用户数 - 每小时
+      - record: business:active_users:hourly
+        expr: increase(user_sessions_total[1h])
+        labels:
+          metric_type: "user_behavior"
+          component: "active_users"
+          time_window: "1h"
+
+      # 新用户注册率
+      - record: business:new_user_registration:rate1h
+        expr: rate(user_registrations_total[1h])
+        labels:
+          metric_type: "user_behavior"
+          component: "registration"
+          time_window: "1h"
+
+      # 用户留存率 - 日留存
+      - record: business:user_retention:daily
+        expr: |
+          (
+            count(increase(user_sessions_total[24h]) > 0) by (user_id) /
+            count(increase(user_registrations_total[24h]) > 0) by (user_id)
+          ) * 100
+        labels:
+          metric_type: "user_behavior"
+          component: "retention"
+          time_window: "24h"
+
+      # 用户会话时长平均值
+      - record: business:session_duration:avg1h
+        expr: |
+          sum(rate(user_session_duration_seconds_sum[1h])) /
+          sum(rate(user_session_duration_seconds_count[1h]))
+        labels:
+          metric_type: "user_behavior"
+          component: "session_duration"
+          time_window: "1h"
+
+      # 页面浏览量
+      - record: business:page_views:rate1h
+        expr: rate(page_views_total[1h])
+        labels:
+          metric_type: "user_behavior"
+          component: "page_views"
+          time_window: "1h"
+
+  # ===========================================
+  # API使用监控规则
+  # ===========================================
+  - name: api_usage.rules
+    interval: 30s
+    rules:
+      # API调用量 - 按服务分组
+      - record: business:api_calls:rate5m_by_service
+        expr: sum(rate(api_calls_total[5m])) by (service, endpoint)
+        labels:
+          metric_type: "api_usage"
+          component: "call_volume"
+          time_window: "5m"
+
+      # API成功率
+      - record: business:api_success_rate:ratio5m
+        expr: |
+          (
+            sum(rate(api_calls_total{status=~"2.."}[5m])) by (service) /
+            sum(rate(api_calls_total[5m])) by (service)
+          ) * 100
+        labels:
+          metric_type: "api_usage"
+          component: "success_rate"
+          time_window: "5m"
+
+      # API配额使用率
+      - record: business:api_quota_usage:ratio1h
+        expr: |
+          (
+            sum(increase(api_calls_total[1h])) by (user_id, api_key) /
+            sum(api_quota_limit) by (user_id, api_key)
+          ) * 100
+        labels:
+          metric_type: "api_usage"
+          component: "quota_usage"
+          time_window: "1h"
+
+      # 热门API端点
+      - record: business:top_api_endpoints:rate1h
+        expr: topk(10, sum(rate(api_calls_total[1h])) by (endpoint))
+        labels:
+          metric_type: "api_usage"
+          component: "top_endpoints"
+          time_window: "1h"
+
+  # ===========================================
+  # 收入和转换监控规则
+  # ===========================================
+  - name: revenue_conversion.rules
+    interval: 300s  # 5分钟间隔
+    rules:
+      # 收入增长率 - 每小时
+      - record: business:revenue_growth:rate1h
+        expr: rate(revenue_total[1h])
+        labels:
+          metric_type: "revenue"
+          component: "growth_rate"
+          time_window: "1h"
+
+      # 平均订单价值
+      - record: business:average_order_value:1h
+        expr: |
+          sum(rate(revenue_total[1h])) /
+          sum(rate(orders_total[1h]))
+        labels:
+          metric_type: "revenue"
+          component: "average_order_value"
+          time_window: "1h"
+
+      # 转换率 - 访客到客户
+      - record: business:conversion_rate:visitor_to_customer_1h
+        expr: |
+          (
+            sum(rate(orders_total[1h])) /
+            sum(rate(unique_visitors_total[1h]))
+          ) * 100
+        labels:
+          metric_type: "conversion"
+          component: "visitor_to_customer"
+          time_window: "1h"
+
+      # 购物车放弃率
+      - record: business:cart_abandonment_rate:1h
+        expr: |
+          (
+            1 - (
+              sum(rate(orders_completed_total[1h])) /
+              sum(rate(carts_created_total[1h]))
+            )
+          ) * 100
+        labels:
+          metric_type: "conversion"
+          component: "cart_abandonment"
+          time_window: "1h"
+
+      # 客户生命周期价值
+      - record: business:customer_lifetime_value:avg30d
+        expr: |
+          sum(rate(revenue_total[30d])) /
+          sum(rate(new_customers_total[30d]))
+        labels:
+          metric_type: "revenue"
+          component: "customer_lifetime_value"
+          time_window: "30d"
+
+  # ===========================================
+  # 产品使用监控规则
+  # ===========================================
+  - name: product_usage.rules
+    interval: 60s
+    rules:
+      # 功能使用频率
+      - record: business:feature_usage:rate1h
+        expr: sum(rate(feature_usage_total[1h])) by (feature_name)
+        labels:
+          metric_type: "product_usage"
+          component: "feature_frequency"
+          time_window: "1h"
+
+      # 最受欢迎的功能
+      - record: business:popular_features:top10_1h
+        expr: topk(10, sum(rate(feature_usage_total[1h])) by (feature_name))
+        labels:
+          metric_type: "product_usage"
+          component: "popular_features"
+          time_window: "1h"
+
+      # 功能采用率
+      - record: business:feature_adoption_rate:1h
+        expr: |
+          (
+            count(sum(rate(feature_usage_total[1h])) by (user_id, feature_name) > 0) by (feature_name) /
+            count(sum(rate(user_sessions_total[1h])) by (user_id) > 0)
+          ) * 100
+        labels:
+          metric_type: "product_usage"
+          component: "adoption_rate"
+          time_window: "1h"
+
+      # 用户参与度评分
+      - record: business:user_engagement_score:1h
+        expr: |
+          (
+            sum(rate(page_views_total[1h])) by (user_id) * 0.3 +
+            sum(rate(feature_usage_total[1h])) by (user_id) * 0.4 +
+            sum(rate(user_session_duration_seconds_sum[1h])) by (user_id) / 3600 * 0.3
+          )
+        labels:
+          metric_type: "product_usage"
+          component: "engagement_score"
+          time_window: "1h"
+
+  # ===========================================
+  # 客户支持监控规则
+  # ===========================================
+  - name: customer_support.rules
+    interval: 300s
+    rules:
+      # 支持票据创建率
+      - record: business:support_tickets:rate1h
+        expr: rate(support_tickets_created_total[1h])
+        labels:
+          metric_type: "customer_support"
+          component: "ticket_creation_rate"
+          time_window: "1h"
+
+      # 平均解决时间
+      - record: business:ticket_resolution_time:avg1h
+        expr: |
+          sum(rate(support_ticket_resolution_duration_seconds_sum[1h])) /
+          sum(rate(support_ticket_resolution_duration_seconds_count[1h]))
+        labels:
+          metric_type: "customer_support"
+          component: "avg_resolution_time"
+          time_window: "1h"
+
+      # 首次解决率
+      - record: business:first_contact_resolution_rate:1h
+        expr: |
+          (
+            sum(rate(support_tickets_resolved_first_contact_total[1h])) /
+            sum(rate(support_tickets_resolved_total[1h]))
+          ) * 100
+        labels:
+          metric_type: "customer_support"
+          component: "first_contact_resolution"
+          time_window: "1h"
+
+      # 客户满意度评分
+      - record: business:customer_satisfaction:avg1h
+        expr: |
+          sum(rate(customer_satisfaction_score_sum[1h])) /
+          sum(rate(customer_satisfaction_score_count[1h]))
+        labels:
+          metric_type: "customer_support"
+          component: "satisfaction_score"
+          time_window: "1h"
+
+  # ===========================================
+  # 营销效果监控规则
+  # ===========================================
+  - name: marketing_effectiveness.rules
+    interval: 300s
+    rules:
+      # 营销活动点击率
+      - record: business:campaign_click_rate:1h
+        expr: |
+          (
+            sum(rate(campaign_clicks_total[1h])) by (campaign_id) /
+            sum(rate(campaign_impressions_total[1h])) by (campaign_id)
+          ) * 100
+        labels:
+          metric_type: "marketing"
+          component: "click_rate"
+          time_window: "1h"
+
+      # 营销ROI
+      - record: business:marketing_roi:1h
+        expr: |
+          (
+            sum(rate(revenue_from_campaign_total[1h])) by (campaign_id) /
+            sum(rate(campaign_cost_total[1h])) by (campaign_id)
+          ) * 100
+        labels:
+          metric_type: "marketing"
+          component: "roi"
+          time_window: "1h"
+
+      # 获客成本
+      - record: business:customer_acquisition_cost:1h
+        expr: |
+          sum(rate(marketing_spend_total[1h])) /
+          sum(rate(new_customers_from_marketing_total[1h]))
+        labels:
+          metric_type: "marketing"
+          component: "acquisition_cost"
+          time_window: "1h"
+
+      # 邮件营销开启率
+      - record: business:email_open_rate:1h
+        expr: |
+          (
+            sum(rate(email_opens_total[1h])) /
+            sum(rate(emails_sent_total[1h]))
+          ) * 100
+        labels:
+          metric_type: "marketing"
+          component: "email_open_rate"
+          time_window: "1h"

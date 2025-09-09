@@ -1,0 +1,397 @@
+# Enhanced Alert Rules Configuration
+# AIOps-Platform 增强告警规则配置
+# 版本: 2.0.0
+# 创建时间: 2025-01-10
+# 用途: 详细的监控告警规则
+
+groups:
+  # ===========================================
+  # 应用性能告警
+  # ===========================================
+  - name: application_performance.alerts
+    interval: 30s
+    rules:
+      # API响应时间过长
+      - alert: HighAPIResponseTime
+        expr: service:http_request_duration:p95 > 1.0
+        for: 2m
+        labels:
+          severity: warning
+          category: performance
+          component: api
+          team: backend
+        annotations:
+          summary: "High API response time detected for {{ $labels.service }}"
+          description: "P95 response time is {{ $value }}s, exceeding 1.0s threshold for more than 2 minutes"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/high-api-response-time"
+          dashboard_url: "http://grafana:3000/d/api-performance"
+
+      # API错误率过高
+      - alert: HighAPIErrorRate
+        expr: service:http_error_rate:rate5m > 5
+        for: 1m
+        labels:
+          severity: critical
+          category: reliability
+          component: api
+          team: backend
+        annotations:
+          summary: "High API error rate detected for {{ $labels.service }}"
+          description: "Error rate is {{ $value }}%, exceeding 5% threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/high-error-rate"
+
+      # 服务可用性下降
+      - alert: ServiceAvailabilityDegraded
+        expr: service:availability:ratio5m < 99
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+          component: service
+          team: sre
+        annotations:
+          summary: "Service availability degraded for {{ $labels.service }}"
+          description: "Availability is {{ $value }}%, below 99% threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/service-availability"
+
+      # 请求量异常下降
+      - alert: RequestVolumeDropped
+        expr: |
+          (
+            service:http_requests:rate5m < 
+            service:http_requests:rate5m offset 1h * 0.5
+          ) and service:http_requests:rate5m > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: traffic
+          component: api
+          team: backend
+        annotations:
+          summary: "Request volume dropped significantly for {{ $labels.service }}"
+          description: "Current request rate is {{ $value }} req/s, 50% below the rate 1 hour ago"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/request-volume-drop"
+
+  # ===========================================
+  # 容器资源告警
+  # ===========================================
+  - name: container_resources.alerts
+    interval: 30s
+    rules:
+      # 容器CPU使用率过高
+      - alert: ContainerHighCPUUsage
+        expr: container:cpu_utilization:rate5m > 80
+        for: 3m
+        labels:
+          severity: warning
+          category: resources
+          component: container
+          team: platform
+        annotations:
+          summary: "High CPU usage in container {{ $labels.container }}"
+          description: "CPU usage is {{ $value }}% for container {{ $labels.container }} in pod {{ $labels.pod }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/container-high-cpu"
+
+      # 容器内存使用率过高
+      - alert: ContainerHighMemoryUsage
+        expr: container:memory_utilization:ratio > 85
+        for: 2m
+        labels:
+          severity: warning
+          category: resources
+          component: container
+          team: platform
+        annotations:
+          summary: "High memory usage in container {{ $labels.container }}"
+          description: "Memory usage is {{ $value }}% for container {{ $labels.container }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/container-high-memory"
+
+      # 容器重启频繁
+      - alert: ContainerRestartingFrequently
+        expr: increase(kube_pod_container_status_restarts_total[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+          category: stability
+          component: container
+          team: platform
+        annotations:
+          summary: "Container {{ $labels.container }} is restarting frequently"
+          description: "Container has restarted {{ $value }} times in the last hour"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/container-restarts"
+
+  # ===========================================
+  # 数据库性能告警
+  # ===========================================
+  - name: database_performance.alerts
+    interval: 60s
+    rules:
+      # PostgreSQL连接数过多
+      - alert: PostgreSQLHighConnections
+        expr: postgres:connections:current > 80
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+          component: postgresql
+          team: database
+        annotations:
+          summary: "High number of PostgreSQL connections"
+          description: "Current connections: {{ $value }}, approaching connection limit"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/postgresql-connections"
+
+      # PostgreSQL查询时间过长
+      - alert: PostgreSQLSlowQueries
+        expr: pg_stat_activity_max_tx_duration{datname!=""} > 300
+        for: 1m
+        labels:
+          severity: warning
+          category: database
+          component: postgresql
+          team: database
+        annotations:
+          summary: "PostgreSQL slow queries detected"
+          description: "Longest running query: {{ $value }}s in database {{ $labels.datname }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/postgresql-slow-queries"
+
+      # Redis内存使用率过高
+      - alert: RedisHighMemoryUsage
+        expr: redis:memory_utilization:ratio > 85
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+          component: redis
+          team: database
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Memory usage is {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/redis-memory"
+
+      # Redis缓存命中率低
+      - alert: RedisLowCacheHitRate
+        expr: redis:cache_hit_rate:ratio5m < 80
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+          component: redis
+          team: database
+        annotations:
+          summary: "Low Redis cache hit rate"
+          description: "Cache hit rate is {{ $value }}%, below 80% threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/redis-cache-hit-rate"
+
+  # ===========================================
+  # AI引擎性能告警
+  # ===========================================
+  - name: ai_engine_performance.alerts
+    interval: 30s
+    rules:
+      # AI模型推理延迟过高
+      - alert: AIModelHighInferenceLatency
+        expr: ai_engine:inference_duration:p95 > 2.0
+        for: 2m
+        labels:
+          severity: warning
+          category: ai_performance
+          component: inference
+          team: ai
+        annotations:
+          summary: "High AI model inference latency"
+          description: "P95 inference latency is {{ $value }}s, exceeding 2.0s threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/ai-inference-latency"
+
+      # AI模型吞吐量下降
+      - alert: AIModelLowThroughput
+        expr: ai_engine:throughput:rate5m < 10
+        for: 3m
+        labels:
+          severity: warning
+          category: ai_performance
+          component: throughput
+          team: ai
+        annotations:
+          summary: "Low AI model throughput"
+          description: "Current throughput is {{ $value }} inferences/s, below 10/s threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/ai-throughput"
+
+      # GPU使用率过高
+      - alert: HighGPUUtilization
+        expr: ai_engine:gpu_utilization:avg > 90
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+          component: gpu
+          team: ai
+        annotations:
+          summary: "High GPU utilization"
+          description: "GPU utilization is {{ $value }}%, exceeding 90% threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/gpu-utilization"
+
+      # 模型准确率下降
+      - alert: AIModelAccuracyDegraded
+        expr: ai_engine:model_accuracy:avg5m < 85
+        for: 5m
+        labels:
+          severity: critical
+          category: ai_quality
+          component: accuracy
+          team: ai
+        annotations:
+          summary: "AI model accuracy degraded"
+          description: "Model accuracy is {{ $value }}%, below 85% threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/model-accuracy"
+
+  # ===========================================
+  # SLA违规告警
+  # ===========================================
+  - name: sla_violations.alerts
+    interval: 60s
+    rules:
+      # 可用性SLA违规
+      - alert: SLAAvailabilityViolation
+        expr: sla:service_availability:ratio1h < 99.9
+        for: 0m
+        labels:
+          severity: critical
+          category: sla
+          component: availability
+          team: sre
+        annotations:
+          summary: "SLA availability violation for {{ $labels.service }}"
+          description: "Service availability is {{ $value }}%, below 99.9% SLA"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/sla-availability"
+
+      # 响应时间SLA违规
+      - alert: SLAResponseTimeViolation
+        expr: sla:response_time_p95:1h > 0.5
+        for: 0m
+        labels:
+          severity: critical
+          category: sla
+          component: response_time
+          team: sre
+        annotations:
+          summary: "SLA response time violation for {{ $labels.service }}"
+          description: "P95 response time is {{ $value }}s, exceeding 0.5s SLA"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/sla-response-time"
+
+      # 错误率SLA违规
+      - alert: SLAErrorRateViolation
+        expr: sla:error_rate:ratio1h > 0.1
+        for: 0m
+        labels:
+          severity: critical
+          category: sla
+          component: error_rate
+          team: sre
+        annotations:
+          summary: "SLA error rate violation for {{ $labels.service }}"
+          description: "Error rate is {{ $value }}%, exceeding 0.1% SLA"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/sla-error-rate"
+
+  # ===========================================
+  # 业务指标告警
+  # ===========================================
+  - name: business_metrics.alerts
+    interval: 300s
+    rules:
+      # 用户活跃度下降
+      - alert: UserActivityDropped
+        expr: |
+          (
+            business:active_users:hourly < 
+            business:active_users:hourly offset 24h * 0.7
+          ) and business:active_users:hourly > 0
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          component: user_activity
+          team: product
+        annotations:
+          summary: "User activity dropped significantly"
+          description: "Active users: {{ $value }}, 30% below same time yesterday"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/user-activity-drop"
+
+      # 转换率下降
+      - alert: ConversionRateDropped
+        expr: business:conversion_rate:visitor_to_customer_1h < 2
+        for: 15m
+        labels:
+          severity: warning
+          category: business
+          component: conversion
+          team: product
+        annotations:
+          summary: "Conversion rate dropped below threshold"
+          description: "Conversion rate is {{ $value }}%, below 2% threshold"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/conversion-rate"
+
+      # 收入增长异常
+      - alert: RevenueGrowthAnomalous
+        expr: |
+          (
+            business:revenue_growth:rate1h < 
+            business:revenue_growth:rate1h offset 7d * 0.5
+          ) and business:revenue_growth:rate1h > 0
+        for: 30m
+        labels:
+          severity: warning
+          category: business
+          component: revenue
+          team: finance
+        annotations:
+          summary: "Revenue growth anomaly detected"
+          description: "Current revenue growth: {{ $value }}, 50% below same time last week"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/revenue-anomaly"
+
+  # ===========================================
+  # 安全告警
+  # ===========================================
+  - name: security.alerts
+    interval: 60s
+    rules:
+      # 异常登录尝试
+      - alert: SuspiciousLoginAttempts
+        expr: rate(failed_login_attempts_total[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          category: security
+          component: authentication
+          team: security
+        annotations:
+          summary: "High rate of failed login attempts"
+          description: "{{ $value }} failed login attempts per second from {{ $labels.source_ip }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/suspicious-logins"
+
+      # SSL证书即将过期
+      - alert: SSLCertificateExpiringSoon
+        expr: ssl_certificate_expiry_days < 30
+        for: 0m
+        labels:
+          severity: warning
+          category: security
+          component: ssl
+          team: security
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.domain }} expires in {{ $value }} days"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/ssl-expiry"
+
+      # 异常API调用模式
+      - alert: AnomalousAPICallPattern
+        expr: rate(api_calls_total[5m]) > rate(api_calls_total[5m] offset 1h) * 3
+        for: 2m
+        labels:
+          severity: warning
+          category: security
+          component: api
+          team: security
+        annotations:
+          summary: "Anomalous API call pattern detected"
+          description: "API call rate is {{ $value }} req/s, 3x higher than usual"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/api-anomaly"

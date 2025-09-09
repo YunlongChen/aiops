@@ -22,6 +22,9 @@ global:
 rule_files:
   - "/etc/prometheus/rules/*.yml"
   - "/etc/prometheus/alerts/*.yml"
+  - "/etc/prometheus/rules/recording-rules.yml"
+  - "/etc/prometheus/rules/sla-rules.yml"
+  - "/etc/prometheus/rules/business-rules.yml"
 
 # ===========================================
 # Alertmanager配置
@@ -200,7 +203,7 @@ scrape_configs:
     static_configs:
       - targets:
         - http://grafana:3000/api/health
-        - http://kibana:5601/api/status
+        - http://opensearch-dashboard:5601/api/status
         - http://ai-engine:8000/health
         - http://self-healing:8001/health
         - http://api-gateway:8080/health

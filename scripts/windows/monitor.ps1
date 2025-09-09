@@ -205,14 +205,14 @@ function Test-KubernetesAvailable {
 # 检查端口是否开放
 function Test-Port {
     param(
-        [string]$Host = "localhost",
+        [string]$HostName = "localhost",
         [int]$Port,
         [int]$Timeout = 3
     )
     
     try {
         $tcpClient = New-Object System.Net.Sockets.TcpClient
-        $asyncResult = $tcpClient.BeginConnect($Host, $Port, $null, $null)
+        $asyncResult = $tcpClient.BeginConnect($HostName, $Port, $null, $null)
         $wait = $asyncResult.AsyncWaitHandle.WaitOne($Timeout * 1000, $false)
         
         if ($wait) {

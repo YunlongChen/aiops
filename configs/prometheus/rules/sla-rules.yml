@@ -1,0 +1,248 @@
+# SLA Monitoring Rules Configuration
+# AIOps-Platform SLA监控规则配置
+# 版本: 2.0.0
+# 创建时间: 2025-01-10
+# 用途: 监控服务级别协议指标
+
+groups:
+  # ===========================================
+  # SLA可用性监控规则
+  # ===========================================
+  - name: sla_availability.rules
+    interval: 60s
+    rules:
+      # 服务可用性 - 99.9% SLA
+      - record: sla:service_availability:ratio1h
+        expr: |
+          (
+            sum(rate(http_requests_total{status!~"5.."}[1h])) by (service) /
+            sum(rate(http_requests_total[1h])) by (service)
+          ) * 100
+        labels:
+          sla_type: "availability"
+          sla_target: "99.9"
+          time_window: "1h"
+
+      # 服务可用性 - 24小时窗口
+      - record: sla:service_availability:ratio24h
+        expr: |
+          (
+            sum(rate(http_requests_total{status!~"5.."}[24h])) by (service) /
+            sum(rate(http_requests_total[24h])) by (service)
+          ) * 100
+        labels:
+          sla_type: "availability"
+          sla_target: "99.9"
+          time_window: "24h"
+
+      # 服务可用性 - 7天窗口
+      - record: sla:service_availability:ratio7d
+        expr: |
+          (
+            sum(rate(http_requests_total{status!~"5.."}[7d])) by (service) /
+            sum(rate(http_requests_total[7d])) by (service)
+          ) * 100
+        labels:
+          sla_type: "availability"
+          sla_target: "99.9"
+          time_window: "7d"
+
+  # ===========================================
+  # SLA响应时间监控规则
+  # ===========================================
+  - name: sla_response_time.rules
+    interval: 60s
+    rules:
+      # 响应时间P95 - 1小时窗口
+      - record: sla:response_time_p95:1h
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1h])) by (service, le))
+        labels:
+          sla_type: "response_time"
+          sla_target: "0.5"
+          quantile: "p95"
+          time_window: "1h"
+
+      # 响应时间P99 - 1小时窗口
+      - record: sla:response_time_p99:1h
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1h])) by (service, le))
+        labels:
+          sla_type: "response_time"
+          sla_target: "1.0"
+          quantile: "p99"
+          time_window: "1h"
+
+      # 响应时间平均值 - 1小时窗口
+      - record: sla:response_time_avg:1h
+        expr: |
+          sum(rate(http_request_duration_seconds_sum[1h])) by (service) /
+          sum(rate(http_request_duration_seconds_count[1h])) by (service)
+        labels:
+          sla_type: "response_time"
+          sla_target: "0.2"
+          quantile: "avg"
+          time_window: "1h"
+
+  # ===========================================
+  # SLA错误率监控规则
+  # ===========================================
+  - name: sla_error_rate.rules
+    interval: 60s
+    rules:
+      # 错误率 - 1小时窗口
+      - record: sla:error_rate:ratio1h
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[1h])) by (service) /
+            sum(rate(http_requests_total[1h])) by (service)
+          ) * 100
+        labels:
+          sla_type: "error_rate"
+          sla_target: "0.1"
+          time_window: "1h"
+
+      # 4xx错误率 - 1小时窗口
+      - record: sla:client_error_rate:ratio1h
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"4.."}[1h])) by (service) /
+            sum(rate(http_requests_total[1h])) by (service)
+          ) * 100
+        labels:
+          sla_type: "client_error_rate"
+          sla_target: "1.0"
+          time_window: "1h"
+
+  # ===========================================
+  # SLA吞吐量监控规则
+  # ===========================================
+  - name: sla_throughput.rules
+    interval: 60s
+    rules:
+      # 请求吞吐量 - 每分钟请求数
+      - record: sla:throughput_rpm:1h
+        expr: sum(rate(http_requests_total[1h])) by (service) * 60
+        labels:
+          sla_type: "throughput"
+          sla_target: "1000"
+          unit: "rpm"
+          time_window: "1h"
+
+      # 数据吞吐量 - 每秒字节数
+      - record: sla:data_throughput_bps:1h
+        expr: sum(rate(http_request_size_bytes_sum[1h])) by (service) + sum(rate(http_response_size_bytes_sum[1h])) by (service)
+        labels:
+          sla_type: "data_throughput"
+          sla_target: "10485760"
+          unit: "bps"
+          time_window: "1h"
+
+  # ===========================================
+  # SLA容量监控规则
+  # ===========================================
+  - name: sla_capacity.rules
+    interval: 60s
+    rules:
+      # CPU容量使用率
+      - record: sla:cpu_capacity:ratio1h
+        expr: avg_over_time(instance:cpu_utilization:rate5m[1h])
+        labels:
+          sla_type: "capacity"
+          sla_target: "80"
+          resource: "cpu"
+          time_window: "1h"
+
+      # 内存容量使用率
+      - record: sla:memory_capacity:ratio1h
+        expr: avg_over_time(instance:memory_utilization:ratio[1h])
+        labels:
+          sla_type: "capacity"
+          sla_target: "85"
+          resource: "memory"
+          time_window: "1h"
+
+      # 磁盘容量使用率
+      - record: sla:disk_capacity:ratio1h
+        expr: avg_over_time(instance:disk_utilization:ratio[1h])
+        labels:
+          sla_type: "capacity"
+          sla_target: "80"
+          resource: "disk"
+          time_window: "1h"
+
+  # ===========================================
+  # SLA业务指标监控规则
+  # ===========================================
+  - name: sla_business.rules
+    interval: 300s  # 5分钟间隔
+    rules:
+      # 用户满意度指标
+      - record: sla:user_satisfaction:ratio1h
+        expr: |
+          (
+            sum(rate(user_feedback_positive_total[1h])) by (service) /
+            sum(rate(user_feedback_total[1h])) by (service)
+          ) * 100
+        labels:
+          sla_type: "user_satisfaction"
+          sla_target: "95"
+          time_window: "1h"
+
+      # 业务交易成功率
+      - record: sla:transaction_success_rate:ratio1h
+        expr: |
+          (
+            sum(rate(business_transactions_successful_total[1h])) by (service) /
+            sum(rate(business_transactions_total[1h])) by (service)
+          ) * 100
+        labels:
+          sla_type: "transaction_success_rate"
+          sla_target: "99.5"
+          time_window: "1h"
+
+      # 数据处理延迟
+      - record: sla:data_processing_latency:p95_1h
+        expr: histogram_quantile(0.95, sum(rate(data_processing_duration_seconds_bucket[1h])) by (service, le))
+        labels:
+          sla_type: "data_processing_latency"
+          sla_target: "5.0"
+          quantile: "p95"
+          time_window: "1h"
+
+  # ===========================================
+  # SLA合规性监控规则
+  # ===========================================
+  - name: sla_compliance.rules
+    interval: 300s
+    rules:
+      # 可用性SLA合规性
+      - record: sla:availability_compliance:status
+        expr: sla:service_availability:ratio1h >= bool 99.9
+        labels:
+          sla_type: "availability_compliance"
+          compliance_threshold: "99.9"
+
+      # 响应时间SLA合规性
+      - record: sla:response_time_compliance:status
+        expr: sla:response_time_p95:1h <= bool 0.5
+        labels:
+          sla_type: "response_time_compliance"
+          compliance_threshold: "0.5"
+
+      # 错误率SLA合规性
+      - record: sla:error_rate_compliance:status
+        expr: sla:error_rate:ratio1h <= bool 0.1
+        labels:
+          sla_type: "error_rate_compliance"
+          compliance_threshold: "0.1"
+
+      # 综合SLA合规性评分
+      - record: sla:overall_compliance:score
+        expr: |
+          (
+            sla:availability_compliance:status +
+            sla:response_time_compliance:status +
+            sla:error_rate_compliance:status
+          ) / 3 * 100
+        labels:
+          sla_type: "overall_compliance"
+          max_score: "100"

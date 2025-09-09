@@ -222,29 +222,29 @@ services:
       - elasticsearch
 
   # ===========================================
-  # 日志处理栈 - Kibana
+  # 日志处理栈 - OpenSearch Dashboard
   # ===========================================
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.8.0
-    container_name: aiops-kibana
+  opensearch-dashboard:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: aiops-opensearch-dashboard
     restart: unless-stopped
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - SERVER_NAME=kibana.localhost
-      - SERVER_PUBLICBASEURL=https://kibana.localhost
-      - XPACK_SECURITY_ENABLED=false
-      - XPACK_MONITORING_ENABLED=false
+      - OPENSEARCH_HOSTS=http://aiops-elasticsearch:9200
+      - SERVER_NAME=dashboard.localhost
+      - SERVER_PUBLICBASEURL=https://dashboard.localhost
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+      - SERVER_HOST=0.0.0.0
     ports:
       - "5601:5601"
     volumes:
-      - ./configs/kibana:/usr/share/kibana/config:ro
+      - ./configs/opensearch-dashboard:/usr/share/opensearch-dashboards/config:ro
     networks:
       - frontend
       - backend
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.kibana.rule=Host(`kibana.localhost`)"
-      - "traefik.http.services.kibana.loadbalancer.server.port=5601"
+      - "traefik.http.routers.opensearch-dashboard.rule=Host(`dashboard.localhost`)"
+      - "traefik.http.services.opensearch-dashboard.loadbalancer.server.port=5601"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
       interval: 30s
@@ -343,7 +343,7 @@ services:
       - SELF_HEALING_URL=http://self-healing:8001
       - PROMETHEUS_URL=http://prometheus:9090
       - GRAFANA_URL=http://grafana:3000
-      - KIBANA_URL=http://kibana:5601
+      - OPENSEARCH_DASHBOARD_URL=http://opensearch-dashboard:5601
     ports:
       - "8080:8080"
     volumes:
@@ -366,7 +366,7 @@ services:
       - self-healing
       - prometheus
       - grafana
-      - kibana
+      - opensearch-dashboard
 
   # ===========================================
   # Node Exporter - 系统指标收集

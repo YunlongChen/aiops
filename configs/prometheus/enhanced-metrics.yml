@@ -1,0 +1,172 @@
+# Enhanced Monitoring Metrics Configuration
+# AIOps-Platform 增强监控指标配置
+# 版本: 2.0.0
+# 创建时间: 2025-01-10
+
+# ===========================================
+# 应用性能监控 (APM) 指标
+# ===========================================
+scrape_configs:
+  # 应用响应时间监控
+  - job_name: 'apm-response-time'
+    static_configs:
+      - targets: 
+        - 'ai-engine:8000'
+        - 'api-gateway:8080'
+        - 'self-healing:8001'
+    scrape_interval: 5s
+    metrics_path: '/metrics/apm'
+    scheme: http
+    metric_relabel_configs:
+      # 保留响应时间相关指标
+      - source_labels: [__name__]
+        regex: 'http_request_duration_seconds.*|http_requests_total.*|http_request_size_bytes.*'
+        action: keep
+      # 添加服务标签
+      - target_label: service_type
+        replacement: 'core_service'
+
+  # 数据库连接池监控
+  - job_name: 'database-pool-metrics'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 10s
+    metrics_path: '/metrics/pool'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'pg_stat_database.*|pg_stat_activity.*|pg_locks.*'
+        action: keep
+
+  # 缓存性能监控
+  - job_name: 'cache-performance'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 10s
+    metrics_path: '/metrics/cache'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'redis_connected_clients.*|redis_used_memory.*|redis_keyspace_hits.*|redis_keyspace_misses.*'
+        action: keep
+
+  # 消息队列监控
+  - job_name: 'message-queue-metrics'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'rabbitmq_queue_messages.*|rabbitmq_consumers.*|rabbitmq_channel.*'
+        action: keep
+
+  # AI模型性能监控
+  - job_name: 'ai-model-performance'
+    static_configs:
+      - targets: ['ai-engine:8000']
+    scrape_interval: 5s
+    metrics_path: '/metrics/model'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'model_inference_duration.*|model_accuracy.*|model_throughput.*|gpu_utilization.*'
+        action: keep
+      - target_label: model_type
+        replacement: 'production'
+
+  # 业务指标监控
+  - job_name: 'business-metrics'
+    static_configs:
+      - targets: 
+        - 'api-gateway:8080'
+        - 'ai-engine:8000'
+    scrape_interval: 30s
+    metrics_path: '/metrics/business'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'user_sessions.*|api_calls_per_minute.*|error_rate.*|conversion_rate.*'
+        action: keep
+
+  # 安全监控指标
+  - job_name: 'security-metrics'
+    static_configs:
+      - targets: 
+        - 'api-gateway:8080'
+        - 'traefik:8080'
+    scrape_interval: 15s
+    metrics_path: '/metrics/security'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'failed_login_attempts.*|suspicious_requests.*|rate_limit_exceeded.*|ssl_certificate_expiry.*'
+        action: keep
+
+  # 容器资源详细监控
+  - job_name: 'container-detailed-metrics'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    scheme: http
+    metric_relabel_configs:
+      # 保留详细的容器指标
+      - source_labels: [__name__]
+        regex: 'container_(cpu_usage_seconds_total|memory_working_set_bytes|network_receive_bytes_total|network_transmit_bytes_total|fs_reads_bytes_total|fs_writes_bytes_total|spec_cpu_quota|spec_memory_limit_bytes)'
+        action: keep
+      # 添加容器分类标签
+      - source_labels: [container_label_com_docker_compose_service]
+        target_label: service_name
+      - source_labels: [container_label_com_docker_compose_project]
+        target_label: project_name
+
+  # 网络性能监控
+  - job_name: 'network-performance'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'node_network_(receive|transmit)_(bytes|packets|errs|drop)_total'
+        action: keep
+
+  # 日志系统性能监控
+  - job_name: 'logging-performance'
+    static_configs:
+      - targets: 
+        - 'elasticsearch:9200'
+        - 'logstash:9600'
+        - 'opensearch-dashboard:5601'
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'elasticsearch_(indices|cluster|nodes)_.*|logstash_pipeline_.*'
+        action: keep
+
+  # SLA监控指标
+  - job_name: 'sla-metrics'
+    static_configs:
+      - targets: ['sla-exporter:9090']
+    scrape_interval: 60s
+    metrics_path: '/metrics'
+    scheme: http
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'sla_(availability|response_time|error_rate|throughput)_.*'
+        action: keep
+      - target_label: sla_tier
+        replacement: 'production'
+
+# ===========================================
+# 记录规则 - 预计算常用指标
+# ===========================================
+rule_files:
+  - "/etc/prometheus/rules/recording-rules.yml"
+  - "/etc/prometheus/rules/sla-rules.yml"
+  - "/etc/prometheus/rules/business-rules.yml"

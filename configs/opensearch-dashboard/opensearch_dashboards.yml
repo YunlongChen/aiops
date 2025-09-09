@@ -1,0 +1,63 @@
+# OpenSearch Dashboard Configuration
+# AIOps平台 - OpenSearch Dashboard配置文件
+# 版本: 1.0.0
+# 作者: AIOps Team
+
+# ===========================================
+# 服务器配置
+# ===========================================
+server.host: '0.0.0.0'
+server.port: 5601
+server.name: 'aiops-opensearch-dashboard'
+
+# ===========================================
+# OpenSearch连接配置
+# ===========================================
+opensearch.hosts: ['http://elasticsearch:9200']
+opensearch.username: ''
+opensearch.password: ''
+opensearch.ssl.verificationMode: none
+
+# ===========================================
+# 日志配置
+# ===========================================
+logging.dest: stdout
+logging.silent: false
+logging.quiet: false
+logging.verbose: false
+
+# ===========================================
+# 性能配置
+# ===========================================
+opensearch.requestTimeout: 30000
+opensearch.shardTimeout: 30000
+opensearch.pingTimeout: 3000
+
+# ===========================================
+# 界面配置
+# ===========================================
+server.maxPayloadBytes: 1048576
+server.compression.enabled: true
+
+# ===========================================
+# 监控配置
+# ===========================================
+ops.interval: 5000
+
+# ===========================================
+# 数据源配置
+# ===========================================
+data.search.aggs.shardDelay.enabled: true
+
+# ===========================================
+# 地图配置
+# ===========================================
+map.includeElasticMapsService: false
+
+# ===========================================
+# 自定义品牌配置
+# ===========================================
+server.customResponseHeaders:
+  "X-Frame-Options": "SAMEORIGIN"
+  "X-Content-Type-Options": "nosniff"
+  "X-XSS-Protection": "1; mode=block"

@@ -1,0 +1,234 @@
+# Recording Rules Configuration
+# AIOps-Platform 记录规则配置
+# 版本: 2.0.0
+# 创建时间: 2025-01-10
+# 用途: 预计算常用指标，提高查询性能
+
+groups:
+  # ===========================================
+  # 系统性能记录规则
+  # ===========================================
+  - name: system_performance.rules
+    interval: 30s
+    rules:
+      # CPU使用率 - 5分钟平均值
+      - record: instance:cpu_utilization:rate5m
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+        labels:
+          metric_type: "system"
+          component: "cpu"
+
+      # 内存使用率
+      - record: instance:memory_utilization:ratio
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+        labels:
+          metric_type: "system"
+          component: "memory"
+
+      # 磁盘使用率
+      - record: instance:disk_utilization:ratio
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100
+        labels:
+          metric_type: "system"
+          component: "disk"
+
+      # 网络I/O速率 - 接收
+      - record: instance:network_receive_bytes:rate5m
+        expr: rate(node_network_receive_bytes_total[5m])
+        labels:
+          metric_type: "system"
+          component: "network"
+          direction: "receive"
+
+      # 网络I/O速率 - 发送
+      - record: instance:network_transmit_bytes:rate5m
+        expr: rate(node_network_transmit_bytes_total[5m])
+        labels:
+          metric_type: "system"
+          component: "network"
+          direction: "transmit"
+
+  # ===========================================
+  # 应用性能记录规则
+  # ===========================================
+  - name: application_performance.rules
+    interval: 15s
+    rules:
+      # HTTP请求速率
+      - record: service:http_requests:rate5m
+        expr: rate(http_requests_total[5m])
+        labels:
+          metric_type: "application"
+          component: "http"
+
+      # HTTP请求延迟 - P95
+      - record: service:http_request_duration:p95
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          metric_type: "application"
+          component: "http"
+          quantile: "p95"
+
+      # HTTP请求延迟 - P99
+      - record: service:http_request_duration:p99
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          metric_type: "application"
+          component: "http"
+          quantile: "p99"
+
+      # HTTP错误率
+      - record: service:http_error_rate:rate5m
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) * 100
+        labels:
+          metric_type: "application"
+          component: "http"
+          error_type: "5xx"
+
+      # 应用可用性
+      - record: service:availability:ratio5m
+        expr: (rate(http_requests_total{status!~"5.."}[5m]) / rate(http_requests_total[5m])) * 100
+        labels:
+          metric_type: "application"
+          component: "availability"
+
+  # ===========================================
+  # 容器性能记录规则
+  # ===========================================
+  - name: container_performance.rules
+    interval: 30s
+    rules:
+      # 容器CPU使用率
+      - record: container:cpu_utilization:rate5m
+        expr: rate(container_cpu_usage_seconds_total{container!=""}[5m]) * 100
+        labels:
+          metric_type: "container"
+          component: "cpu"
+
+      # 容器内存使用率
+      - record: container:memory_utilization:ratio
+        expr: (container_memory_working_set_bytes{container!=""} / container_spec_memory_limit_bytes{container!=""}) * 100
+        labels:
+          metric_type: "container"
+          component: "memory"
+
+      # 容器网络I/O速率
+      - record: container:network_io:rate5m
+        expr: rate(container_network_receive_bytes_total{container!=""}[5m]) + rate(container_network_transmit_bytes_total{container!=""}[5m])
+        labels:
+          metric_type: "container"
+          component: "network"
+
+      # 容器磁盘I/O速率
+      - record: container:disk_io:rate5m
+        expr: rate(container_fs_reads_bytes_total{container!=""}[5m]) + rate(container_fs_writes_bytes_total{container!=""}[5m])
+        labels:
+          metric_type: "container"
+          component: "disk"
+
+  # ===========================================
+  # 数据库性能记录规则
+  # ===========================================
+  - name: database_performance.rules
+    interval: 30s
+    rules:
+      # PostgreSQL连接数
+      - record: postgres:connections:current
+        expr: pg_stat_database_numbackends
+        labels:
+          metric_type: "database"
+          component: "connections"
+          db_type: "postgresql"
+
+      # PostgreSQL查询速率
+      - record: postgres:queries:rate5m
+        expr: rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m])
+        labels:
+          metric_type: "database"
+          component: "queries"
+          db_type: "postgresql"
+
+      # Redis内存使用率
+      - record: redis:memory_utilization:ratio
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) * 100
+        labels:
+          metric_type: "database"
+          component: "memory"
+          db_type: "redis"
+
+      # Redis缓存命中率
+      - record: redis:cache_hit_rate:ratio5m
+        expr: (rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))) * 100
+        labels:
+          metric_type: "database"
+          component: "cache"
+          db_type: "redis"
+
+  # ===========================================
+  # AI引擎性能记录规则
+  # ===========================================
+  - name: ai_engine_performance.rules
+    interval: 15s
+    rules:
+      # AI模型推理延迟
+      - record: ai_engine:inference_duration:p95
+        expr: histogram_quantile(0.95, rate(model_inference_duration_seconds_bucket[5m]))
+        labels:
+          metric_type: "ai"
+          component: "inference"
+          quantile: "p95"
+
+      # AI模型吞吐量
+      - record: ai_engine:throughput:rate5m
+        expr: rate(model_inference_total[5m])
+        labels:
+          metric_type: "ai"
+          component: "throughput"
+
+      # GPU使用率
+      - record: ai_engine:gpu_utilization:avg
+        expr: avg(gpu_utilization_percent)
+        labels:
+          metric_type: "ai"
+          component: "gpu"
+
+      # 模型准确率
+      - record: ai_engine:model_accuracy:avg5m
+        expr: avg_over_time(model_accuracy_percent[5m])
+        labels:
+          metric_type: "ai"
+          component: "accuracy"
+
+  # ===========================================
+  # 业务指标记录规则
+  # ===========================================
+  - name: business_metrics.rules
+    interval: 60s
+    rules:
+      # 活跃用户数
+      - record: business:active_users:count5m
+        expr: increase(user_sessions_total[5m])
+        labels:
+          metric_type: "business"
+          component: "users"
+
+      # API调用量
+      - record: business:api_calls:rate5m
+        expr: rate(api_calls_total[5m])
+        labels:
+          metric_type: "business"
+          component: "api"
+
+      # 转换率
+      - record: business:conversion_rate:ratio5m
+        expr: (rate(successful_operations_total[5m]) / rate(total_operations_total[5m])) * 100
+        labels:
+          metric_type: "business"
+          component: "conversion"
+
+      # 收入指标
+      - record: business:revenue:rate5m
+        expr: rate(revenue_total[5m])
+        labels:
+          metric_type: "business"
+          component: "revenue"

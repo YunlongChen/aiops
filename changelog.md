@@ -2,6 +2,147 @@
 
 本文档记录了AIOps项目的所有重要变更和更新。
 
+## 2025-01-10
+
+### OpenSearch Dashboard修复和监控系统增强
+
+#### ✅ OpenSearch Dashboard配置修复 (OpenSearch Dashboard Configuration Fix)
+
+**🔧 配置问题诊断和修复**
+- **问题识别**: 诊断OpenSearch Dashboard服务持续重启问题
+- **配置清理**: 移除不支持的配置项 `server.publicBaseUrl`
+- **兼容性修复**: 移除所有不兼容的配置项:
+  - `opensearch_security.multitenancy.enabled`
+  - `opensearch_security.readonly_mode.roles` 
+  - `opensearch_security.cookie.secure`
+  - `newsfeed.enabled`, `telemetry.enabled`, `telemetry.optIn`
+  - `opensearch_dashboards.disabledPlugins`
+  - `vis_type_vega.enableExternalUrls`
+  - `env: 'production'`
+- **服务状态**: OpenSearch Dashboard现已正常运行，状态为healthy
+
+**📊 监控系统增强 (Monitoring System Enhancement)**
+- **增强指标配置**: 创建 `configs/prometheus/enhanced-metrics.yml`
+  - 应用性能监控 (APM)
+  - 数据库连接池监控
+  - 缓存性能监控
+  - 消息队列监控
+  - AI模型性能监控
+  - 业务指标监控
+  - 安全监控指标
+  - 容器资源详细监控
+  - 网络性能监控
+  - 日志系统性能监控
+  - SLA监控指标
+
+**📋 记录规则配置 (Recording Rules Configuration)**
+- **性能优化**: 创建预计算规则提高查询性能
+  - `configs/prometheus/rules/recording-rules.yml` - 系统和应用性能记录规则
+  - `configs/prometheus/rules/sla-rules.yml` - SLA监控规则
+  - `configs/prometheus/rules/business-rules.yml` - 业务指标规则
+  - `configs/prometheus/rules/enhanced-alerts.yml` - 增强告警规则
+
+**🔄 配置文件更新**
+- **Prometheus配置**: 更新 `prometheus.yml` 集成新的规则文件
+- **依赖关系修复**: 修复docker-compose.yml中api-gateway对kibana的依赖
+- **服务地址更新**: 将监控目标从kibana更新为opensearch-dashboard
+
+## 2025-01-10 (Earlier)
+
+### 脚本系统优化和项目规划完善
+
+#### ✅ 脚本验证和重组 (Script Verification and Reorganization)
+
+**🔧 脚本功能验证**
+- **cleanup脚本验证**: 成功验证cleanup.ps1脚本功能，预览模式下识别19个清理操作
+- **monitor脚本验证**: 成功验证monitor.ps1脚本功能，检测到系统监控问题
+- **脚本路径适配**: 验证脚本在新目录结构下正常工作
+
+**📁 目录结构重组**
+- **平台分离**: 按操作系统平台重新组织脚本目录结构
+  - 创建 `scripts/windows/` 存放PowerShell脚本(.ps1)
+  - 创建 `scripts/linux/` 存放Shell脚本(.sh)
+  - 创建 `scripts/common/` 存放跨平台工具
+- **脚本迁移**: 成功迁移所有脚本到对应平台目录
+  - Windows: check-environment.ps1, cleanup.ps1, deploy.ps1, generate-config.ps1, monitor.ps1
+  - Linux: check-environment.sh, cleanup.sh, deploy.sh, generate-config.sh, monitor.sh
+
+**🚀 跨平台启动器开发**
+- **新增工具**: 创建 `scripts/common/run-script.ps1` 跨平台脚本启动器
+- **自动检测**: 实现操作系统自动检测和对应脚本调用
+- **参数传递**: 支持完整的参数传递和错误处理
+- **修复优化**: 修复PowerShell参数识别问题，改用Invoke-Expression执行
+
+#### 📋 项目规划文档完善 (Project Planning Documentation)
+
+**🗺️ 项目路线图**
+- **新增文档**: 创建 `docs/roadmap.md` - 完整的AIOps项目发展路线图
+- **版本规划**: 详细规划从v0.2.0到v1.0.0的发展路径
+- **技术架构**: 定义核心技术栈和架构演进计划
+- **里程碑**: 设定9个关键里程碑和时间节点
+
+**📝 功能需求文档**
+- **新增文档**: 创建 `docs/requirements.md` - 详细的功能需求规范
+- **模块定义**: 明确定义监控、告警、分析、自动化等核心模块
+- **非功能需求**: 详细描述性能、安全、可用性等要求
+- **验收标准**: 制定明确的功能验收和测试标准
+
+**📊 详细任务列表**
+- **新增文档**: 创建 `docs/task-list.md` - 127个详细开发任务
+- **任务分解**: 按版本和功能模块详细分解开发任务
+- **优先级管理**: 采用P0-P3优先级体系管理任务
+- **资源规划**: 详细的人员分工和预算估算(300万元)
+- **服务集成**: 完整的第三方服务集成计划
+- **风险管控**: 识别技术和项目风险及应对措施
+
+#### 🔍 系统监控发现 (System Monitoring Findings)
+
+**⚠️ 系统问题检测**
+- **磁盘空间**: 检测到E盘使用率达93%，超过90%阈值
+- **服务状态**: 发现self-healing服务8002端口关闭
+- **健康检查**: 多个服务HTTP健康检查超时
+- **网络连接**: 部分服务端口连接检查失败
+
+**📈 监控覆盖验证**
+- **Docker服务**: 验证Docker Compose服务监控
+- **系统资源**: 验证CPU、内存、磁盘监控
+- **网络服务**: 验证端口和服务可用性监控
+- **日志收集**: 验证日志文件和目录监控
+
+#### 🛠️ 技术改进 (Technical Improvements)
+
+**💻 脚本执行优化**
+- **错误处理**: 改进跨平台启动器的错误处理机制
+- **参数解析**: 修复PowerShell参数传递和识别问题
+- **平台适配**: 实现Windows和Linux平台的统一调用接口
+- **执行验证**: 通过完整的功能测试验证
+
+**📁 项目结构优化**
+- **目录规范**: 建立清晰的平台分离目录结构
+- **文档组织**: 完善docs目录的文档组织结构
+- **脚本管理**: 实现统一的脚本管理和调用机制
+
+### 下一阶段计划 (Next Phase Planning)
+
+根据新创建的任务列表，下一阶段将重点关注：
+
+1. **v0.2.0 监控与告警系统** (2025-01-31前完成)
+   - Prometheus监控系统集成 (T001)
+   - Grafana可视化界面配置 (T002)
+   - AlertManager告警管理部署 (T003)
+
+2. **基础设施优化**
+   - 解决当前系统磁盘空间问题
+   - 修复self-healing服务端口问题
+   - 优化服务健康检查机制
+
+3. **开发团队组建**
+   - 按照资源规划组建8人开发团队
+   - 分配后端开发、前端开发、算法工程师等角色
+   - 启动第一个里程碑M1的开发工作
+
+---
+
 ## 2025-01-09
 
 ### ELK日志系统恢复 (ELK Stack Recovery)
