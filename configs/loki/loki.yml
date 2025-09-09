@@ -1,0 +1,397 @@
+# Loki日志聚合服务配置文件
+# AIOps平台日志收集和查询配置
+# 作者: AI Assistant
+# 创建时间: 2024
+
+# ===========================================
+# 服务器配置
+# ===========================================
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+  log_format: logfmt
+  
+  # HTTP服务器配置
+  http_server_read_timeout: 30s
+  http_server_write_timeout: 30s
+  http_server_idle_timeout: 120s
+  
+  # gRPC服务器配置
+  grpc_server_max_recv_msg_size: 104857600  # 100MB
+  grpc_server_max_send_msg_size: 104857600  # 100MB
+  grpc_server_max_concurrent_streams: 1000
+
+# ===========================================
+# 认证配置
+# ===========================================
+auth_enabled: false
+
+# ===========================================
+# 通用配置
+# ===========================================
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+# ===========================================
+# 查询范围配置
+# ===========================================
+query_range:
+  # 结果缓存配置
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+        ttl: 24h
+  
+  # 查询并行度
+  parallelise_shardable_queries: true
+  max_retries: 5
+  
+  # 查询超时
+  query_timeout: 300s
+  
+  # 缓存查询结果
+  cache_results: true
+  
+  # 分片查询
+  split_queries_by_interval: 15m
+
+# ===========================================
+# 模式配置
+# ===========================================
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+# ===========================================
+# 存储配置
+# ===========================================
+storage_config:
+  boltdb_shipper:
+    active_index_directory: /loki/boltdb-shipper-active
+    cache_location: /loki/boltdb-shipper-cache
+    cache_ttl: 24h
+    shared_store: filesystem
+    
+  filesystem:
+    directory: /loki/chunks
+
+# ===========================================
+# 压缩器配置
+# ===========================================
+compactor:
+  working_directory: /loki/boltdb-shipper-compactor
+  shared_store: filesystem
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 150
+
+# ===========================================
+# 限制配置
+# ===========================================
+limits_config:
+  # 摄取限制
+  ingestion_rate_mb: 4
+  ingestion_burst_size_mb: 6
+  max_label_name_length: 1024
+  max_label_value_length: 4096
+  max_label_names_per_series: 30
+  
+  # 查询限制
+  max_query_length: 721h  # 30天
+  max_query_parallelism: 32
+  max_streams_per_user: 10000
+  max_line_size: 256000
+  max_line_size_truncate: false
+  
+  # 每个查询的限制
+  max_entries_limit_per_query: 5000
+  max_global_streams_per_user: 5000
+  max_chunks_per_query: 2000000
+  max_query_series: 500
+  
+  # 拒绝旧样本
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h  # 7天
+  
+  # 创建时间戳
+  creation_grace_period: 10m
+  
+  # 强制执行指标名称
+  enforce_metric_name: false
+  
+  # 分片流
+  max_concurrent_tail_requests: 10
+  
+  # 保留期
+  retention_period: 744h  # 31天
+  
+  # 分割查询
+  split_queries_by_interval: 15m
+  
+  # 查询超时
+  query_timeout: 300s
+  
+  # 每个租户的流限制
+  per_stream_rate_limit: 3MB
+  per_stream_rate_limit_burst: 15MB
+  
+  # 卡片限制
+  cardinality_limit: 100000
+  max_streams_matchers_per_query: 1000
+  max_concurrent_tail_requests: 10
+  
+  # 索引查询缓存
+  tsdb_max_query_parallelism: 512
+  
+  # 块缓存
+  chunk_store_config:
+    max_look_back_period: 0s
+  
+  # 索引查询
+  max_query_lookback: 0s
+  
+  # 最小分片大小
+  min_sharding_lookback: 0s
+  
+  # 查询就绪性
+  query_ready_index_num_days: 0
+
+# ===========================================
+# 块存储配置
+# ===========================================
+chunk_store_config:
+  max_look_back_period: 0s
+  chunk_cache_config:
+    embedded_cache:
+      enabled: true
+      max_size_mb: 100
+      ttl: 24h
+  
+  # 写入去重
+  write_dedupe_cache_config:
+    embedded_cache:
+      enabled: true
+      max_size_mb: 100
+      ttl: 24h
+
+# ===========================================
+# 表管理器配置
+# ===========================================
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 744h  # 31天
+  creation_grace_period: 3h
+  poll_interval: 2m
+  
+  # 索引表配置
+  index_tables_provisioning:
+    enable_ondemand_throughput_mode: false
+    enable_inactive_throughput_on_demand_mode: false
+    provisioned_write_throughput: 1
+    provisioned_read_throughput: 300
+    inactive_write_throughput: 1
+    inactive_read_throughput: 300
+  
+  # 块表配置
+  chunk_tables_provisioning:
+    enable_ondemand_throughput_mode: false
+    enable_inactive_throughput_on_demand_mode: false
+    provisioned_write_throughput: 1
+    provisioned_read_throughput: 300
+    inactive_write_throughput: 1
+    inactive_read_throughput: 300
+
+# ===========================================
+# 规则配置
+# ===========================================
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+  rule_path: /loki/rules-temp
+  alertmanager_url: http://alertmanager:9093
+  ring:
+    kvstore:
+      store: inmemory
+  enable_api: true
+  enable_alertmanager_v2: true
+  
+  # 外部标签
+  external_labels:
+    cluster: aiops-platform
+    replica: loki-1
+  
+  # 评估间隔
+  evaluation_interval: 15s
+  
+  # 查询前端
+  query_frontend:
+    compress_responses: true
+  
+  # 远程写入
+  remote_write:
+    enabled: false
+    # clients:
+    #   - url: http://prometheus:9090/api/v1/write
+    #     queue_config:
+    #       capacity: 2500
+    #       max_shards: 200
+    #       min_shards: 1
+    #       max_samples_per_send: 500
+    #       batch_send_deadline: 5s
+    #       min_backoff: 30ms
+    #       max_backoff: 100ms
+
+# ===========================================
+# 分析配置
+# ===========================================
+analytics:
+  reporting_enabled: false
+
+# ===========================================
+# 运行时配置
+# ===========================================
+runtime_config:
+  file: /etc/loki/runtime.yaml
+
+# ===========================================
+# 成员列表配置
+# ===========================================
+memberlist:
+  abort_if_cluster_join_fails: false
+  bind_port: 7946
+  join_members:
+    - loki:7946
+  max_join_backoff: 1m
+  max_join_retries: 10
+  min_join_backoff: 1s
+  node_name: loki-1
+  rejoin_interval: 0s
+  retransmit_factor: 4
+  stream_timeout: 10s
+  leave_timeout: 5s
+  gossip_interval: 200ms
+  gossip_nodes: 3
+  gossip_to_dead_nodes_time: 30s
+  dead_node_reclaim_time: 0s
+  compression_enabled: true
+  advertise_addr: ""
+  advertise_port: 7946
+
+# ===========================================
+# 前端配置
+# ===========================================
+frontend:
+  log_queries_longer_than: 5s
+  compress_responses: true
+  max_outstanding_per_tenant: 256
+  
+  # 查询调度器
+  scheduler_address: ""
+  
+  # 下游URL
+  downstream_url: ""
+
+# ===========================================
+# 查询调度器配置
+# ===========================================
+query_scheduler:
+  max_outstanding_requests_per_tenant: 256
+  grpc_client_config:
+    max_recv_msg_size: 104857600  # 100MB
+    max_send_msg_size: 104857600  # 100MB
+
+# ===========================================
+# 查询器配置
+# ===========================================
+querier:
+  query_ingesters_within: 3h
+  query_timeout: 300s
+  tail_max_duration: 1h
+  extra_query_delay: 0s
+  max_concurrent: 20
+  
+  # 引擎配置
+  engine:
+    timeout: 300s
+    max_look_back_period: 30s
+
+# ===========================================
+# 摄取器配置
+# ===========================================
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  
+  # 块配置
+  chunk_idle_period: 30m
+  chunk_retain_period: 1m
+  max_transfer_retries: 0
+  
+  # WAL配置
+  wal:
+    enabled: true
+    dir: /loki/wal
+    checkpoint_duration: 5m
+    flush_on_shutdown: true
+    replay_memory_ceiling: 1GB
+  
+  # 流配置
+  max_chunk_age: 1h
+  chunk_target_size: 1048576  # 1MB
+  chunk_encoding: snappy
+  
+  # 自动缩放
+  autoforget_unhealthy: true
+
+# ===========================================
+# 分发器配置
+# ===========================================
+distributor:
+  ring:
+    kvstore:
+      store: inmemory
+
+# ===========================================
+# 索引网关配置
+# ===========================================
+index_gateway:
+  mode: simple
+
+# ===========================================
+# 追踪配置
+# ===========================================
+tracing:
+  enabled: false
+  # jaeger:
+  #   agent:
+  #     host: jaeger
+  #     port: 6831
+  #   sampler:
+  #     type: const
+  #     param: 1

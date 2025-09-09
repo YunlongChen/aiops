@@ -1,0 +1,471 @@
+# AIOps-Platform Docker Compose Configuration
+# 智能运维平台容器编排配置文件
+# 版本: 1.0.0
+# 作者: AIOps Team
+
+# 网络定义 - 三层网络架构
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
+  ai-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.32.0.0/24
+
+services:
+  # ===========================================
+  # 边缘路由层 - Traefik
+  # ===========================================
+  traefik:
+    image: traefik:v3.0
+    container_name: aiops-traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.email=admin@aiops-platform.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/certificates/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --log.level=INFO
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8090:8080"  # Traefik Dashboard
+    volumes:
+      - traefik-certs:/certificates
+      - ./configs/traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+    networks:
+      - frontend
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================
+  # 监控堆栈 - Prometheus
+  # ===========================================
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: aiops-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    networks:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - traefik
+
+  # ===========================================
+  # 监控堆栈 - Grafana
+  # ===========================================
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: aiops-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.localhost
+      - GF_SECURITY_SECRET_KEY=aiops-grafana-secret-key
+      - GF_DATABASE_TYPE=sqlite3
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./configs/grafana:/etc/grafana/provisioning:ro
+      - ./monitoring/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - frontend
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - prometheus
+
+  # ===========================================
+  # 监控堆栈 - Alertmanager
+  # ===========================================
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: aiops-alertmanager
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://alertmanager.localhost'
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./configs/alertmanager:/etc/alertmanager:ro
+    networks:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager.localhost`)"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - prometheus
+
+  # ===========================================
+  # 日志处理栈 - Elasticsearch
+  # ===========================================
+  # elasticsearch:
+  #   image: opensearchproject/opensearch:2.11.0
+  #   container_name: aiops-elasticsearch
+  #   restart: unless-stopped
+  #   environment:
+  #     - discovery.type=single-node
+  #     - plugins.security.disabled=true
+  #     - "OPENSEARCH_JAVA_OPTS=-Xms256m -Xmx256m"
+  #     - "DISABLE_INSTALL_DEMO_CONFIG=true"
+  #   ports:
+  #     - "9200:9200"
+  #     - "9600:9600"
+  #   volumes:
+  #     - elasticsearch-data:/usr/share/opensearch/data
+  #   networks:
+  #     - backend
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.elasticsearch.rule=Host(`elasticsearch.localhost`)"
+  #     - "traefik.http.services.elasticsearch.loadbalancer.server.port=9200"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 60s
+
+  # ===========================================
+  # 日志处理栈 - Logstash (暂时禁用)
+  # ===========================================
+  # logstash:
+  #   image: docker.elastic.co/logstash/logstash:8.8.0
+  #   container_name: aiops-logstash
+  #   restart: unless-stopped
+  #   environment:
+  #     - LS_JAVA_OPTS=-Xms512m -Xmx512m
+  #   ports:
+  #     - "5044:5044"
+  #     - "5000:5000/tcp"
+  #     - "5000:5000/udp"
+  #     - "9600:9600"
+  #   volumes:
+  #     - ./configs/logstash/pipeline:/usr/share/logstash/pipeline:ro
+  #     # - ./configs/logstash:/usr/share/logstash/config:ro
+  #   networks:
+  #     - backend
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   depends_on:
+  #     - elasticsearch
+
+  # ===========================================
+  # 日志处理栈 - Kibana (暂时禁用)
+  # ===========================================
+  # kibana:
+  #   image: docker.elastic.co/kibana/kibana:8.8.0
+  #   container_name: aiops-kibana
+  #   restart: unless-stopped
+  #   environment:
+  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  #     - SERVER_NAME=kibana.localhost
+  #     - SERVER_PUBLICBASEURL=https://kibana.localhost
+  #   ports:
+  #     - "5601:5601"
+  #   # volumes:
+  #   #   - ./configs/kibana:/usr/share/kibana/config:ro
+  #   networks:
+  #     - frontend
+  #     - backend
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.kibana.rule=Host(`kibana.localhost`)"
+  #     - "traefik.http.services.kibana.loadbalancer.server.port=5601"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #   depends_on:
+  #     - elasticsearch
+
+  # ===========================================
+  # AI引擎模块
+  # ===========================================
+  ai-engine:
+    build:
+      context: ./ai-engine
+      dockerfile: Dockerfile
+    container_name: aiops-ai-engine
+    restart: unless-stopped
+    environment:
+      - PYTHONPATH=/app
+      - MODEL_PATH=/app/models
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - PROMETHEUS_URL=http://prometheus:9090
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    ports:
+      - "8000:8000"
+    volumes:
+      - ai-models:/app/models
+      - ./ai-engine:/app:ro
+      - ai-logs:/app/logs
+    networks:
+      - ai-network
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ai-engine.rule=Host(`ai.localhost`)"
+      - "traefik.http.services.ai-engine.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - prometheus
+      - elasticsearch
+
+  # ===========================================
+  # 自愈执行器
+  # ===========================================
+  self-healing:
+    build:
+      context: ./self-healing/api
+      dockerfile: Dockerfile
+    container_name: aiops-self-healing
+    restart: unless-stopped
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8001
+      - AI_ENGINE_URL=http://ai-engine:8000
+      - ANSIBLE_HOST_KEY_CHECKING=False
+    ports:
+      - "8001:8001"
+    volumes:
+      - ansible-playbooks:/app/playbooks
+      - ./self-healing:/app:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - ai-network
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.self-healing.rule=Host(`healing.localhost`)"
+      - "traefik.http.services.self-healing.loadbalancer.server.port=8001"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - ai-engine
+
+  # ===========================================
+  # API网关
+  # ===========================================
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: aiops-api-gateway
+    restart: unless-stopped
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8080
+      - AI_ENGINE_URL=http://ai-engine:8000
+      - SELF_HEALING_URL=http://self-healing:8001
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GRAFANA_URL=http://grafana:3000
+      - KIBANA_URL=http://kibana:5601
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api-gateway:/app:ro
+    networks:
+      - frontend
+      - backend
+      - ai-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-gateway.rule=Host(`api.localhost`)"
+      - "traefik.http.services.api-gateway.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - ai-engine
+      - self-healing
+      - prometheus
+      - grafana
+      - kibana
+
+  # ===========================================
+  # Node Exporter - 系统指标收集
+  # ===========================================
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: aiops-node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================
+  # cAdvisor - 容器指标收集
+  # ===========================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: aiops-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    privileged: true
+    devices:
+      - /dev/kmsg
+
+  # ===========================================
+  # Redis - 缓存和消息队列
+  # ===========================================
+  redis:
+    image: redis:7.0-alpine
+    container_name: aiops-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass aiops-redis-password
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./configs/redis:/usr/local/etc/redis:ro
+    networks:
+      - backend
+      - ai-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================
+  # PostgreSQL - 元数据存储
+  # ===========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: aiops-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=aiops
+      - POSTGRES_USER=aiops
+      - POSTGRES_PASSWORD=aiops-db-password
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./configs/postgres:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+      - ai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiops -d aiops"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# 添加PostgreSQL数据卷
+volumes:
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:
+  ai-models:
+  ai-logs:
+  ansible-playbooks:
+  traefik-certs:
+  postgres-data:

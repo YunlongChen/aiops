@@ -1,0 +1,606 @@
+{{/*
+AIOps-Platform Kubernetes配置映射模板
+文件: configmap.yaml
+描述: 定义所有核心服务的Kubernetes ConfigMap资源
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.traefik.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik-config
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+data:
+  traefik.yml: |
+    global:
+      checkNewVersion: false
+      sendAnonymousUsage: false
+    
+    api:
+      dashboard: true
+      insecure: true
+    
+    entryPoints:
+      web:
+        address: ":80"
+        http:
+          redirections:
+            entrypoint:
+              to: websecure
+              scheme: https
+      websecure:
+        address: ":443"
+    
+    providers:
+      kubernetescrd:
+        endpoints:
+          - "https://kubernetes.default.svc:443"
+        token: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        certAuthFilePath: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+      kubernetesingress:
+        endpoints:
+          - "https://kubernetes.default.svc:443"
+        token: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        certAuthFilePath: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    
+    certificatesResolvers:
+      letsencrypt:
+        acme:
+          email: admin@aiops-platform.com
+          storage: /data/acme.json
+          httpChallenge:
+            entryPoint: web
+    
+    metrics:
+      prometheus:
+        addEntryPointsLabels: true
+        addServicesLabels: true
+    
+    log:
+      level: INFO
+    
+    accessLog: {}
+{{- end }}
+
+{{- if .Values.prometheus.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus-config
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: {{ .Values.prometheus.server.config.global.scrape_interval | default "15s" }}
+      evaluation_interval: {{ .Values.prometheus.server.config.global.evaluation_interval | default "15s" }}
+      external_labels:
+        cluster: {{ .Values.global.clusterDomain | default "cluster.local" }}
+        replica: $(POD_NAME)
+    
+    rule_files:
+      {{- range .Values.prometheus.server.config.rule_files }}
+      - {{ . | quote }}
+      {{- end }}
+    
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+              - {{ include "aiops.fullname" . }}-alertmanager:9093
+    
+    scrape_configs:
+      # Prometheus自身监控
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+      
+      # Kubernetes API服务器
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+      
+      # Kubernetes节点
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
+      
+      # Kubernetes Pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+      
+      # AIOps平台服务
+      - job_name: 'aiops-services'
+        kubernetes_sd_configs:
+          - role: service
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: kubernetes_name
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus-rules
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+data:
+  alerts.yml: |
+    groups:
+      - name: aiops.rules
+        rules:
+          # 系统资源告警
+          - alert: HighCPUUsage
+            expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 5m
+            labels:
+              severity: warning
+              category: system
+            annotations:
+              summary: "High CPU usage detected"
+              description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+          
+          - alert: HighMemoryUsage
+            expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+              category: system
+            annotations:
+              summary: "High memory usage detected"
+              description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+          
+          - alert: DiskSpaceLow
+            expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90
+            for: 5m
+            labels:
+              severity: critical
+              category: system
+            annotations:
+              summary: "Disk space is running low"
+              description: "Disk usage is above 90% on {{ $labels.instance }} mount {{ $labels.mountpoint }}"
+          
+          # 服务可用性告警
+          - alert: ServiceDown
+            expr: up == 0
+            for: 1m
+            labels:
+              severity: critical
+              category: service
+            annotations:
+              summary: "Service is down"
+              description: "{{ $labels.job }} service is down on {{ $labels.instance }}"
+          
+          - alert: HighErrorRate
+            expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.1
+            for: 5m
+            labels:
+              severity: warning
+              category: application
+            annotations:
+              summary: "High error rate detected"
+              description: "Error rate is above 10% for {{ $labels.job }} service"
+{{- end }}
+
+{{- if .Values.grafana.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana-datasources
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    deleteDatasources:
+      - name: Prometheus
+        orgId: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        orgId: 1
+        url: http://{{ include "aiops.fullname" . }}-prometheus:9090
+        isDefault: true
+        editable: true
+        jsonData:
+          timeInterval: "5s"
+          queryTimeout: "60s"
+          httpMethod: "POST"
+      
+      - name: Elasticsearch
+        type: elasticsearch
+        access: proxy
+        orgId: 1
+        url: http://{{ include "aiops.fullname" . }}-elasticsearch:9200
+        database: "aiops-logs-*"
+        jsonData:
+          timeField: "@timestamp"
+          esVersion: "8.0.0"
+          includeFrozen: false
+          logMessageField: "message"
+          logLevelField: "level"
+        editable: true
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana-dashboards-config
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        updateIntervalSeconds: 10
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana-dashboards
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+data:
+  aiops-overview.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "AIOps Platform Overview",
+        "tags": ["aiops", "overview"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "System CPU Usage",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+                "legendFormat": "CPU Usage %"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "Memory Usage",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+                "legendFormat": "Memory Usage %"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "unit": "percent",
+                "min": 0,
+                "max": 100
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "5s"
+      }
+    }
+{{- end }}
+
+{{- if .Values.alertmanager.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-alertmanager-config
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+data:
+  alertmanager.yml: |
+    global:
+      smtp_smarthost: {{ .Values.alertmanager.config.global.smtp_smarthost | default "localhost:587" }}
+      smtp_from: {{ .Values.alertmanager.config.global.smtp_from | default "alerts@aiops-platform.com" }}
+      smtp_auth_username: ''
+      smtp_auth_password: ''
+      smtp_require_tls: false
+    
+    templates:
+      - '/etc/alertmanager/templates/*.tmpl'
+    
+    route:
+      group_by: {{ .Values.alertmanager.config.route.group_by | default "['alertname']" }}
+      group_wait: {{ .Values.alertmanager.config.route.group_wait | default "10s" }}
+      group_interval: {{ .Values.alertmanager.config.route.group_interval | default "10s" }}
+      repeat_interval: {{ .Values.alertmanager.config.route.repeat_interval | default "1h" }}
+      receiver: {{ .Values.alertmanager.config.route.receiver | default "web.hook" }}
+      routes:
+        - match:
+            severity: critical
+          receiver: critical-alerts
+          group_wait: 5s
+          repeat_interval: 30m
+        - match:
+            severity: warning
+          receiver: warning-alerts
+          group_wait: 10s
+          repeat_interval: 1h
+    
+    inhibit_rules:
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'instance']
+    
+    receivers:
+      - name: 'web.hook'
+        webhook_configs:
+          - url: 'http://{{ include "aiops.fullname" . }}-api-gateway:8080/api/v1/alerts/webhook'
+            send_resolved: true
+            http_config:
+              basic_auth:
+                username: 'alertmanager'
+                password: 'webhook123'
+      
+      - name: 'critical-alerts'
+        webhook_configs:
+          - url: 'http://{{ include "aiops.fullname" . }}-api-gateway:8080/api/v1/alerts/critical'
+            send_resolved: true
+        email_configs:
+          - to: 'admin@aiops-platform.com'
+            subject: '[CRITICAL] AIOps Alert: {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+              {{ end }}
+      
+      - name: 'warning-alerts'
+        webhook_configs:
+          - url: 'http://{{ include "aiops.fullname" . }}-api-gateway:8080/api/v1/alerts/warning'
+            send_resolved: true
+{{- end }}
+
+{{- if .Values.logstash.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aiops.fullname" . }}-logstash-config
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logstash
+data:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    path.config: /usr/share/logstash/pipeline
+    path.data: /usr/share/logstash/data
+    pipeline.workers: 2
+    pipeline.batch.size: 125
+    pipeline.batch.delay: 50
+    queue.type: memory
+    queue.max_events: 0
+    queue.max_bytes: 1gb
+    dead_letter_queue.enable: true
+    dead_letter_queue.max_bytes: 1gb
+    log.level: info
+    monitoring.enabled: true
+  
+  logstash.conf: |
+    input {
+      beats {
+        port => 5044
+      }
+      
+      http {
+        port => 8080
+        codec => json
+      }
+    }
+    
+    filter {
+      # 添加通用字段
+      mutate {
+        add_field => { "[@metadata][cluster]" => "{{ .Values.global.clusterDomain }}" }
+        add_field => { "[@metadata][namespace]" => "{{ .Release.Namespace }}" }
+      }
+      
+      # 处理Kubernetes日志
+      if [kubernetes] {
+        mutate {
+          add_field => { "log_type" => "kubernetes" }
+        }
+        
+        # 解析容器日志
+        if [kubernetes][container][name] {
+          mutate {
+            add_field => { "service_name" => "%{[kubernetes][container][name]}" }
+          }
+        }
+      }
+      
+      # 处理应用程序日志
+      if [fields][log_type] == "application" {
+        grok {
+          match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:log_level}\] %{DATA:logger_name} - %{GREEDYDATA:log_message}" }
+        }
+        
+        date {
+          match => [ "timestamp", "ISO8601" ]
+        }
+        
+        mutate {
+          remove_field => [ "timestamp" ]
+        }
+      }
+      
+      # 处理访问日志
+      if [fields][log_type] == "access" {
+        grok {
+          match => { "message" => "%{COMBINEDAPACHELOG}" }
+        }
+        
+        mutate {
+          convert => { "response" => "integer" }
+          convert => { "bytes" => "integer" }
+        }
+      }
+      
+      # 异常检测标记
+      if [log_level] == "ERROR" or [response] >= 500 {
+        mutate {
+          add_field => { "anomaly_candidate" => "true" }
+        }
+      }
+      
+      # 清理和标准化
+      mutate {
+        remove_field => [ "agent", "ecs", "host", "input" ]
+      }
+    }
+    
+    output {
+      # 发送到Elasticsearch
+      elasticsearch {
+        hosts => ["{{ include "aiops.fullname" . }}-elasticsearch:9200"]
+        index => "aiops-logs-%{+YYYY.MM.dd}"
+        template_name => "aiops-logs"
+        template_pattern => "aiops-logs-*"
+        template => {
+          "index_patterns" => ["aiops-logs-*"],
+          "settings" => {
+            "number_of_shards" => 1,
+            "number_of_replicas" => 1,
+            "index.refresh_interval" => "5s"
+          },
+          "mappings" => {
+            "properties" => {
+              "@timestamp" => { "type" => "date" },
+              "log_level" => { "type" => "keyword" },
+              "service_name" => { "type" => "keyword" },
+              "message" => { "type" => "text" },
+              "anomaly_candidate" => { "type" => "boolean" }
+            }
+          }
+        }
+      }
+      
+      # 异常日志发送到Redis队列
+      if [anomaly_candidate] == "true" {
+        redis {
+          host => "{{ include "aiops.fullname" . }}-redis"
+          port => 6379
+          data_type => "list"
+          key => "aiops:anomaly_logs"
+        }
+      }
+      
+      # 调试输出
+      if [log_level] == "DEBUG" {
+        stdout {
+          codec => rubydebug
+        }
+      }
+    }
+{{- end }}

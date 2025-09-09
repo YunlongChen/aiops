@@ -1,0 +1,163 @@
+# Self-Healing Executor Configuration
+# 自愈执行器配置文件
+
+# 执行器配置
+executor:
+  # 最大并发任务数
+  max_concurrent_tasks: 10
+  # 默认超时时间(秒)
+  default_timeout: 300
+  # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: INFO
+  # 日志文件路径
+  log_file: /var/log/self-healing/executor.log
+  # 是否启用详细日志
+  verbose_logging: true
+  # 执行历史保留天数
+  history_retention_days: 30
+
+# Ansible配置
+ansible:
+  # Playbook目录
+  playbook_dir: playbooks
+  # 主机清单文件
+  inventory: inventory/hosts.yml
+  # Vault密码文件
+  vault_password_file: .vault_pass
+  # 默认用户
+  remote_user: ansible
+  # SSH私钥文件
+  private_key_file: ~/.ssh/ansible_rsa
+  # 主机密钥检查
+  host_key_checking: false
+  # 并发执行数
+  forks: 5
+  # 连接超时时间
+  timeout: 30
+  # 重试次数
+  retry_files_enabled: false
+
+# Alertmanager配置
+alertmanager:
+  # Webhook监听地址
+  listen_host: 0.0.0.0
+  # Webhook监听端口
+  listen_port: 8080
+  # Alertmanager API地址
+  api_url: http://localhost:9093/api/v1
+  # 认证配置
+  auth:
+    enabled: false
+    username: admin
+    password: admin123
+  # SSL配置
+  ssl:
+    enabled: false
+    cert_file: certs/server.crt
+    key_file: certs/server.key
+
+# Elasticsearch配置
+elasticsearch:
+  # 主机地址
+  host: localhost
+  # 端口
+  port: 9200
+  # 索引名称
+  index: self-healing-logs
+  # 认证配置
+  auth:
+    enabled: false
+    username: elastic
+    password: changeme
+  # SSL配置
+  ssl:
+    enabled: false
+    verify_certs: false
+    ca_certs: certs/ca.crt
+  # 批量写入配置
+  bulk:
+    size: 100
+    timeout: 30
+
+# Prometheus监控配置
+prometheus:
+  # 是否启用指标收集
+  enabled: true
+  # 指标端口
+  metrics_port: 8081
+  # 指标路径
+  metrics_path: /metrics
+  # 自定义标签
+  labels:
+    service: self-healing-executor
+    environment: production
+
+# 通知配置
+notifications:
+  # 是否启用通知
+  enabled: true
+  # 通知渠道
+  channels:
+    # 邮件通知
+    email:
+      enabled: false
+      smtp_server: smtp.example.com
+      smtp_port: 587
+      username: alerts@example.com
+      password: password123
+      from_address: alerts@example.com
+      to_addresses:
+        - admin@example.com
+        - ops@example.com
+    
+    # Slack通知
+    slack:
+      enabled: false
+      webhook_url: https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+      channel: "#alerts"
+      username: "Self-Healing Bot"
+    
+    # 钉钉通知
+    dingtalk:
+      enabled: false
+      webhook_url: https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN
+      secret: YOUR_SECRET
+    
+    # 企业微信通知
+    wechat:
+      enabled: false
+      webhook_url: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY
+
+# 安全配置
+security:
+  # API密钥
+  api_key: your-secret-api-key
+  # 允许的IP地址列表
+  allowed_ips:
+    - 127.0.0.1
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+  # 速率限制
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst_size: 10
+
+# 高级配置
+advanced:
+  # 是否启用调试模式
+  debug_mode: false
+  # 性能分析
+  profiling:
+    enabled: false
+    output_dir: profiles
+  # 缓存配置
+  cache:
+    enabled: true
+    ttl: 300
+    max_size: 1000
+  # 队列配置
+  queue:
+    max_size: 1000
+    timeout: 60

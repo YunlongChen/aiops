@@ -1,0 +1,390 @@
+---
+# 进程管理和终止Playbook
+# 用于识别和终止高资源消耗的进程
+
+- name: "进程管理和终止"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # 默认参数
+    process_selection: "{{ process_selection | default('highest_cpu') }}"
+    exclude_processes: "{{ exclude_processes | default(['systemd', 'kernel', 'init']) }}"
+    kill_signal: "{{ kill_signal | default('SIGTERM') }}"
+    force_kill_delay: "{{ force_kill_delay | default(30) }}"
+    cpu_threshold: "{{ cpu_threshold | default(80) }}"
+    memory_threshold: "{{ memory_threshold | default(80) }}"
+    max_processes_to_kill: "{{ max_processes_to_kill | default(3) }}"
+    
+    # 日志配置
+    log_file: "/var/log/self-healing/process-management.log"
+    
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "/var/log/self-healing"
+        state: directory
+        mode: '0755'
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+    
+    - name: "验证参数"
+      assert:
+        that:
+          - process_selection in ['highest_cpu', 'highest_memory', 'specific_name', 'by_pid']
+          - kill_signal in ['SIGTERM', 'SIGKILL', 'SIGINT', 'SIGUSR1', 'SIGUSR2']
+          - cpu_threshold | int >= 0 and cpu_threshold | int <= 100
+          - memory_threshold | int >= 0 and memory_threshold | int <= 100
+        fail_msg: "参数验证失败，请检查输入参数"
+    
+    - name: "记录操作开始"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ start_time }}] 开始进程管理操作 - 选择策略: {{ process_selection }}"
+        create: yes
+
+  tasks:
+    # 获取系统进程信息
+    - name: "获取当前进程列表"
+      shell: |
+        ps aux --sort=-%cpu | head -20
+      register: process_list
+      changed_when: false
+    
+    - name: "获取详细进程信息"
+      shell: |
+        ps -eo pid,ppid,cmd,%mem,%cpu,user --sort=-%cpu | head -50
+      register: detailed_processes
+      changed_when: false
+    
+    - name: "记录当前进程状态"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 当前进程状态:\n{{ process_list.stdout }}"
+    
+    # 根据CPU使用率识别进程
+    - name: "识别高CPU使用率进程"
+      shell: |
+        ps -eo pid,cmd,%cpu --no-headers --sort=-%cpu | \
+        awk -v threshold={{ cpu_threshold }} '$3 > threshold {print $1 ":" $3 ":" substr($0, index($0,$2))}' | \
+        head -{{ max_processes_to_kill }}
+      register: high_cpu_processes
+      when: process_selection == 'highest_cpu'
+      changed_when: false
+    
+    # 根据内存使用率识别进程
+    - name: "识别高内存使用率进程"
+      shell: |
+        ps -eo pid,cmd,%mem --no-headers --sort=-%mem | \
+        awk -v threshold={{ memory_threshold }} '$3 > threshold {print $1 ":" $3 ":" substr($0, index($0,$2))}' | \
+        head -{{ max_processes_to_kill }}
+      register: high_memory_processes
+      when: process_selection == 'highest_memory'
+      changed_when: false
+    
+    # 根据进程名识别进程
+    - name: "根据进程名识别进程"
+      shell: |
+        pgrep -f "{{ target_process_name }}" | head -{{ max_processes_to_kill }}
+      register: named_processes
+      when: process_selection == 'specific_name' and target_process_name is defined
+      changed_when: false
+    
+    # 设置目标进程列表
+    - name: "设置目标进程列表 (CPU)"
+      set_fact:
+        target_processes: "{{ high_cpu_processes.stdout_lines | default([]) }}"
+      when: process_selection == 'highest_cpu'
+    
+    - name: "设置目标进程列表 (内存)"
+      set_fact:
+        target_processes: "{{ high_memory_processes.stdout_lines | default([]) }}"
+      when: process_selection == 'highest_memory'
+    
+    - name: "设置目标进程列表 (进程名)"
+      set_fact:
+        target_processes: "{{ named_processes.stdout_lines | default([]) }}"
+      when: process_selection == 'specific_name'
+    
+    - name: "设置目标进程列表 (PID)"
+      set_fact:
+        target_processes: ["{{ target_pid }}"]
+      when: process_selection == 'by_pid' and target_pid is defined
+    
+    # 过滤排除的进程
+    - name: "过滤排除的进程"
+      set_fact:
+        filtered_processes: >
+          {%- set filtered = [] -%}
+          {%- for process in target_processes | default([]) -%}
+            {%- set pid = process.split(':')[0] -%}
+            {%- set cmd = process.split(':', 2)[2] | default('') -%}
+            {%- set should_exclude = false -%}
+            {%- for exclude_pattern in exclude_processes -%}
+              {%- if exclude_pattern in cmd -%}
+                {%- set should_exclude = true -%}
+              {%- endif -%}
+            {%- endfor -%}
+            {%- if not should_exclude -%}
+              {%- set _ = filtered.append(process) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ filtered }}
+    
+    - name: "显示将要终止的进程"
+      debug:
+        msg: "将要终止的进程: {{ filtered_processes }}"
+      when: filtered_processes | length > 0
+    
+    - name: "记录目标进程"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 目标进程: {{ filtered_processes | join(', ') }}"
+      when: filtered_processes | length > 0
+    
+    # 终止进程
+    - name: "发送终止信号给进程"
+      shell: |
+        pid={{ item.split(':')[0] }}
+        if kill -0 $pid 2>/dev/null; then
+          echo "发送 {{ kill_signal }} 信号给进程 $pid"
+          kill -{{ kill_signal }} $pid
+          echo "信号已发送"
+        else
+          echo "进程 $pid 不存在或已终止"
+        fi
+      register: kill_result
+      loop: "{{ filtered_processes }}"
+      when: filtered_processes | length > 0
+      ignore_errors: yes
+    
+    - name: "等待进程优雅退出"
+      wait_for:
+        timeout: "{{ force_kill_delay }}"
+      when: kill_signal != 'SIGKILL' and filtered_processes | length > 0
+    
+    # 检查进程是否仍在运行
+    - name: "检查进程是否仍在运行"
+      shell: |
+        pid={{ item.split(':')[0] }}
+        if kill -0 $pid 2>/dev/null; then
+          echo "进程 $pid 仍在运行"
+          exit 1
+        else
+          echo "进程 $pid 已终止"
+          exit 0
+        fi
+      register: process_check
+      loop: "{{ filtered_processes }}"
+      when: filtered_processes | length > 0
+      ignore_errors: yes
+    
+    # 强制终止仍在运行的进程
+    - name: "强制终止仍在运行的进程"
+      shell: |
+        pid={{ item.item.split(':')[0] }}
+        if kill -0 $pid 2>/dev/null; then
+          echo "强制终止进程 $pid"
+          kill -SIGKILL $pid
+          sleep 2
+          if kill -0 $pid 2>/dev/null; then
+            echo "无法终止进程 $pid"
+            exit 1
+          else
+            echo "进程 $pid 已被强制终止"
+          fi
+        fi
+      loop: "{{ process_check.results }}"
+      when: 
+        - filtered_processes | length > 0
+        - item.rc is defined and item.rc != 0
+        - kill_signal != 'SIGKILL'
+      ignore_errors: yes
+    
+    # 验证进程终止结果
+    - name: "最终验证进程状态"
+      shell: |
+        pid={{ item.split(':')[0] }}
+        if kill -0 $pid 2>/dev/null; then
+          echo "失败: 进程 $pid 仍在运行"
+          exit 1
+        else
+          echo "成功: 进程 $pid 已终止"
+          exit 0
+        fi
+      register: final_check
+      loop: "{{ filtered_processes }}"
+      when: filtered_processes | length > 0
+      ignore_errors: yes
+    
+    # 收集终止后的系统状态
+    - name: "收集终止后的系统状态"
+      shell: |
+        echo "=== CPU使用率 ==="
+        top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1
+        echo "=== 内存使用率 ==="
+        free | grep Mem | awk '{printf "%.2f\n", $3/$2 * 100.0}'
+        echo "=== 负载平均值 ==="
+        uptime | awk -F'load average:' '{print $2}'
+        echo "=== 进程数量 ==="
+        ps aux | wc -l
+      register: post_termination_stats
+      changed_when: false
+    
+    - name: "记录终止后系统状态"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 终止后系统状态:\n{{ post_termination_stats.stdout }}"
+
+  post_tasks:
+    - name: "生成操作报告"
+      set_fact:
+        operation_report:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          host: "{{ inventory_hostname }}"
+          operation: "process_termination"
+          selection_strategy: "{{ process_selection }}"
+          processes_identified: "{{ target_processes | default([]) | length }}"
+          processes_filtered: "{{ filtered_processes | default([]) | length }}"
+          processes_terminated: "{{ (final_check.results | default([])) | selectattr('rc', 'equalto', 0) | list | length }}"
+          kill_signal: "{{ kill_signal }}"
+          success: "{{ (final_check.results | default([])) | selectattr('rc', 'equalto', 0) | list | length == (filtered_processes | default([]) | length) }}"
+    
+    - name: "记录操作完成"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 进程管理操作完成 - 报告: {{ operation_report | to_json }}"
+    
+    - name: "发送通知 (成功)"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "process_management"
+          status: "success"
+          host: "{{ inventory_hostname }}"
+          message: "成功终止 {{ operation_report.processes_terminated }} 个进程"
+          details: "{{ operation_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - operation_report.success
+      ignore_errors: yes
+    
+    - name: "发送通知 (失败)"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "process_management"
+          status: "failed"
+          host: "{{ inventory_hostname }}"
+          message: "进程终止操作部分失败"
+          details: "{{ operation_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - not operation_report.success
+      ignore_errors: yes
+    
+    - name: "清理临时文件"
+      file:
+        path: "/tmp/process_management_{{ ansible_date_time.epoch }}"
+        state: absent
+      ignore_errors: yes
+
+  handlers:
+    - name: "记录错误"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 错误: {{ ansible_failed_result.msg | default('未知错误') }}"
+      listen: "log_error"
+
+# 紧急进程终止任务
+- name: "紧急进程终止"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: no
+  become: yes
+  
+  vars:
+    emergency_processes: "{{ emergency_processes | default([]) }}"
+    log_file: "/var/log/self-healing/emergency-kill.log"
+  
+  tasks:
+    - name: "紧急终止指定进程"
+      shell: |
+        for pid in {{ emergency_processes | join(' ') }}; do
+          if kill -0 $pid 2>/dev/null; then
+            echo "紧急终止进程 $pid"
+            kill -SIGKILL $pid
+            sleep 1
+            if kill -0 $pid 2>/dev/null; then
+              echo "警告: 无法终止进程 $pid"
+            else
+              echo "进程 $pid 已被紧急终止"
+            fi
+          else
+            echo "进程 $pid 不存在"
+          fi
+        done
+      register: emergency_kill_result
+      when: emergency_processes | length > 0
+    
+    - name: "记录紧急终止操作"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 紧急终止操作: {{ emergency_kill_result.stdout }}"
+        create: yes
+      when: emergency_processes | length > 0
+
+# 进程监控任务
+- name: "进程监控和报告"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    monitor_duration: "{{ monitor_duration | default(300) }}"  # 5分钟
+    sample_interval: "{{ sample_interval | default(10) }}"     # 10秒
+    log_file: "/var/log/self-healing/process-monitor.log"
+  
+  tasks:
+    - name: "启动进程监控"
+      shell: |
+        end_time=$(($(date +%s) + {{ monitor_duration }}))
+        while [ $(date +%s) -lt $end_time ]; do
+          timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+          echo "[$timestamp] === 进程监控快照 ===" >> {{ log_file }}
+          
+          # CPU使用率最高的进程
+          echo "CPU使用率最高的进程:" >> {{ log_file }}
+          ps -eo pid,cmd,%cpu --sort=-%cpu | head -6 >> {{ log_file }}
+          
+          # 内存使用率最高的进程
+          echo "内存使用率最高的进程:" >> {{ log_file }}
+          ps -eo pid,cmd,%mem --sort=-%mem | head -6 >> {{ log_file }}
+          
+          # 系统负载
+          echo "系统负载: $(uptime | awk -F'load average:' '{print $2}')" >> {{ log_file }}
+          
+          echo "" >> {{ log_file }}
+          sleep {{ sample_interval }}
+        done
+      async: "{{ monitor_duration | int + 60 }}"
+      poll: 0
+      register: monitor_job
+      when: monitor_duration | int > 0
+    
+    - name: "等待监控完成"
+      async_status:
+        jid: "{{ monitor_job.ansible_job_id }}"
+      register: monitor_result
+      until: monitor_result.finished
+      retries: "{{ (monitor_duration | int / 10) | int + 10 }}"
+      delay: 10
+      when: monitor_duration | int > 0

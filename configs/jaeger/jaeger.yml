@@ -1,0 +1,492 @@
+# Jaeger分布式追踪系统配置文件
+# AIOps平台分布式追踪和性能监控配置
+# 作者: AI Assistant
+# 创建时间: 2024
+
+# ===========================================
+# 收集器配置 (Collector)
+# ===========================================
+collector:
+  # 服务端口配置
+  grpc:
+    host-port: "0.0.0.0:14250"
+  
+  http:
+    host-port: "0.0.0.0:14268"
+  
+  # Zipkin兼容端点
+  zipkin:
+    host-port: "0.0.0.0:9411"
+  
+  # 队列配置
+  queue:
+    size: 2000
+    workers: 50
+  
+  # 写入配置
+  write-buffer-size: 10000
+  
+  # 日志配置
+  log-level: info
+  
+  # 指标配置
+  metrics:
+    backend: prometheus
+    http-route: /metrics
+    namespace: jaeger
+    subsystem: collector
+
+# ===========================================
+# 查询服务配置 (Query)
+# ===========================================
+query:
+  # 服务端口
+  port: 16686
+  host: "0.0.0.0"
+  
+  # 基础路径
+  base-path: /
+  
+  # 静态文件
+  static-files: /go/jaeger-ui/
+  
+  # UI配置
+  ui-config: /etc/jaeger/ui.json
+  
+  # 日志配置
+  log-level: info
+  
+  # 查询超时
+  query:
+    timeout: 30s
+    max-clock-skew-adjustment: 0s
+  
+  # 指标配置
+  metrics:
+    backend: prometheus
+    http-route: /metrics
+    namespace: jaeger
+    subsystem: query
+
+# ===========================================
+# 代理配置 (Agent)
+# ===========================================
+agent:
+  # 服务端口配置
+  processor:
+    jaeger-compact:
+      server-host-port: "0.0.0.0:6831"
+      server-max-packet-size: 65000
+      server-queue-size: 1000
+      workers: 10
+    
+    jaeger-binary:
+      server-host-port: "0.0.0.0:6832"
+      server-max-packet-size: 65000
+      server-queue-size: 1000
+      workers: 10
+    
+    zipkin-compact:
+      server-host-port: "0.0.0.0:5775"
+  
+  # HTTP配置
+  http-server:
+    host-port: "0.0.0.0:5778"
+  
+  # 收集器端点
+  reporter:
+    grpc:
+      host-port: "jaeger-collector:14250"
+      retry:
+        max: 3
+      timeout: 5s
+    
+    type: grpc
+  
+  # 日志配置
+  log-level: info
+  
+  # 指标配置
+  metrics:
+    backend: prometheus
+    http-route: /metrics
+    namespace: jaeger
+    subsystem: agent
+
+# ===========================================
+# 存储配置
+# ===========================================
+storage:
+  # 存储类型 (memory, cassandra, elasticsearch, kafka)
+  type: elasticsearch
+  
+  # Elasticsearch配置
+  elasticsearch:
+    server-urls: http://elasticsearch:9200
+    index-prefix: jaeger
+    
+    # 索引配置
+    create-index-templates: true
+    version: 7
+    
+    # 分片配置
+    num-shards: 1
+    num-replicas: 0
+    
+    # 批处理配置
+    bulk:
+      size: 5000000  # 5MB
+      workers: 1
+      actions: 1000
+      flush-interval: 200ms
+    
+    # 超时配置
+    timeout: 0s
+    
+    # 认证配置
+    # username: elastic
+    # password: changeme
+    
+    # TLS配置
+    # tls:
+    #   enabled: false
+    #   cert: /path/to/cert.pem
+    #   key: /path/to/key.pem
+    #   ca: /path/to/ca.pem
+    #   server-name: elasticsearch
+    #   skip-host-verify: false
+    
+    # 标签配置
+    tags-as-fields:
+      all: false
+      include: "http.status_code,error"
+      # dot-replacement: "@"
+    
+    # 索引清理配置
+    index-cleaner:
+      enabled: true
+      num-days: 7
+      schedule: "0 0 * * *"  # 每天午夜执行
+  
+  # 依赖存储配置
+  dependencies:
+    data-frequency: 24h
+    max-dependencies: 50000
+
+# ===========================================
+# 采样配置
+# ===========================================
+sampling:
+  # 采样策略文件
+  strategies-file: /etc/jaeger/sampling_strategies.json
+  
+  # 默认采样策略
+  default-strategy:
+    type: probabilistic
+    param: 0.1  # 10%采样率
+  
+  # 服务特定策略
+  per-service-strategies:
+    - service: "aiops-api"
+      type: probabilistic
+      param: 0.5  # 50%采样率
+    
+    - service: "aiops-engine"
+      type: probabilistic
+      param: 0.3  # 30%采样率
+    
+    - service: "aiops-healing"
+      type: probabilistic
+      param: 1.0  # 100%采样率
+  
+  # 操作采样策略
+  per-operation-strategies:
+    - service: "aiops-api"
+      operation: "POST /api/v1/alerts"
+      type: probabilistic
+      param: 1.0  # 100%采样率
+    
+    - service: "aiops-api"
+      operation: "GET /api/v1/health"
+      type: probabilistic
+      param: 0.01  # 1%采样率
+
+# ===========================================
+# 指标配置
+# ===========================================
+metrics:
+  # 后端类型
+  backend: prometheus
+  
+  # HTTP路由
+  http-route: /metrics
+  
+  # 命名空间
+  namespace: jaeger
+  
+  # 标签
+  tags:
+    environment: production
+    cluster: aiops-platform
+  
+  # 直方图桶
+  buckets:
+    - 0.005
+    - 0.01
+    - 0.025
+    - 0.05
+    - 0.1
+    - 0.25
+    - 0.5
+    - 1
+    - 2.5
+    - 5
+    - 10
+
+# ===========================================
+# 追踪配置
+# ===========================================
+tracing:
+  # 启用追踪
+  enabled: true
+  
+  # Jaeger配置
+  jaeger:
+    # 服务名称
+    service-name: jaeger
+    
+    # 采样器配置
+    sampler:
+      type: const
+      param: 1
+    
+    # 报告器配置
+    reporter:
+      log-spans: false
+      buffer-flush-interval: 1s
+      queue-size: 100
+
+# ===========================================
+# 健康检查配置
+# ===========================================
+health-check:
+  # HTTP端口
+  http-port: 14269
+  
+  # 检查间隔
+  check-interval: 30s
+  
+  # 超时时间
+  timeout: 10s
+
+# ===========================================
+# 管理配置
+# ===========================================
+admin:
+  # HTTP端口
+  http:
+    host-port: "0.0.0.0:14270"
+  
+  # 健康检查
+  health-check-http-port: 14269
+
+# ===========================================
+# 下游配置
+# ===========================================
+downstream:
+  # 超时配置
+  timeout: 2s
+  
+  # 重试配置
+  retry:
+    max-attempts: 3
+    initial-interval: 100ms
+    max-interval: 1s
+
+# ===========================================
+# 处理器配置
+# ===========================================
+processor:
+  # 批处理配置
+  batch:
+    timeout: 1s
+    send-batch-size: 1024
+    send-batch-max-size: 2048
+  
+  # 队列配置
+  queue:
+    queue-size: 5000
+    num-workers: 2
+
+# ===========================================
+# 扩展配置
+# ===========================================
+extensions:
+  # 健康检查扩展
+  health_check:
+    endpoint: 0.0.0.0:13133
+  
+  # pprof扩展
+  pprof:
+    endpoint: 0.0.0.0:1777
+  
+  # zpages扩展
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+# ===========================================
+# 服务配置
+# ===========================================
+service:
+  # 扩展
+  extensions: [health_check, pprof, zpages]
+  
+  # 管道
+  pipelines:
+    traces:
+      receivers: [jaeger, zipkin, otlp]
+      processors: [batch]
+      exporters: [jaeger]
+  
+  # 遥测
+  telemetry:
+    logs:
+      level: info
+    
+    metrics:
+      address: 0.0.0.0:8888
+      level: detailed
+
+# ===========================================
+# 接收器配置
+# ===========================================
+receivers:
+  # Jaeger接收器
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:14250
+      
+      thrift_http:
+        endpoint: 0.0.0.0:14268
+      
+      thrift_compact:
+        endpoint: 0.0.0.0:6831
+      
+      thrift_binary:
+        endpoint: 0.0.0.0:6832
+  
+  # Zipkin接收器
+  zipkin:
+    endpoint: 0.0.0.0:9411
+  
+  # OTLP接收器
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      
+      http:
+        endpoint: 0.0.0.0:4318
+
+# ===========================================
+# 导出器配置
+# ===========================================
+exporters:
+  # Jaeger导出器
+  jaeger:
+    endpoint: http://jaeger-collector:14268/api/traces
+    
+    # 超时配置
+    timeout: 30s
+    
+    # 重试配置
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    
+    # 队列配置
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 5000
+
+# ===========================================
+# UI配置
+# ===========================================
+ui:
+  # 配置文件
+  config: |
+    {
+      "monitor": {
+        "menuEnabled": true
+      },
+      "dependencies": {
+        "menuEnabled": true
+      },
+      "archiveEnabled": true,
+      "tracking": {
+        "gaID": "UA-000000-2",
+        "trackErrors": true
+      },
+      "menu": [
+        {
+          "label": "About Jaeger",
+          "items": [
+            {
+              "label": "GitHub",
+              "url": "https://github.com/jaegertracing/jaeger"
+            },
+            {
+              "label": "Docs",
+              "url": "https://www.jaegertracing.io/docs/"
+            }
+          ]
+        }
+      ],
+      "linkPatterns": [
+        {
+          "type": "logs",
+          "key": "customer_id",
+          "url": "http://example.com/logs?customer_id=#{customer_id}",
+          "text": "View logs for customer #{customer_id}"
+        }
+      ]
+    }
+
+# ===========================================
+# 日志配置
+# ===========================================
+logging:
+  # 日志级别
+  level: info
+  
+  # 日志格式
+  format: json
+  
+  # 输出
+  output: stdout
+  
+  # 开发模式
+  development: false
+  
+  # 采样
+  sampling:
+    initial: 100
+    thereafter: 100
+  
+  # 编码器配置
+  encoding:
+    time-key: timestamp
+    level-key: level
+    name-key: logger
+    caller-key: caller
+    message-key: message
+    stacktrace-key: stacktrace
+    line-ending: "\n"
+    level-encoder: lowercase
+    time-encoder: iso8601
+    duration-encoder: seconds
+    caller-encoder: short

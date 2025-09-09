@@ -1,0 +1,603 @@
+# ELK Stack Docker Compose配置文件
+# AIOps平台日志处理和分析堆栈
+# 作者: AI Assistant
+# 创建时间: 2024
+
+version: '3.8'
+
+# ===========================================
+# 网络配置
+# ===========================================
+networks:
+  elk-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  aiops-network:
+    external: true
+
+# ===========================================
+# 卷配置
+# ===========================================
+volumes:
+  # Elasticsearch数据卷
+  elasticsearch-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/elasticsearch
+  
+  # Logstash数据卷
+  logstash-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/logstash
+  
+  # Kibana数据卷
+  kibana-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/kibana
+  
+  # 日志卷
+  logs-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+
+# ===========================================
+# 服务配置
+# ===========================================
+services:
+  # Elasticsearch服务
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: aiops-elasticsearch
+    hostname: elasticsearch
+    restart: unless-stopped
+    
+    # 环境变量
+    environment:
+      # 集群配置
+      - cluster.name=aiops-elasticsearch
+      - node.name=elasticsearch-node-1
+      - discovery.type=single-node
+      
+      # 内存配置
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      
+      # 安全配置
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      
+      # 许可证配置
+      - xpack.license.self_generated.type=basic
+      
+      # 监控配置
+      - xpack.monitoring.collection.enabled=true
+      
+      # 网络配置
+      - network.host=0.0.0.0
+      - http.port=9200
+      - transport.port=9300
+      
+      # 索引配置
+      - action.auto_create_index=true
+      - index.number_of_shards=1
+      - index.number_of_replicas=0
+    
+    # 系统限制
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    
+    # 内存限制
+    mem_limit: 4g
+    mem_reservation: 2g
+    
+    # CPU限制
+    cpus: '2.0'
+    
+    # 端口映射
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    
+    # 卷挂载
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ../configs/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ../configs/elasticsearch/jvm.options:/usr/share/elasticsearch/config/jvm.options:ro
+      - ../configs/elasticsearch/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties:ro
+      - logs-volume:/var/log/elasticsearch
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.elasticsearch.rule=Host(`elasticsearch.aiops.local`)"
+      - "traefik.http.routers.elasticsearch.entrypoints=web"
+      - "traefik.http.services.elasticsearch.loadbalancer.server.port=9200"
+      - "logging=promtail"
+      - "monitoring=prometheus"
+
+  # Logstash服务
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: aiops-logstash
+    hostname: logstash
+    restart: unless-stopped
+    
+    # 依赖服务
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    
+    # 环境变量
+    environment:
+      # 节点配置
+      - node.name=logstash-node-1
+      
+      # JVM配置
+      - "LS_JAVA_OPTS=-Xms1g -Xmx1g"
+      
+      # 管道配置
+      - pipeline.workers=4
+      - pipeline.batch.size=125
+      - pipeline.batch.delay=50
+      
+      # 监控配置
+      - xpack.monitoring.enabled=true
+      - xpack.monitoring.elasticsearch.hosts=["http://elasticsearch:9200"]
+      
+      # 日志配置
+      - log.level=info
+      
+      # Elasticsearch连接
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    
+    # 内存限制
+    mem_limit: 2g
+    mem_reservation: 1g
+    
+    # CPU限制
+    cpus: '1.5'
+    
+    # 端口映射
+    ports:
+      - "5044:5044"  # Beats输入
+      - "5000:5000"  # TCP输入
+      - "9600:9600"  # API端口
+      - "5514:5514/udp"  # Syslog UDP
+      - "5515:5515"  # Syslog TCP
+    
+    # 卷挂载
+    volumes:
+      - logstash-data:/usr/share/logstash/data
+      - ../configs/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ../configs/logstash/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ../configs/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ../configs/logstash/patterns:/usr/share/logstash/patterns:ro
+      - logs-volume:/var/log/logstash
+      - /var/log:/host/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600/_node/stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.logstash.rule=Host(`logstash.aiops.local`)"
+      - "traefik.http.routers.logstash.entrypoints=web"
+      - "traefik.http.services.logstash.loadbalancer.server.port=9600"
+      - "logging=promtail"
+      - "monitoring=prometheus"
+
+  # Kibana服务
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: aiops-kibana
+    hostname: kibana
+    restart: unless-stopped
+    
+    # 依赖服务
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    
+    # 环境变量
+    environment:
+      # 服务器配置
+      - server.name=aiops-kibana
+      - server.host=0.0.0.0
+      - server.port=5601
+      
+      # Elasticsearch连接
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - elasticsearch.hosts=["http://elasticsearch:9200"]
+      
+      # 安全配置
+      - xpack.security.enabled=false
+      - xpack.encryptedSavedObjects.encryptionKey=a7a6311933d3503b89bc2dbc36572c33a6c10925682e591bffcab6911c06786d
+      
+      # 监控配置
+      - xpack.monitoring.ui.container.elasticsearch.enabled=true
+      - xpack.monitoring.kibana.collection.enabled=false
+      
+      # 日志配置
+      - logging.level=info
+      - logging.quiet=false
+      
+      # 国际化配置
+      - i18n.locale=zh-CN
+      
+      # 索引配置
+      - kibana.index=.kibana
+      
+      # 默认应用
+      - kibana.defaultAppId=discover
+    
+    # 内存限制
+    mem_limit: 2g
+    mem_reservation: 1g
+    
+    # CPU限制
+    cpus: '1.0'
+    
+    # 端口映射
+    ports:
+      - "5601:5601"
+    
+    # 卷挂载
+    volumes:
+      - kibana-data:/usr/share/kibana/data
+      - ../configs/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - logs-volume:/var/log/kibana
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kibana.rule=Host(`kibana.aiops.local`)"
+      - "traefik.http.routers.kibana.entrypoints=web"
+      - "traefik.http.services.kibana.loadbalancer.server.port=5601"
+      - "logging=promtail"
+      - "monitoring=prometheus"
+
+  # Filebeat服务
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: aiops-filebeat
+    hostname: filebeat
+    restart: unless-stopped
+    user: root
+    
+    # 依赖服务
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      logstash:
+        condition: service_healthy
+    
+    # 环境变量
+    environment:
+      # Elasticsearch连接
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      
+      # Logstash连接
+      - LOGSTASH_HOSTS=logstash:5044
+      
+      # Kibana连接
+      - KIBANA_HOST=http://kibana:5601
+      
+      # 监控配置
+      - monitoring.enabled=true
+      - monitoring.elasticsearch.hosts=["http://elasticsearch:9200"]
+    
+    # 内存限制
+    mem_limit: 512m
+    mem_reservation: 256m
+    
+    # CPU限制
+    cpus: '0.5'
+    
+    # 卷挂载
+    volumes:
+      - ../configs/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/log:/host/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 命令覆盖
+    command: [
+      "--strict.perms=false",
+      "-e"
+    ]
+    
+    # 标签
+    labels:
+      - "logging=promtail"
+      - "monitoring=prometheus"
+
+  # Metricbeat服务
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.11.0
+    container_name: aiops-metricbeat
+    hostname: metricbeat
+    restart: unless-stopped
+    user: root
+    
+    # 依赖服务
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    
+    # 环境变量
+    environment:
+      # Elasticsearch连接
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      
+      # Kibana连接
+      - KIBANA_HOST=http://kibana:5601
+      
+      # 监控配置
+      - monitoring.enabled=true
+      - monitoring.elasticsearch.hosts=["http://elasticsearch:9200"]
+    
+    # 内存限制
+    mem_limit: 512m
+    mem_reservation: 256m
+    
+    # CPU限制
+    cpus: '0.5'
+    
+    # 卷挂载
+    volumes:
+      - ../configs/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 命令覆盖
+    command: [
+      "--strict.perms=false",
+      "-e",
+      "-system.hostfs=/hostfs"
+    ]
+    
+    # 标签
+    labels:
+      - "logging=promtail"
+      - "monitoring=prometheus"
+
+  # Heartbeat服务
+  heartbeat:
+    image: docker.elastic.co/beats/heartbeat:8.11.0
+    container_name: aiops-heartbeat
+    hostname: heartbeat
+    restart: unless-stopped
+    
+    # 依赖服务
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    
+    # 环境变量
+    environment:
+      # Elasticsearch连接
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      
+      # Kibana连接
+      - KIBANA_HOST=http://kibana:5601
+      
+      # 监控配置
+      - monitoring.enabled=true
+      - monitoring.elasticsearch.hosts=["http://elasticsearch:9200"]
+    
+    # 内存限制
+    mem_limit: 256m
+    mem_reservation: 128m
+    
+    # CPU限制
+    cpus: '0.3'
+    
+    # 卷挂载
+    volumes:
+      - ../configs/heartbeat/heartbeat.yml:/usr/share/heartbeat/heartbeat.yml:ro
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 命令覆盖
+    command: [
+      "--strict.perms=false",
+      "-e"
+    ]
+    
+    # 标签
+    labels:
+      - "logging=promtail"
+      - "monitoring=prometheus"
+
+  # APM Server服务
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.11.0
+    container_name: aiops-apm-server
+    hostname: apm-server
+    restart: unless-stopped
+    
+    # 依赖服务
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    
+    # 环境变量
+    environment:
+      # 服务器配置
+      - apm-server.host=0.0.0.0:8200
+      
+      # Elasticsearch连接
+      - output.elasticsearch.hosts=["http://elasticsearch:9200"]
+      
+      # Kibana连接
+      - setup.kibana.host=http://kibana:5601
+      
+      # 监控配置
+      - monitoring.enabled=true
+      - monitoring.elasticsearch.hosts=["http://elasticsearch:9200"]
+      
+      # 日志配置
+      - logging.level=info
+    
+    # 内存限制
+    mem_limit: 512m
+    mem_reservation: 256m
+    
+    # CPU限制
+    cpus: '0.5'
+    
+    # 端口映射
+    ports:
+      - "8200:8200"
+    
+    # 卷挂载
+    volumes:
+      - ../configs/apm-server/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8200/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.apm-server.rule=Host(`apm.aiops.local`)"
+      - "traefik.http.routers.apm-server.entrypoints=web"
+      - "traefik.http.services.apm-server.loadbalancer.server.port=8200"
+      - "logging=promtail"
+      - "monitoring=prometheus"
+
+  # Elasticsearch Exporter服务
+  elasticsearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:latest
+    container_name: aiops-elasticsearch-exporter
+    hostname: elasticsearch-exporter
+    restart: unless-stopped
+    
+    # 依赖服务
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    
+    # 环境变量
+    environment:
+      - ES_URI=http://elasticsearch:9200
+      - ES_ALL=true
+      - ES_INDICES=true
+      - ES_INDICES_SETTINGS=true
+      - ES_SHARDS=true
+      - ES_SNAPSHOTS=true
+      - ES_TIMEOUT=30s
+    
+    # 内存限制
+    mem_limit: 128m
+    mem_reservation: 64m
+    
+    # CPU限制
+    cpus: '0.2'
+    
+    # 端口映射
+    ports:
+      - "9114:9114"
+    
+    # 网络配置
+    networks:
+      - elk-network
+      - aiops-network
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9114/metrics || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 标签
+    labels:
+      - "logging=promtail"
+      - "monitoring=prometheus"

@@ -1,0 +1,270 @@
+# Prometheus Configuration
+# AIOps-Platform 监控配置
+# 版本: 1.0.0
+
+# ===========================================
+# 全局配置
+# ===========================================
+global:
+  # 数据抓取间隔
+  scrape_interval: 15s
+  # 规则评估间隔
+  evaluation_interval: 15s
+  # 外部标签
+  external_labels:
+    cluster: 'aiops-platform'
+    environment: 'production'
+    region: 'local'
+
+# ===========================================
+# 告警规则配置
+# ===========================================
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+  - "/etc/prometheus/alerts/*.yml"
+
+# ===========================================
+# Alertmanager配置
+# ===========================================
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+      scheme: http
+      timeout: 10s
+      api_version: v2
+
+# ===========================================
+# 远程写入配置（可选）
+# ===========================================
+# remote_write:
+#   - url: "https://prometheus-remote-write-endpoint/api/v1/write"
+#     basic_auth:
+#       username: "username"
+#       password: "password"
+#     write_relabel_configs:
+#       - source_labels: [__name__]
+#         regex: 'expensive_metric.*'
+#         action: drop
+
+# ===========================================
+# 远程读取配置（可选）
+# ===========================================
+# remote_read:
+#   - url: "https://prometheus-remote-read-endpoint/api/v1/read"
+#     basic_auth:
+#       username: "username"
+#       password: "password"
+
+# ===========================================
+# 数据抓取配置
+# ===========================================
+scrape_configs:
+  # Prometheus自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 5s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # Node Exporter - 系统指标
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: node-exporter:9100
+
+  # cAdvisor - 容器指标
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+    metric_relabel_configs:
+      # 只保留有用的容器指标
+      - source_labels: [__name__]
+        regex: 'container_(cpu|memory|network|fs)_.*'
+        action: keep
+      # 删除不需要的标签
+      - regex: 'container_label_com_docker_.*'
+        action: labeldrop
+
+  # Traefik指标
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:8080']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # Grafana指标
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # Alertmanager指标
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # Elasticsearch指标
+  - job_name: 'elasticsearch'
+    static_configs:
+      - targets: ['elasticsearch:9200']
+    scrape_interval: 30s
+    metrics_path: '/_prometheus/metrics'
+    scheme: http
+    scrape_timeout: 10s
+
+  # Logstash指标
+  - job_name: 'logstash'
+    static_configs:
+      - targets: ['logstash:9600']
+    scrape_interval: 30s
+    metrics_path: '/_node/stats'
+    scheme: http
+
+  # AI引擎指标
+  - job_name: 'ai-engine'
+    static_configs:
+      - targets: ['ai-engine:8000']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+    basic_auth:
+      username: 'prometheus'
+      password: 'prometheus-password'
+
+  # 自愈系统指标
+  - job_name: 'self-healing'
+    static_configs:
+      - targets: ['self-healing:8001']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # API网关指标
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8080']
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # Redis指标
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # PostgreSQL指标
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # Docker守护进程指标
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['host.docker.internal:9323']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    scheme: http
+
+  # 黑盒监控 - HTTP端点检查
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://grafana:3000/api/health
+        - http://kibana:5601/api/status
+        - http://ai-engine:8000/health
+        - http://self-healing:8001/health
+        - http://api-gateway:8080/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # 黑盒监控 - TCP端口检查
+  - job_name: 'blackbox-tcp'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - elasticsearch:9200
+        - redis:6379
+        - postgres:5432
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # 自定义业务指标
+  - job_name: 'custom-metrics'
+    static_configs:
+      - targets: ['custom-exporter:8080']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+    scheme: http
+    honor_labels: true
+
+  # Kubernetes集群监控（如果启用）
+  # - job_name: 'kubernetes-apiservers'
+  #   kubernetes_sd_configs:
+  #   - role: endpoints
+  #   scheme: https
+  #   tls_config:
+  #     ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  #   bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  #   relabel_configs:
+  #   - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+  #     action: keep
+  #     regex: default;kubernetes;https
+
+  # 服务发现配置示例
+  # - job_name: 'consul-services'
+  #   consul_sd_configs:
+  #     - server: 'consul:8500'
+  #       services: []
+  #   relabel_configs:
+  #     - source_labels: [__meta_consul_tags]
+  #       regex: '.*,prometheus,.*'
+  #       action: keep
+  #     - source_labels: [__meta_consul_service]
+  #       target_label: job
+
+# ===========================================
+# 注意：存储、查询、网络和日志配置应通过命令行参数设置
+# 例如：--storage.tsdb.retention.time=30d
+# ===========================================

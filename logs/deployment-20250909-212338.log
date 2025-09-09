@@ -1,0 +1,14 @@
+[2025-09-09 21:23:38] [INFO] AIOps智能运维平台部署开始
+[2025-09-09 21:23:38] [INFO] 部署类型: docker
+[2025-09-09 21:23:38] [INFO] 环境: development
+[2025-09-09 21:23:38] [INFO] 日志文件: E:\workspace\gitea\aiops\logs\deployment-20250909-212338.log
+[2025-09-09 21:23:38] [INFO] 开始环境检查...
+[2025-09-09 21:23:39] [INFO] 系统资源检查:
+[2025-09-09 21:23:39] [INFO]   CPU核心数: 20
+[2025-09-09 21:23:39] [INFO]   总内存: 63.72GB
+[2025-09-09 21:23:39] [INFO]   可用磁盘空间: 249.11GB
+[2025-09-09 21:24:46] [WARN] 以下端口被占用: 80, 443
+[2025-09-09 21:24:46] [WARN] 请确保这些端口可用或修改配置文件中的端口设置
+[2025-09-09 21:24:46] [ERROR] Docker环境检查失败: WARNING: Plugin "C:\\Users\\Administrator\\.docker\\cli-plugins\\docker-dev.exe" is not valid: failed to fetch metadata: fork/exec C:\Users\Administrator\.docker\cli-plugins\docker-dev.exe: The system cannot find the file specified.
+[2025-09-09 21:24:46] [ERROR] 部署失败: 环境检查失败，请解决上述问题后重试
+[2025-09-09 21:24:46] [ERROR] 详细错误信息请查看日志文件: E:\workspace\gitea\aiops\logs\deployment-20250909-212338.log

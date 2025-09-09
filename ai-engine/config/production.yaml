@@ -1,0 +1,475 @@
+# AI引擎生产环境配置文件
+# 生产环境专用配置，注重安全性和性能
+
+# 应用配置
+app:
+  name: "AIOps AI Engine (Production)"
+  debug: false
+  log_level: "INFO"
+  workers: 8  # 根据CPU核心数调整
+  reload: false
+
+# 数据库配置
+database:
+  primary:
+    type: "postgresql"
+    host: "${DB_HOST:postgres}"
+    port: "${DB_PORT:5432}"
+    database: "${DB_NAME:aiops}"
+    username: "${DB_USER:aiops}"
+    password: "${DB_PASSWORD}"
+    pool_size: 20
+    max_overflow: 40
+    pool_timeout: 60
+    pool_recycle: 7200
+    echo: false
+    ssl_mode: "require"
+  
+  timeseries:
+    type: "influxdb"
+    host: "${INFLUX_HOST:influxdb}"
+    port: "${INFLUX_PORT:8086}"
+    database: "${INFLUX_DB:aiops_metrics}"
+    username: "${INFLUX_USER:aiops}"
+    password: "${INFLUX_PASSWORD}"
+    retention_policy: "30d"
+    ssl: true
+
+# Redis配置
+redis:
+  host: "${REDIS_HOST:redis}"
+  port: "${REDIS_PORT:6379}"
+  password: "${REDIS_PASSWORD}"
+  db: 0
+  max_connections: 200
+  socket_timeout: 10
+  socket_connect_timeout: 10
+  health_check_interval: 60
+  ssl: true
+  ssl_cert_reqs: "required"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "structured"
+  file:
+    enabled: true
+    path: "/app/logs/ai-engine.log"
+    max_size: "500MB"
+    backup_count: 30
+    rotation: "daily"
+    compression: "gzip"
+  console:
+    enabled: false  # 生产环境关闭控制台输出
+    colored: false
+  performance:
+    enabled: true
+    threshold: 2.0  # 记录超过2秒的操作
+  syslog:
+    enabled: true
+    host: "${SYSLOG_HOST:localhost}"
+    port: 514
+    facility: "local0"
+
+# 异常检测配置
+anomaly_detection:
+  default_algorithm: "ensemble"  # 生产环境使用集成算法
+  
+  algorithms:
+    isolation_forest:
+      contamination: 0.05  # 生产环境降低异常比例
+      n_estimators: 200
+      max_samples: 0.8
+      random_state: 42
+      n_jobs: -1
+    
+    local_outlier_factor:
+      n_neighbors: 30
+      contamination: 0.05
+      algorithm: "kd_tree"
+      n_jobs: -1
+    
+    one_class_svm:
+      kernel: "rbf"
+      gamma: "scale"
+      nu: 0.05
+      cache_size: 1000
+    
+    statistical:
+      method: "modified_zscore"
+      threshold: 3.5
+      window_size: 200
+    
+    lstm_autoencoder:
+      sequence_length: 100
+      encoding_dim: 64
+      epochs: 200
+      batch_size: 64
+      validation_split: 0.15
+      early_stopping: true
+      patience: 20
+    
+    ensemble:
+      algorithms: ["isolation_forest", "local_outlier_factor", "statistical"]
+      voting: "soft"
+      weights: [0.4, 0.3, 0.3]
+  
+  preprocessing:
+    scaling: "robust"  # 对异常值更鲁棒
+    feature_selection: true
+    feature_count: 20
+    handle_missing: "interpolate"
+    outlier_removal: true
+  
+  performance:
+    batch_size: 5000
+    max_memory_usage: "8GB"
+    parallel_jobs: -1
+    gpu_acceleration: true
+
+# 预测配置
+prediction:
+  default_algorithm: "ensemble"  # 生产环境使用集成算法
+  
+  algorithms:
+    lstm:
+      sequence_length: 120
+      hidden_units: [100, 50]
+      dropout: 0.3
+      epochs: 300
+      batch_size: 128
+      validation_split: 0.15
+      early_stopping: true
+      patience: 30
+    
+    gru:
+      sequence_length: 120
+      hidden_units: [100, 50]
+      dropout: 0.3
+      epochs: 300
+      batch_size: 128
+    
+    cnn_lstm:
+      sequence_length: 120
+      cnn_filters: [64, 32]
+      kernel_size: [3, 5]
+      lstm_units: 100
+      dropout: 0.3
+      epochs: 300
+    
+    transformer:
+      sequence_length: 120
+      d_model: 128
+      num_heads: 8
+      num_layers: 4
+      dropout: 0.1
+      epochs: 200
+    
+    arima:
+      order: [2, 1, 2]
+      seasonal_order: [1, 1, 1, 24]
+      trend: "add"
+      auto_arima: true
+    
+    prophet:
+      seasonality_mode: "multiplicative"
+      yearly_seasonality: true
+      weekly_seasonality: true
+      daily_seasonality: true
+      holidays: true
+    
+    xgboost:
+      n_estimators: 500
+      max_depth: 8
+      learning_rate: 0.05
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 0.1
+    
+    ensemble:
+      algorithms: ["lstm", "prophet", "xgboost"]
+      voting: "weighted"
+      weights: [0.5, 0.3, 0.2]
+  
+  forecast:
+    horizon: 48  # 预测48小时
+    confidence_interval: [0.8, 0.95]
+    update_frequency: "30m"
+    retrain_frequency: "24h"
+
+# 决策引擎配置
+decision_engine:
+  rules:
+    cpu_threshold: 75.0
+    memory_threshold: 80.0
+    disk_threshold: 85.0
+    response_time_threshold: 3000
+    error_rate_threshold: 0.02
+    availability_threshold: 0.999
+  
+  strategies:
+    auto_scaling:
+      enabled: true
+      min_instances: 2
+      max_instances: 50
+      scale_up_threshold: 0.7
+      scale_down_threshold: 0.3
+      cooldown_period: 600
+      predictive_scaling: true
+    
+    load_balancing:
+      enabled: true
+      algorithm: "least_connections"
+      health_check_interval: 30
+      unhealthy_threshold: 3
+      healthy_threshold: 2
+    
+    failover:
+      enabled: true
+      max_retries: 5
+      retry_delay: 10
+      circuit_breaker_threshold: 0.3
+      circuit_breaker_timeout: 300
+    
+    resource_optimization:
+      enabled: true
+      cpu_optimization: true
+      memory_optimization: true
+      network_optimization: true
+  
+  risk_assessment:
+    enabled: true
+    factors:
+      - "system_load"
+      - "error_rate"
+      - "response_time"
+      - "resource_usage"
+      - "security_events"
+    weights:
+      system_load: 0.25
+      error_rate: 0.35
+      response_time: 0.2
+      resource_usage: 0.15
+      security_events: 0.05
+    alert_threshold: 0.8
+
+# 模型管理配置
+model_management:
+  storage:
+    type: "s3"  # 生产环境使用S3存储
+    bucket: "${MODEL_BUCKET:aiops-models}"
+    region: "${AWS_REGION:us-west-2}"
+    access_key: "${AWS_ACCESS_KEY}"
+    secret_key: "${AWS_SECRET_KEY}"
+    compression: true
+    encryption: true
+  
+  versioning:
+    enabled: true
+    max_versions: 20
+    auto_cleanup: true
+    retention_days: 90
+    backup_enabled: true
+  
+  monitoring:
+    enabled: true
+    metrics:
+      - "accuracy"
+      - "precision"
+      - "recall"
+      - "f1_score"
+      - "mse"
+      - "mae"
+      - "latency"
+      - "throughput"
+    alert_thresholds:
+      accuracy_drop: 0.05
+      performance_degradation: 0.15
+      latency_increase: 0.2
+    notification_channels:
+      - "slack"
+      - "email"
+      - "pagerduty"
+  
+  ab_testing:
+    enabled: true
+    traffic_split: 0.05
+    duration_days: 14
+    success_criteria:
+      - "accuracy_improvement"
+      - "latency_reduction"
+      - "resource_efficiency"
+    auto_promotion: false
+
+# API配置
+api:
+  authentication:
+    enabled: true
+    type: "jwt"
+    secret_key: "${JWT_SECRET_KEY}"
+    algorithm: "HS256"
+    expire_minutes: 60
+    refresh_enabled: true
+    refresh_expire_days: 7
+  
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    burst_size: 100
+    per_user_limit: 100
+    whitelist: ["${INTERNAL_IPS}"]
+  
+  cors:
+    enabled: true
+    allow_origins: ["${ALLOWED_ORIGINS}"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_headers: ["Authorization", "Content-Type"]
+    allow_credentials: true
+  
+  docs:
+    enabled: false  # 生产环境关闭API文档
+  
+  ssl:
+    enabled: true
+    cert_file: "/app/certs/server.crt"
+    key_file: "/app/certs/server.key"
+    ca_file: "/app/certs/ca.crt"
+
+# 监控配置
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+    basic_auth:
+      username: "${PROMETHEUS_USER:prometheus}"
+      password: "${PROMETHEUS_PASSWORD}"
+  
+  health_check:
+    enabled: true
+    path: "/health"
+    interval: 30
+    timeout: 10
+    deep_check: true
+  
+  performance:
+    enabled: true
+    collect_system_metrics: true
+    collect_application_metrics: true
+    collect_business_metrics: true
+    retention_days: 30
+    aggregation_intervals: ["1m", "5m", "1h", "1d"]
+  
+  alerting:
+    enabled: true
+    channels:
+      slack:
+        webhook_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#aiops-alerts"
+      email:
+        smtp_server: "${SMTP_SERVER}"
+        smtp_port: 587
+        username: "${SMTP_USER}"
+        password: "${SMTP_PASSWORD}"
+        recipients: ["${ALERT_EMAILS}"]
+      pagerduty:
+        integration_key: "${PAGERDUTY_KEY}"
+
+# 安全配置
+security:
+  encryption:
+    enabled: true
+    algorithm: "AES-256-GCM"
+    key_rotation_days: 30
+    key_management: "vault"  # 使用Vault管理密钥
+  
+  audit:
+    enabled: true
+    log_requests: true
+    log_responses: false
+    log_errors: true
+    sensitive_fields: ["password", "token", "key", "secret"]
+    retention_days: 365
+  
+  validation:
+    enabled: true
+    max_request_size: "50MB"
+    sanitize_input: true
+    sql_injection_protection: true
+    xss_protection: true
+  
+  firewall:
+    enabled: true
+    allowed_ips: ["${ALLOWED_IPS}"]
+    blocked_ips: ["${BLOCKED_IPS}"]
+    rate_limit_by_ip: true
+  
+  compliance:
+    gdpr_enabled: true
+    data_retention_days: 2555  # 7年
+    anonymization_enabled: true
+    audit_trail_enabled: true
+
+# 性能优化配置
+performance:
+  # 缓存策略
+  caching:
+    enabled: true
+    default_ttl: 3600
+    max_size: "2GB"
+    eviction_policy: "lru"
+    compression: true
+  
+  # 连接池
+  connection_pooling:
+    enabled: true
+    max_connections: 100
+    min_connections: 10
+    connection_timeout: 30
+    idle_timeout: 300
+  
+  # 异步处理
+  async_processing:
+    enabled: true
+    worker_processes: 8
+    queue_size: 10000
+    batch_processing: true
+    batch_size: 1000
+  
+  # 资源限制
+  resource_limits:
+    max_memory: "16GB"
+    max_cpu_percent: 80
+    max_disk_usage: "100GB"
+    max_network_bandwidth: "1Gbps"
+
+# 备份和恢复配置
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 每天凌晨2点
+  retention_days: 30
+  compression: true
+  encryption: true
+  storage:
+    type: "s3"
+    bucket: "${BACKUP_BUCKET:aiops-backups}"
+    region: "${AWS_REGION:us-west-2}"
+  notification:
+    enabled: true
+    on_success: false
+    on_failure: true
+
+# 灾难恢复配置
+disaster_recovery:
+  enabled: true
+  backup_sites: ["${DR_SITES}"]
+  replication:
+    enabled: true
+    mode: "async"
+    lag_threshold: 300  # 秒
+  failover:
+    automatic: false
+    manual_approval: true
+    rto: 3600  # 恢复时间目标（秒）
+    rpo: 900   # 恢复点目标（秒）

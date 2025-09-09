@@ -1,0 +1,461 @@
+---
+# Elasticsearch索引重建Playbook
+# 用于重建损坏或性能不佳的Elasticsearch索引
+# 作者: AIOps团队
+# 版本: 1.0
+# 创建时间: 2024-01-15
+
+- name: "Elasticsearch索引重建"
+  hosts: elasticsearch
+  gather_facts: yes
+  become: yes
+  vars:
+    # Elasticsearch配置
+    elasticsearch:
+      host: "{{ elasticsearch_host | default('localhost') }}"
+      port: "{{ elasticsearch_port | default(9200) }}"
+      protocol: "{{ elasticsearch_protocol | default('http') }}"
+      username: "{{ elasticsearch_username | default('') }}"
+      password: "{{ elasticsearch_password | default('') }}"
+      timeout: "{{ elasticsearch_timeout | default(60) }}"
+    
+    # 索引重建配置
+    rebuild_config:
+      source_index: "{{ source_index | mandatory }}"
+      target_index: "{{ target_index | default(source_index + '_rebuilt') }}"
+      backup_enabled: "{{ backup_enabled | default(true) }}"
+      backup_repository: "{{ backup_repository | default('backup_repo') }}"
+      reindex_batch_size: "{{ reindex_batch_size | default(1000) }}"
+      reindex_timeout: "{{ reindex_timeout | default('5m') }}"
+      delete_source: "{{ delete_source | default(false) }}"
+      create_alias: "{{ create_alias | default(true) }}"
+      alias_name: "{{ alias_name | default(source_index) }}"
+    
+    # 映射和设置配置
+    index_settings:
+      number_of_shards: "{{ number_of_shards | default(1) }}"
+      number_of_replicas: "{{ number_of_replicas | default(1) }}"
+      refresh_interval: "{{ refresh_interval | default('1s') }}"
+      max_result_window: "{{ max_result_window | default(10000) }}"
+    
+    # 性能优化配置
+    performance:
+      disable_refresh: "{{ disable_refresh | default(true) }}"
+      disable_replica: "{{ disable_replica | default(true) }}"
+      bulk_size: "{{ bulk_size | default(5000) }}"
+      parallel_tasks: "{{ parallel_tasks | default(1) }}"
+    
+    # 监控配置
+    monitoring:
+      progress_check_interval: "{{ progress_check_interval | default(30) }}"
+      max_wait_time: "{{ max_wait_time | default(3600) }}"
+      health_check_enabled: "{{ health_check_enabled | default(true) }}"
+    
+    # 日志配置
+    log_config:
+      log_dir: "/var/log/ansible/elasticsearch"
+      log_file: "index-rebuild-{{ ansible_date_time.epoch }}.log"
+      retention_days: 30
+    
+    # 通知配置
+    notification:
+      enabled: "{{ notification_enabled | default(true) }}"
+      webhook_url: "{{ webhook_url | default('') }}"
+      email_recipients: "{{ email_recipients | default([]) }}"
+
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "{{ log_config.log_dir }}"
+        state: directory
+        mode: '0755'
+      tags: [setup]
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+        operation_id: "rebuild-{{ rebuild_config.source_index }}-{{ ansible_date_time.epoch }}"
+      tags: [always]
+    
+    - name: "验证必需参数"
+      fail:
+        msg: "源索引名称不能为空"
+      when: rebuild_config.source_index == ''
+      tags: [validation]
+    
+    - name: "初始化操作日志"
+      lineinfile:
+        path: "{{ log_config.log_dir }}/{{ log_config.log_file }}"
+        line: "[{{ start_time }}] 开始索引重建操作 - 源索引: {{ rebuild_config.source_index }} - ID: {{ operation_id }}"
+        create: yes
+      tags: [logging]
+
+  tasks:
+    - name: "检查Elasticsearch集群状态"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_cluster/health"
+        method: GET
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+        status_code: 200
+      register: cluster_health
+      tags: [health_check]
+    
+    - name: "验证集群状态"
+      fail:
+        msg: "集群状态异常: {{ cluster_health.json.status }}"
+      when: cluster_health.json.status == 'red'
+      tags: [health_check]
+    
+    - name: "检查源索引是否存在"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.source_index }}"
+        method: HEAD
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+        status_code: [200, 404]
+      register: source_index_check
+      tags: [validation]
+    
+    - name: "验证源索引存在"
+      fail:
+        msg: "源索引 {{ rebuild_config.source_index }} 不存在"
+      when: source_index_check.status == 404
+      tags: [validation]
+    
+    - name: "获取源索引信息"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.source_index }}"
+        method: GET
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+      register: source_index_info
+      tags: [info_gathering]
+    
+    - name: "获取源索引统计信息"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.source_index }}/_stats"
+        method: GET
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+      register: source_index_stats
+      tags: [info_gathering]
+    
+    - name: "显示源索引信息"
+      debug:
+        msg:
+          - "源索引: {{ rebuild_config.source_index }}"
+          - "文档数量: {{ source_index_stats.json.indices[rebuild_config.source_index].total.docs.count }}"
+          - "索引大小: {{ (source_index_stats.json.indices[rebuild_config.source_index].total.store.size_in_bytes / 1024 / 1024) | round(2) }}MB"
+          - "分片数量: {{ source_index_info.json[rebuild_config.source_index].settings.index.number_of_shards }}"
+          - "副本数量: {{ source_index_info.json[rebuild_config.source_index].settings.index.number_of_replicas }}"
+      tags: [info_display]
+    
+    - name: "创建索引备份（可选）"
+      block:
+        - name: "检查备份仓库"
+          uri:
+            url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_snapshot/{{ rebuild_config.backup_repository }}"
+            method: GET
+            user: "{{ elasticsearch.username }}"
+            password: "{{ elasticsearch.password }}"
+            timeout: "{{ elasticsearch.timeout }}"
+            status_code: [200, 404]
+          register: backup_repo_check
+        
+        - name: "创建快照"
+          uri:
+            url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_snapshot/{{ rebuild_config.backup_repository }}/{{ rebuild_config.source_index }}-backup-{{ ansible_date_time.epoch }}"
+            method: PUT
+            user: "{{ elasticsearch.username }}"
+            password: "{{ elasticsearch.password }}"
+            timeout: 300
+            body_format: json
+            body:
+              indices: "{{ rebuild_config.source_index }}"
+              ignore_unavailable: true
+              include_global_state: false
+          register: backup_result
+          when: backup_repo_check.status == 200
+        
+        - name: "等待备份完成"
+          uri:
+            url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_snapshot/{{ rebuild_config.backup_repository }}/{{ rebuild_config.source_index }}-backup-{{ ansible_date_time.epoch }}"
+            method: GET
+            user: "{{ elasticsearch.username }}"
+            password: "{{ elasticsearch.password }}"
+            timeout: "{{ elasticsearch.timeout }}"
+          register: backup_status
+          until: backup_status.json.snapshots[0].state in ['SUCCESS', 'FAILED']
+          retries: 60
+          delay: 10
+          when: backup_result is defined and backup_result.status == 200
+      when: rebuild_config.backup_enabled
+      tags: [backup]
+    
+    - name: "检查目标索引是否存在"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.target_index }}"
+        method: HEAD
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+        status_code: [200, 404]
+      register: target_index_check
+      tags: [validation]
+    
+    - name: "删除已存在的目标索引"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.target_index }}"
+        method: DELETE
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+      when: target_index_check.status == 200
+      tags: [cleanup]
+    
+    - name: "准备目标索引设置"
+      set_fact:
+        target_settings:
+          settings:
+            number_of_shards: "{{ index_settings.number_of_shards }}"
+            number_of_replicas: "{{ 0 if performance.disable_replica else index_settings.number_of_replicas }}"
+            refresh_interval: "{{ '-1' if performance.disable_refresh else index_settings.refresh_interval }}"
+            max_result_window: "{{ index_settings.max_result_window }}"
+          mappings: "{{ source_index_info.json[rebuild_config.source_index].mappings }}"
+      tags: [preparation]
+    
+    - name: "创建目标索引"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.target_index }}"
+        method: PUT
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+        body_format: json
+        body: "{{ target_settings }}"
+      register: target_index_creation
+      tags: [index_creation]
+    
+    - name: "执行重建索引"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_reindex?wait_for_completion=false"
+        method: POST
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+        body_format: json
+        body:
+          source:
+            index: "{{ rebuild_config.source_index }}"
+            size: "{{ rebuild_config.reindex_batch_size }}"
+          dest:
+            index: "{{ rebuild_config.target_index }}"
+          conflicts: "proceed"
+      register: reindex_task
+      tags: [reindex]
+    
+    - name: "监控重建进度"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_tasks/{{ reindex_task.json.task }}"
+        method: GET
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+      register: reindex_progress
+      until: reindex_progress.json.completed == true
+      retries: "{{ (monitoring.max_wait_time / monitoring.progress_check_interval) | int }}"
+      delay: "{{ monitoring.progress_check_interval }}"
+      tags: [monitoring]
+    
+    - name: "显示重建结果"
+      debug:
+        msg:
+          - "重建任务完成"
+          - "任务ID: {{ reindex_task.json.task }}"
+          - "处理文档数: {{ reindex_progress.json.task.status.created }}"
+          - "耗时: {{ reindex_progress.json.task.running_time_in_nanos / 1000000000 | round(2) }}秒"
+          - "速度: {{ (reindex_progress.json.task.status.created / (reindex_progress.json.task.running_time_in_nanos / 1000000000)) | round(2) }}文档/秒"
+      tags: [results]
+    
+    - name: "恢复索引性能设置"
+      block:
+        - name: "启用刷新"
+          uri:
+            url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.target_index }}/_settings"
+            method: PUT
+            user: "{{ elasticsearch.username }}"
+            password: "{{ elasticsearch.password }}"
+            timeout: "{{ elasticsearch.timeout }}"
+            body_format: json
+            body:
+              refresh_interval: "{{ index_settings.refresh_interval }}"
+          when: performance.disable_refresh
+        
+        - name: "恢复副本数量"
+          uri:
+            url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.target_index }}/_settings"
+            method: PUT
+            user: "{{ elasticsearch.username }}"
+            password: "{{ elasticsearch.password }}"
+            timeout: "{{ elasticsearch.timeout }}"
+            body_format: json
+            body:
+              number_of_replicas: "{{ index_settings.number_of_replicas }}"
+          when: performance.disable_replica
+      tags: [optimization]
+    
+    - name: "等待索引恢复"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_cluster/health/{{ rebuild_config.target_index }}?wait_for_status=green&timeout=300s"
+        method: GET
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: 310
+      register: index_health
+      tags: [health_check]
+    
+    - name: "验证重建结果"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.target_index }}/_stats"
+        method: GET
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+      register: target_index_stats
+      tags: [verification]
+    
+    - name: "比较文档数量"
+      set_fact:
+        source_doc_count: "{{ source_index_stats.json.indices[rebuild_config.source_index].total.docs.count }}"
+        target_doc_count: "{{ target_index_stats.json.indices[rebuild_config.target_index].total.docs.count }}"
+      tags: [verification]
+    
+    - name: "验证文档数量一致性"
+      fail:
+        msg: "文档数量不一致 - 源索引: {{ source_doc_count }}, 目标索引: {{ target_doc_count }}"
+      when: source_doc_count != target_doc_count
+      tags: [verification]
+    
+    - name: "创建别名"
+      block:
+        - name: "删除旧别名"
+          uri:
+            url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_aliases"
+            method: POST
+            user: "{{ elasticsearch.username }}"
+            password: "{{ elasticsearch.password }}"
+            timeout: "{{ elasticsearch.timeout }}"
+            body_format: json
+            body:
+              actions:
+                - remove:
+                    index: "{{ rebuild_config.source_index }}"
+                    alias: "{{ rebuild_config.alias_name }}"
+          ignore_errors: yes
+        
+        - name: "创建新别名"
+          uri:
+            url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/_aliases"
+            method: POST
+            user: "{{ elasticsearch.username }}"
+            password: "{{ elasticsearch.password }}"
+            timeout: "{{ elasticsearch.timeout }}"
+            body_format: json
+            body:
+              actions:
+                - add:
+                    index: "{{ rebuild_config.target_index }}"
+                    alias: "{{ rebuild_config.alias_name }}"
+      when: rebuild_config.create_alias
+      tags: [alias_management]
+    
+    - name: "删除源索引（可选）"
+      uri:
+        url: "{{ elasticsearch.protocol }}://{{ elasticsearch.host }}:{{ elasticsearch.port }}/{{ rebuild_config.source_index }}"
+        method: DELETE
+        user: "{{ elasticsearch.username }}"
+        password: "{{ elasticsearch.password }}"
+        timeout: "{{ elasticsearch.timeout }}"
+      when: rebuild_config.delete_source
+      tags: [cleanup]
+    
+    - name: "记录操作结果"
+      lineinfile:
+        path: "{{ log_config.log_dir }}/{{ log_config.log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 索引重建完成 - 源: {{ rebuild_config.source_index }} -> 目标: {{ rebuild_config.target_index }} - 文档数: {{ target_doc_count }}"
+      tags: [logging]
+
+  post_tasks:
+    - name: "生成重建报告"
+      template:
+        src: index_rebuild_report.j2
+        dest: "{{ log_config.log_dir }}/index-rebuild-report-{{ ansible_date_time.epoch }}.json"
+      vars:
+        report_data:
+          operation_id: "{{ operation_id }}"
+          start_time: "{{ start_time }}"
+          end_time: "{{ ansible_date_time.iso8601 }}"
+          source_index:
+            name: "{{ rebuild_config.source_index }}"
+            doc_count: "{{ source_doc_count }}"
+            size_mb: "{{ (source_index_stats.json.indices[rebuild_config.source_index].total.store.size_in_bytes / 1024 / 1024) | round(2) }}"
+          target_index:
+            name: "{{ rebuild_config.target_index }}"
+            doc_count: "{{ target_doc_count }}"
+            size_mb: "{{ (target_index_stats.json.indices[rebuild_config.target_index].total.store.size_in_bytes / 1024 / 1024) | round(2) }}"
+          performance:
+            duration_seconds: "{{ reindex_progress.json.task.running_time_in_nanos / 1000000000 | round(2) }}"
+            docs_per_second: "{{ (reindex_progress.json.task.status.created / (reindex_progress.json.task.running_time_in_nanos / 1000000000)) | round(2) }}"
+          settings:
+            backup_created: "{{ rebuild_config.backup_enabled }}"
+            alias_created: "{{ rebuild_config.create_alias }}"
+            source_deleted: "{{ rebuild_config.delete_source }}"
+      tags: [reporting]
+    
+    - name: "发送完成通知"
+      uri:
+        url: "{{ notification.webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          text: "Elasticsearch索引重建完成\n源索引: {{ rebuild_config.source_index }}\n目标索引: {{ rebuild_config.target_index }}\n文档数量: {{ target_doc_count }}\n耗时: {{ reindex_progress.json.task.running_time_in_nanos / 1000000000 | round(2) }}秒"
+        status_code: 200
+      when: notification.enabled and notification.webhook_url != ''
+      ignore_errors: yes
+      tags: [notification]
+    
+    - name: "清理旧日志文件"
+      find:
+        paths: "{{ log_config.log_dir }}"
+        age: "{{ log_config.retention_days }}d"
+        patterns: "index-rebuild-*.log"
+      register: old_logs
+      tags: [cleanup]
+    
+    - name: "删除过期日志"
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_logs.files }}"
+      when: old_logs.files is defined
+      tags: [cleanup]
+
+  handlers:
+    - name: "重启Elasticsearch服务"
+      systemd:
+        name: elasticsearch
+        state: restarted
+      when: ansible_service_mgr == 'systemd'
+    
+    - name: "发送失败通知"
+      mail:
+        to: "{{ notification.email_recipients }}"
+        subject: "Elasticsearch索引重建失败告警"
+        body: "索引重建操作失败，请检查日志: {{ log_config.log_dir }}/{{ log_config.log_file }}"
+      when: notification.email_recipients | length > 0
+      ignore_errors: yes

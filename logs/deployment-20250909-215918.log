@@ -1,0 +1,30 @@
+[2025-09-09 21:59:18] [INFO] AIOps智能运维平台部署开始
+[2025-09-09 21:59:18] [INFO] 部署类型: docker
+[2025-09-09 21:59:18] [INFO] 环境: development
+[2025-09-09 21:59:18] [INFO] 日志文件: E:\workspace\gitea\aiops\logs\deployment-20250909-215918.log
+[2025-09-09 21:59:18] [INFO] 开始环境检查...
+[2025-09-09 21:59:19] [INFO] 系统资源检查:
+[2025-09-09 21:59:19] [INFO]   CPU核心数: 20
+[2025-09-09 21:59:19] [INFO]   总内存: 63.72GB
+[2025-09-09 21:59:19] [INFO]   可用磁盘空间: 249.06GB
+[2025-09-09 22:01:01] [WARN] 以下端口被占用: 3000, 6379, 5432
+[2025-09-09 22:01:01] [WARN] 请确保这些端口可用或修改配置文件中的端口设置
+[2025-09-09 22:01:01] [WARN] Docker警告（可忽略）: WARNING: No blkio throttle.read_bps_device support
+[2025-09-09 22:01:01] [SUCCESS] Docker环境检查通过
+[2025-09-09 22:01:01] [INFO]   Docker版本: Docker version 28.3.3, build 980b856
+[2025-09-09 22:01:01] [INFO]   Docker Compose版本: Docker Compose version v2.39.2-desktop.1
+[2025-09-09 22:01:01] [SUCCESS] 环境检查完成
+[2025-09-09 22:01:01] [INFO] 开始Docker部署...
+[2025-09-09 22:01:01] [SUCCESS] Docker Compose配置已生成: E:\workspace\gitea\aiops\docker-compose.override.yml
+[2025-09-09 22:01:01] [INFO] 拉取Docker镜像...
+[2025-09-09 22:01:26] [INFO] 启动服务...
+[2025-09-09 22:01:28] [INFO] 等待服务启动完成...
+[2025-09-09 22:01:58] [WARN] 服务  状态异常
+[2025-09-09 22:01:58] [SUCCESS] Docker部署完成: 0/1 服务运行正常
+[2025-09-09 22:01:58] [INFO] 服务访问地址:
+[2025-09-09 22:01:58] [INFO]   Grafana: http://localhost:3000 (admin/admin)
+[2025-09-09 22:01:58] [INFO]   Prometheus: http://localhost:9090
+[2025-09-09 22:01:58] [INFO]   Kibana: http://localhost:5601
+[2025-09-09 22:01:58] [INFO]   Traefik Dashboard: http://localhost:8080
+[2025-09-09 22:01:58] [SUCCESS] AIOps平台部署成功完成！
+[2025-09-09 22:01:58] [INFO] 详细日志请查看: E:\workspace\gitea\aiops\logs\deployment-20250909-215918.log

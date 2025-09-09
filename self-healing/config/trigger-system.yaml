@@ -1,0 +1,397 @@
+# 触发器系统配置文件
+# 用于配置告警监听、规则匹配和动作执行
+
+# 服务器配置
+server:
+  enabled: false
+  host: "0.0.0.0"
+  port: 9003
+  workers: 4
+  max_connections: 1000
+  request_timeout: 30
+  keepalive_timeout: 75
+
+# Prometheus指标服务配置
+metrics:
+  enabled: false
+  port: 9092
+  path: "/metrics"
+
+# Alertmanager配置
+alertmanager:
+  webhook_path: "/webhook/alertmanager"
+  timeout: 10
+  retry_attempts: 3
+  retry_delay: 5
+  
+  # Alertmanager实例配置
+  instances:
+    - name: "primary"
+      url: "http://alertmanager:9093"
+      enabled: true
+    - name: "secondary"
+      url: "http://alertmanager-backup:9093"
+      enabled: false
+
+# Prometheus配置
+prometheus:
+  url: "http://prometheus:9090"
+  query_interval: 30
+  timeout: 15
+  max_samples: 10000
+  
+  # 主动查询配置
+  queries:
+    - name: "high_cpu_usage"
+      query: "(100 - (avg by (instance) (irate(node_cpu_seconds_total{mode='idle'}[5m])) * 100)) > 80"
+      interval: 60
+      severity: "high"
+      enabled: true
+    
+    - name: "high_memory_usage"
+      query: "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85"
+      interval: 60
+      severity: "high"
+      enabled: true
+    
+    - name: "disk_space_low"
+      query: "(1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 90"
+      interval: 120
+      severity: "critical"
+      enabled: true
+    
+    - name: "elasticsearch_cluster_health"
+      query: "elasticsearch_cluster_health_status != 0"
+      interval: 30
+      severity: "critical"
+      enabled: true
+
+# Elasticsearch配置
+elasticsearch:
+  url: "http://elasticsearch:9200"
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+  index_pattern: "alerts-*"
+  timeout: 10
+  
+  # 监控配置
+  monitoring:
+    enabled: true
+    interval: 60
+    indices:
+      - "logstash-*"
+      - "filebeat-*"
+      - "metricbeat-*"
+    
+    # 告警查询
+    queries:
+      - name: "error_rate_high"
+        query: |
+          {
+            "query": {
+              "bool": {
+                "must": [
+                  {"range": {"@timestamp": {"gte": "now-5m"}}},
+                  {"term": {"level": "ERROR"}}
+                ]
+              }
+            },
+            "aggs": {
+              "error_count": {"value_count": {"field": "message"}}
+            }
+          }
+        threshold: 100
+        severity: "high"
+        enabled: true
+
+# 自愈执行器配置
+self_healing:
+  executor_url: "http://localhost:8081"
+  timeout: 300
+  retry_attempts: 2
+  retry_delay: 10
+  
+  # 执行器实例配置
+  instances:
+    - name: "primary"
+      url: "http://self-healing-executor:8081"
+      enabled: true
+      weight: 100
+    - name: "secondary"
+      url: "http://self-healing-executor-backup:8081"
+      enabled: false
+      weight: 50
+
+# 通知配置
+notifications:
+  enabled: true
+  
+  # 邮件通知
+  email:
+    enabled: true
+    smtp_server: "smtp.company.com"
+    smtp_port: 587
+    username: "alerts@company.com"
+    password: "${EMAIL_PASSWORD}"
+    from_address: "alerts@company.com"
+    to_addresses:
+      - "ops-team@company.com"
+      - "admin@company.com"
+    
+    # 邮件模板
+    templates:
+      alert_fired: |
+        Subject: [ALERT] {{.Alert.Name}} - {{.Alert.Severity}}
+        
+        Alert: {{.Alert.Name}}
+        Severity: {{.Alert.Severity}}
+        Status: {{.Alert.Status}}
+        Source: {{.Alert.Source}}
+        Message: {{.Alert.Message}}
+        
+        Started: {{.Alert.StartsAt}}
+        Labels: {{range $key, $value := .Alert.Labels}}{{$key}}={{$value}} {{end}}
+        
+        Generator URL: {{.Alert.GeneratorURL}}
+      
+      action_executed: |
+        Subject: [ACTION] {{.Rule.Name}} executed for {{.Alert.Name}}
+        
+        Rule: {{.Rule.Name}}
+        Action: {{.Rule.Action}}
+        Alert: {{.Alert.Name}}
+        Status: {{.Status}}
+        
+        Execution Time: {{.ExecutionTime}}
+        Result: {{.Result}}
+  
+  # Slack通知
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#alerts"
+    username: "AlertBot"
+    icon_emoji: ":warning:"
+  
+  # 钉钉通知
+  dingtalk:
+    enabled: false
+    webhook_url: "${DINGTALK_WEBHOOK_URL}"
+    secret: "${DINGTALK_SECRET}"
+
+# 告警存储配置
+alert_store:
+  max_alerts: 10000
+  cleanup_interval: 3600  # 1小时
+  retention_days: 30
+  
+  # 持久化配置
+  persistence:
+    enabled: true
+    type: "elasticsearch"  # elasticsearch, file, database
+    
+    # Elasticsearch持久化
+    elasticsearch:
+      index: "trigger-alerts"
+      doc_type: "alert"
+    
+    # 文件持久化
+    file:
+      path: "data/alerts.json"
+      backup_count: 5
+    
+    # 数据库持久化
+    database:
+      driver: "postgresql"
+      dsn: "postgresql://user:password@localhost/alerts"
+
+# 规则引擎配置
+rule_engine:
+  enabled: true
+  reload_interval: 300  # 5分钟
+  max_rules: 1000
+  
+  # 规则验证
+  validation:
+    enabled: true
+    strict_mode: false
+    
+  # 规则缓存
+  cache:
+    enabled: true
+    ttl: 600  # 10分钟
+    max_size: 1000
+
+# 安全配置
+security:
+  # API认证
+  authentication:
+    enabled: true
+    type: "bearer"  # bearer, basic, api_key
+    
+    # Bearer Token认证
+    bearer:
+      token: "${API_TOKEN}"
+      header: "Authorization"
+    
+    # Basic认证
+    basic:
+      username: "admin"
+      password: "${ADMIN_PASSWORD}"
+    
+    # API Key认证
+    api_key:
+      key: "${API_KEY}"
+      header: "X-API-Key"
+  
+  # HTTPS配置
+  tls:
+    enabled: false
+    cert_file: "certs/server.crt"
+    key_file: "certs/server.key"
+    ca_file: "certs/ca.crt"
+  
+  # CORS配置
+  cors:
+    enabled: true
+    allowed_origins:
+      - "http://localhost:3000"
+      - "https://dashboard.company.com"
+    allowed_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+    allowed_headers:
+      - "Content-Type"
+      - "Authorization"
+      - "X-API-Key"
+
+# 性能配置
+performance:
+  # 并发控制
+  concurrency:
+    max_concurrent_alerts: 100
+    max_concurrent_actions: 10
+    queue_size: 1000
+  
+  # 限流配置
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    burst_size: 100
+  
+  # 缓存配置
+  caching:
+    enabled: true
+    alert_cache_ttl: 300
+    rule_cache_ttl: 600
+    result_cache_ttl: 1800
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "json"  # json, text
+  
+  # 文件日志
+  file:
+    enabled: true
+    path: "logs/trigger-system.log"
+    max_size: "100MB"
+    max_files: 10
+    compress: true
+  
+  # 控制台日志
+  console:
+    enabled: true
+    colored: true
+  
+  # 远程日志
+  remote:
+    enabled: false
+    type: "elasticsearch"  # elasticsearch, syslog, fluentd
+    
+    elasticsearch:
+      url: "http://elasticsearch:9200"
+      index: "trigger-system-logs"
+    
+    syslog:
+      address: "localhost:514"
+      protocol: "udp"
+      facility: "local0"
+    
+    fluentd:
+      host: "fluentd"
+      port: 24224
+      tag: "trigger-system"
+
+# 监控和健康检查
+health:
+  # 健康检查配置
+  checks:
+    - name: "alertmanager_connectivity"
+      type: "http"
+      url: "http://alertmanager:9093/-/healthy"
+      interval: 30
+      timeout: 5
+      enabled: true
+    
+    - name: "prometheus_connectivity"
+      type: "http"
+      url: "http://prometheus:9090/-/healthy"
+      interval: 30
+      timeout: 5
+      enabled: true
+    
+    - name: "elasticsearch_connectivity"
+      type: "http"
+      url: "http://elasticsearch:9200/_cluster/health"
+      interval: 30
+      timeout: 5
+      enabled: true
+    
+    - name: "self_healing_executor"
+      type: "http"
+      url: "http://self-healing-executor:8081/health"
+      interval: 30
+      timeout: 5
+      enabled: true
+  
+  # 自动恢复
+  auto_recovery:
+    enabled: true
+    max_failures: 3
+    recovery_delay: 60
+
+# 调试和开发配置
+debug:
+  enabled: false
+  profiling: false
+  trace_requests: false
+  
+  # 模拟配置
+  simulation:
+    enabled: false
+    dry_run: false
+    mock_actions: false
+
+# 扩展配置
+extensions:
+  # 自定义插件
+  plugins:
+    enabled: false
+    directory: "plugins"
+    
+  # Webhook扩展
+  webhooks:
+    enabled: true
+    custom_endpoints:
+      - path: "/webhook/custom"
+        handler: "custom_handler"
+        enabled: false
+  
+  # 脚本扩展
+  scripts:
+    enabled: false
+    directory: "scripts"
+    timeout: 60

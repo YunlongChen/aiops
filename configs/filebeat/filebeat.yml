@@ -1,0 +1,400 @@
+#=========================== Filebeat inputs =============================
+
+# 文件输入配置
+filebeat.inputs:
+
+# 系统日志
+- type: log
+  enabled: true
+  paths:
+    - /var/log/*.log
+    - /var/log/messages
+    - /var/log/syslog
+  fields:
+    logtype: system
+    service: system
+  fields_under_root: true
+  multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+  multiline.negate: true
+  multiline.match: after
+  scan_frequency: 10s
+  harvester_buffer_size: 16384
+  max_bytes: 10485760
+
+# Docker容器日志
+- type: container
+  enabled: true
+  paths:
+    - '/var/lib/docker/containers/*/*.log'
+  fields:
+    logtype: docker
+    service: docker
+  fields_under_root: true
+  processors:
+    - add_docker_metadata:
+        host: "unix:///var/run/docker.sock"
+    - decode_json_fields:
+        fields: ["message"]
+        target: ""
+        overwrite_keys: true
+
+# AIOps应用日志
+- type: log
+  enabled: true
+  paths:
+    - /app/logs/*.log
+    - /app/logs/**/*.log
+  fields:
+    logtype: application
+    service: aiops
+  fields_under_root: true
+  multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+  multiline.negate: true
+  multiline.match: after
+  json.keys_under_root: true
+  json.add_error_key: true
+
+# Nginx访问日志
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/access.log
+  fields:
+    logtype: nginx-access
+    service: nginx
+  fields_under_root: true
+  processors:
+    - dissect:
+        tokenizer: '%{clientip} %{ident} %{auth} [%{timestamp}] "%{verb} %{request} %{httpversion}" %{response} %{bytes} "%{referrer}" "%{agent}"'
+        field: "message"
+        target_prefix: "nginx"
+
+# Nginx错误日志
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/error.log
+  fields:
+    logtype: nginx-error
+    service: nginx
+  fields_under_root: true
+  multiline.pattern: '^\d{4}/\d{2}/\d{2}'
+  multiline.negate: true
+  multiline.match: after
+
+# PostgreSQL日志
+- type: log
+  enabled: true
+  paths:
+    - /var/log/postgresql/*.log
+  fields:
+    logtype: postgresql
+    service: postgresql
+  fields_under_root: true
+  multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+  multiline.negate: true
+  multiline.match: after
+
+# Redis日志
+- type: log
+  enabled: true
+  paths:
+    - /var/log/redis/*.log
+  fields:
+    logtype: redis
+    service: redis
+  fields_under_root: true
+
+# Prometheus日志
+- type: log
+  enabled: true
+  paths:
+    - /prometheus/logs/*.log
+  fields:
+    logtype: prometheus
+    service: prometheus
+  fields_under_root: true
+  multiline.pattern: '^level='
+  multiline.negate: true
+  multiline.match: after
+
+# Grafana日志
+- type: log
+  enabled: true
+  paths:
+    - /var/log/grafana/*.log
+  fields:
+    logtype: grafana
+    service: grafana
+  fields_under_root: true
+  json.keys_under_root: true
+  json.add_error_key: true
+
+# Traefik日志
+- type: log
+  enabled: true
+  paths:
+    - /var/log/traefik/*.log
+  fields:
+    logtype: traefik
+    service: traefik
+  fields_under_root: true
+  json.keys_under_root: true
+  json.add_error_key: true
+
+# Kubernetes日志（如果部署在K8s中）
+- type: log
+  enabled: false
+  paths:
+    - /var/log/pods/*/*.log
+  fields:
+    logtype: kubernetes
+    service: kubernetes
+  fields_under_root: true
+  processors:
+    - add_kubernetes_metadata:
+        host: ${NODE_NAME}
+        matchers:
+        - logs_path:
+            logs_path: "/var/log/containers/"
+
+#=========================== Filebeat modules =============================
+
+filebeat.config.modules:
+  # 模块配置目录
+  path: ${path.config}/modules.d/*.yml
+  # 重新加载模块配置
+  reload.enabled: true
+  reload.period: 10s
+
+#==================== Elasticsearch template setting ==========================
+
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+  index.codec: best_compression
+  _source.enabled: true
+
+#=========================== Kibana配置 ===================================
+
+# Kibana主机配置
+setup.kibana:
+  host: "kibana:5601"
+  protocol: "http"
+  username: "elastic"
+  password: "changeme"
+
+#================================ Outputs ===================================
+
+# Logstash输出配置
+output.logstash:
+  hosts: ["logstash:5044"]
+  worker: 2
+  compression_level: 3
+  bulk_max_size: 2048
+  template.name: "filebeat"
+  template.pattern: "filebeat-*"
+  template.settings:
+    index.number_of_shards: 1
+    index.number_of_replicas: 0
+
+# Elasticsearch输出配置（备用）
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   protocol: "http"
+#   username: "elastic"
+#   password: "changeme"
+#   index: "filebeat-%{+yyyy.MM.dd}"
+#   template.name: "filebeat"
+#   template.pattern: "filebeat-*"
+#   template.settings:
+#     index.number_of_shards: 1
+#     index.number_of_replicas: 0
+
+#================================ Processors ================================
+
+# 全局处理器
+processors:
+  # 添加主机信息
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      
+  # 添加Docker元数据
+  - add_docker_metadata: ~
+  
+  # 添加Kubernetes元数据
+  - add_kubernetes_metadata: ~
+  
+  # 删除不需要的字段
+  - drop_fields:
+      fields: ["agent", "ecs", "input", "log.file.path"]
+      ignore_missing: true
+  
+  # 重命名字段
+  - rename:
+      fields:
+        - from: "host.name"
+          to: "hostname"
+      ignore_missing: true
+  
+  # 添加标签
+  - add_tags:
+      tags: ["filebeat", "logs"]
+      target: "tags"
+
+#================================ Logging ===================================
+
+# 日志配置
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+  rotateeverybytes: 10485760
+
+# 日志输出到标准输出
+logging.to_stderr: false
+
+# 指标日志
+logging.metrics.enabled: true
+logging.metrics.period: 30s
+
+#============================== X-Pack Monitoring ===============================
+
+# 监控配置
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  username: "elastic"
+  password: "changeme"
+
+#================================= Migration ==================================
+
+# 迁移配置
+migration.6_to_7.enabled: true
+
+#============================== Instrumentation ===============================
+
+# 性能监控
+instrumentation:
+  enabled: true
+  environment: "production"
+  hosts:
+    - "apm-server:8200"
+  secret_token: ""
+
+#============================== HTTP endpoint ==============================
+
+# HTTP端点配置
+http.enabled: true
+http.host: "0.0.0.0"
+http.port: 5066
+
+#============================== Process Security ============================
+
+# 安全配置
+seccomp:
+  default_action: allow
+  syscalls:
+    - action: allow
+      names:
+        - rseq
+
+#============================== Autodiscover ===============================
+
+# 自动发现配置
+filebeat.autodiscover:
+  providers:
+    # Docker自动发现
+    - type: docker
+      hints.enabled: true
+      hints.default_config:
+        type: container
+        paths:
+          - /var/lib/docker/containers/${data.docker.container.id}/*.log
+      templates:
+        - condition:
+            contains:
+              docker.container.image: nginx
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              processors:
+                - dissect:
+                    tokenizer: '%{clientip} %{ident} %{auth} [%{timestamp}] "%{verb} %{request} %{httpversion}" %{response} %{bytes} "%{referrer}" "%{agent}"'
+                    field: "message"
+                    target_prefix: "nginx"
+        
+        - condition:
+            contains:
+              docker.container.image: postgres
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              multiline.pattern: '^\d{4}-\d{2}-\d{2}'
+              multiline.negate: true
+              multiline.match: after
+    
+    # Kubernetes自动发现
+    - type: kubernetes
+      node: ${NODE_NAME}
+      hints.enabled: true
+      hints.default_config:
+        type: container
+        paths:
+          - /var/log/containers/*${data.kubernetes.container.id}.log
+      templates:
+        - condition:
+            contains:
+              kubernetes.labels.app: nginx
+          config:
+            - type: container
+              paths:
+                - /var/log/containers/*${data.kubernetes.container.id}.log
+              processors:
+                - dissect:
+                    tokenizer: '%{clientip} %{ident} %{auth} [%{timestamp}] "%{verb} %{request} %{httpversion}" %{response} %{bytes} "%{referrer}" "%{agent}"'
+                    field: "message"
+                    target_prefix: "nginx"
+
+#============================== Queue Settings ==============================
+
+# 队列配置
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s
+
+#============================== Shipper ==================================
+
+# 发送器配置
+shipper:
+  name: "filebeat-shipper"
+  tags: ["filebeat", "shipper"]
+
+#============================== General ===================================
+
+# 通用配置
+name: "filebeat-${HOSTNAME}"
+tags: ["filebeat", "logs", "${ENV:production}"]
+fields:
+  env: "${ENV:production}"
+  datacenter: "${DATACENTER:dc1}"
+fields_under_root: false
+
+# 最大启动延迟
+max_start_delay: 10s
+
+# 关闭超时
+shutdown_timeout: 5s
+
+# 路径配置
+path:
+  home: /usr/share/filebeat
+  config: /usr/share/filebeat
+  data: /usr/share/filebeat/data
+  logs: /var/log/filebeat

@@ -1,0 +1,442 @@
+{{/*
+AIOps-Platform Kubernetes ServiceMonitor模板
+文件: servicemonitor.yaml
+描述: 定义Prometheus ServiceMonitor资源，用于服务发现和指标抓取
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if and .Values.prometheus.enabled .Values.monitoring.serviceMonitor.enabled }}
+# Traefik ServiceMonitor
+{{- if .Values.traefik.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.monitoring.serviceMonitor.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: traefik
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    {{- with .Values.monitoring.serviceMonitor.metricRelabelings }}
+    metricRelabelings:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.monitoring.serviceMonitor.relabelings }}
+    relabelings:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# Prometheus ServiceMonitor (自监控)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prometheus
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+
+---
+# Grafana ServiceMonitor
+{{- if .Values.grafana.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: grafana
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# Alertmanager ServiceMonitor
+{{- if .Values.alertmanager.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-alertmanager
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: alertmanager
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# Elasticsearch ServiceMonitor
+{{- if .Values.elasticsearch.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-elasticsearch
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: elasticsearch
+  endpoints:
+  - port: http
+    path: /_prometheus/metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    {{- if .Values.elasticsearch.auth.enabled }}
+    basicAuth:
+      username:
+        name: {{ include "aiops.fullname" . }}-elasticsearch-auth
+        key: username
+      password:
+        name: {{ include "aiops.fullname" . }}-elasticsearch-auth
+        key: password
+    {{- end }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# Logstash ServiceMonitor
+{{- if .Values.logstash.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-logstash
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logstash
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: logstash
+  endpoints:
+  - port: monitoring
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# Kibana ServiceMonitor
+{{- if .Values.kibana.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-kibana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kibana
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: kibana
+  endpoints:
+  - port: http
+    path: /api/status
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'kibana_(.*)'
+      targetLabel: __name__
+      replacement: '${1}'
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# Redis ServiceMonitor
+{{- if .Values.redis.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-redis
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# PostgreSQL ServiceMonitor
+{{- if .Values.postgresql.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-postgresql
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  endpoints:
+  - port: metrics
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# AI引擎 ServiceMonitor
+{{- if .Values.aiEngine.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai-engine
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'aiops_(.*)'
+      targetLabel: __name__
+      replacement: 'ai_${1}'
+    - sourceLabels: [job]
+      targetLabel: service
+      replacement: 'ai-engine'
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# API网关 ServiceMonitor
+{{- if .Values.apiGateway.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-api-gateway
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-gateway
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api-gateway
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'http_(.*)'
+      targetLabel: __name__
+      replacement: 'gateway_${1}'
+    - sourceLabels: [job]
+      targetLabel: service
+      replacement: 'api-gateway'
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+---
+# 自愈执行器 ServiceMonitor
+{{- if .Values.selfHealing.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+    {{- with .Values.monitoring.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: self-healing
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: {{ .Values.monitoring.serviceMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout | default "10s" }}
+    metricRelabelings:
+    - sourceLabels: [__name__]
+      regex: 'healing_(.*)'
+      targetLabel: __name__
+      replacement: 'selfhealing_${1}'
+    - sourceLabels: [job]
+      targetLabel: service
+      replacement: 'self-healing'
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.monitoring.serviceMonitor.customMonitors }}
+{{- range .Values.monitoring.serviceMonitor.customMonitors }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "aiops.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "aiops.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: custom-monitor
+    {{- with .labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  selector:
+    {{- toYaml .selector | nindent 4 }}
+  endpoints:
+    {{- toYaml .endpoints | nindent 4 }}
+  {{- if .namespaceSelector }}
+  namespaceSelector:
+    {{- toYaml .namespaceSelector | nindent 4 }}
+  {{- else }}
+  namespaceSelector:
+    matchNames:
+    - {{ $.Release.Namespace }}
+  {{- end }}
+  {{- with .jobLabel }}
+  jobLabel: {{ . }}
+  {{- end }}
+  {{- with .targetLabels }}
+  targetLabels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .podTargetLabels }}
+  podTargetLabels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .sampleLimit }}
+  sampleLimit: {{ . }}
+  {{- end }}
+  {{- with .targetLimit }}
+  targetLimit: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

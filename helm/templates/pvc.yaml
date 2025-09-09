@@ -1,0 +1,365 @@
+{{/*
+AIOps-Platform Kubernetes持久卷声明模板
+文件: pvc.yaml
+描述: 定义所有需要持久化存储的服务的PVC资源
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.prometheus.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+  {{- with .Values.prometheus.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.prometheus.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.prometheus.persistence.size | quote }}
+  {{- if .Values.prometheus.persistence.storageClass }}
+  {{- if (eq "-" .Values.prometheus.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.prometheus.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.prometheus.persistence.selector }}
+  selector:
+    {{- toYaml .Values.prometheus.persistence.selector | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.grafana.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+  {{- with .Values.grafana.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.grafana.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.grafana.persistence.size | quote }}
+  {{- if .Values.grafana.persistence.storageClass }}
+  {{- if (eq "-" .Values.grafana.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.grafana.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.grafana.persistence.selector }}
+  selector:
+    {{- toYaml .Values.grafana.persistence.selector | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.alertmanager.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-alertmanager-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+  {{- with .Values.alertmanager.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.alertmanager.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.alertmanager.persistence.size | quote }}
+  {{- if .Values.alertmanager.persistence.storageClass }}
+  {{- if (eq "-" .Values.alertmanager.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.alertmanager.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.alertmanager.persistence.selector }}
+  selector:
+    {{- toYaml .Values.alertmanager.persistence.selector | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.elasticsearch.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-elasticsearch-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+  {{- with .Values.elasticsearch.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.elasticsearch.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.elasticsearch.persistence.size | quote }}
+  {{- if .Values.elasticsearch.persistence.storageClass }}
+  {{- if (eq "-" .Values.elasticsearch.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.elasticsearch.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.elasticsearch.persistence.selector }}
+  selector:
+    {{- toYaml .Values.elasticsearch.persistence.selector | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.redis.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-redis-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+  {{- with .Values.redis.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.redis.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.redis.persistence.size | quote }}
+  {{- if .Values.redis.persistence.storageClass }}
+  {{- if (eq "-" .Values.redis.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.redis.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.redis.persistence.selector }}
+  selector:
+    {{- toYaml .Values.redis.persistence.selector | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.postgresql.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-postgresql-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+  {{- with .Values.postgresql.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.postgresql.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.postgresql.persistence.size | quote }}
+  {{- if .Values.postgresql.persistence.storageClass }}
+  {{- if (eq "-" .Values.postgresql.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.postgresql.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.postgresql.persistence.selector }}
+  selector:
+    {{- toYaml .Values.postgresql.persistence.selector | nindent 4 }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.aiEngine.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine-models
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+  {{- with .Values.aiEngine.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.aiEngine.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.aiEngine.persistence.size | quote }}
+  {{- if .Values.aiEngine.persistence.storageClass }}
+  {{- if (eq "-" .Values.aiEngine.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.aiEngine.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.aiEngine.persistence.selector }}
+  selector:
+    {{- toYaml .Values.aiEngine.persistence.selector | nindent 4 }}
+  {{- end }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+  {{- with .Values.aiEngine.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.aiEngine.persistence.dataSize | default "5Gi" | quote }}
+  {{- if .Values.aiEngine.persistence.storageClass }}
+  {{- if (eq "-" .Values.aiEngine.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.aiEngine.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.selfHealing.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing-playbooks
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+  {{- with .Values.selfHealing.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.selfHealing.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.selfHealing.persistence.size | quote }}
+  {{- if .Values.selfHealing.persistence.storageClass }}
+  {{- if (eq "-" .Values.selfHealing.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.selfHealing.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.selfHealing.persistence.selector }}
+  selector:
+    {{- toYaml .Values.selfHealing.persistence.selector | nindent 4 }}
+  {{- end }}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing-logs
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+  {{- with .Values.selfHealing.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.selfHealing.persistence.logSize | default "2Gi" | quote }}
+  {{- if .Values.selfHealing.persistence.storageClass }}
+  {{- if (eq "-" .Values.selfHealing.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.selfHealing.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.traefik.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik-data
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+  {{- with .Values.traefik.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- range .Values.traefik.persistence.accessModes }}
+    - {{ . | quote }}
+    {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.traefik.persistence.size | quote }}
+  {{- if .Values.traefik.persistence.storageClass }}
+  {{- if (eq "-" .Values.traefik.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: {{ .Values.traefik.persistence.storageClass | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.traefik.persistence.selector }}
+  selector:
+    {{- toYaml .Values.traefik.persistence.selector | nindent 4 }}
+  {{- end }}
+{{- end }}

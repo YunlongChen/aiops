@@ -1,0 +1,378 @@
+# Logstash Configuration
+# AIOps-Platform 日志处理引擎配置
+# 版本: 1.0.0
+
+# ===========================================
+# 节点配置
+# ===========================================
+# 节点名称
+node.name: logstash-node-1
+
+# 数据路径
+path.data: /usr/share/logstash/data
+
+# 配置路径
+path.config: /usr/share/logstash/pipeline
+
+# 日志路径
+path.logs: /usr/share/logstash/logs
+
+# 插件路径
+path.plugins: /usr/share/logstash/plugins
+
+# 设置路径
+path.settings: /usr/share/logstash/config
+
+# ===========================================
+# 管道配置
+# ===========================================
+# 管道工作线程数
+pipeline.workers: 4
+
+# 管道批处理大小
+pipeline.batch.size: 125
+
+# 管道批处理延迟
+pipeline.batch.delay: 50
+
+# 管道不安全关闭
+pipeline.unsafe_shutdown: false
+
+# 管道插件类路径
+# pipeline.plugin_classloaders: false
+
+# 管道分离运行
+pipeline.separate_logs: false
+
+# 管道排序
+pipeline.ordered: auto
+
+# 管道ECS兼容性
+pipeline.ecs_compatibility: disabled
+
+# ===========================================
+# HTTP API配置
+# ===========================================
+# HTTP主机
+http.host: "0.0.0.0"
+
+# HTTP端口
+http.port: 9600
+
+# HTTP环境
+http.environment: "production"
+
+# ===========================================
+# 日志配置
+# ===========================================
+# 日志级别
+log.level: info
+
+# 日志格式
+log.format: plain
+
+# 慢日志阈值
+slowlog.threshold.warn: 2s
+slowlog.threshold.info: 1s
+slowlog.threshold.debug: 500ms
+slowlog.threshold.trace: 100ms
+
+# ===========================================
+# 监控配置
+# ===========================================
+# 监控启用
+monitoring.enabled: true
+
+# 监控集群UUID
+# monitoring.cluster_uuid: "your-cluster-uuid"
+
+# 监控Elasticsearch主机
+monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# 监控Elasticsearch用户名
+# monitoring.elasticsearch.username: "logstash_system"
+
+# 监控Elasticsearch密码
+# monitoring.elasticsearch.password: "password"
+
+# 监控Elasticsearch SSL
+# monitoring.elasticsearch.ssl.certificate_authority: "/path/to/ca.crt"
+# monitoring.elasticsearch.ssl.truststore.path: "/path/to/truststore.jks"
+# monitoring.elasticsearch.ssl.truststore.password: "password"
+# monitoring.elasticsearch.ssl.keystore.path: "/path/to/keystore.jks"
+# monitoring.elasticsearch.ssl.keystore.password: "password"
+
+# 监控收集间隔
+monitoring.collection.interval: 10s
+
+# 监控收集管道详情
+monitoring.collection.pipeline.details.enabled: true
+
+# ===========================================
+# X-Pack配置
+# ===========================================
+# X-Pack监控
+# xpack.monitoring.enabled: true
+# xpack.monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+# xpack.monitoring.elasticsearch.username: "logstash_system"
+# xpack.monitoring.elasticsearch.password: "password"
+
+# X-Pack管理
+# xpack.management.enabled: true
+# xpack.management.elasticsearch.hosts: ["http://elasticsearch:9200"]
+# xpack.management.elasticsearch.username: "logstash_admin"
+# xpack.management.elasticsearch.password: "password"
+# xpack.management.logstash.poll_interval: 5s
+# xpack.management.pipeline.id: ["main", "apache", "test"]
+
+# ===========================================
+# 队列配置
+# ===========================================
+# 队列类型 (memory 或 persisted)
+queue.type: memory
+
+# 内存队列配置
+queue.max_events: 0
+queue.max_bytes: 1024mb
+
+# 持久化队列配置
+# queue.type: persisted
+# queue.max_events: 0
+# queue.max_bytes: 1024mb
+# queue.checkpoint.acks: 1024
+# queue.checkpoint.writes: 1024
+# queue.checkpoint.interval: 1000
+# queue.page_capacity: 64mb
+# queue.drain: false
+
+# ===========================================
+# 死信队列配置
+# ===========================================
+# 死信队列启用
+dead_letter_queue.enable: false
+
+# 死信队列最大大小
+dead_letter_queue.max_bytes: 1024mb
+
+# 死信队列刷新间隔
+dead_letter_queue.flush_interval: 5000
+
+# ===========================================
+# 度量配置
+# ===========================================
+# 度量收集
+metric.collect: true
+
+# ===========================================
+# 配置重载
+# ===========================================
+# 配置重载
+config.reload.automatic: false
+
+# 配置重载间隔
+config.reload.interval: 3s
+
+# 配置调试
+config.debug: false
+
+# 配置支持转义
+config.support_escapes: false
+
+# ===========================================
+# 模块配置
+# ===========================================
+# 模块路径
+modules.path: /usr/share/logstash/modules
+
+# 模块CLI设置
+modules.cli: true
+
+# ===========================================
+# 插件配置
+# ===========================================
+# 允许环境变量
+allow_env: true
+
+# 允许超级用户
+allow_superuser: false
+
+# ===========================================
+# JVM配置
+# ===========================================
+# JVM选项文件路径
+# jvm.options: /usr/share/logstash/config/jvm.options
+
+# ===========================================
+# 启动配置
+# ===========================================
+# 启动选项
+# startup.options: /usr/share/logstash/config/startup.options
+
+# ===========================================
+# 安全配置
+# ===========================================
+# Keystore路径
+# keystore.file: /usr/share/logstash/config/logstash.keystore
+
+# ===========================================
+# 网络配置
+# ===========================================
+# 网络主机
+# network.host: "0.0.0.0"
+
+# ===========================================
+# 云配置
+# ===========================================
+# 云ID
+# cloud.id: "your-cloud-id"
+
+# 云认证
+# cloud.auth: "username:password"
+
+# ===========================================
+# 自定义配置
+# ===========================================
+# 自定义设置可以在这里添加
+
+# ===========================================
+# 环境特定配置
+# ===========================================
+# 开发环境
+# log.level: debug
+# config.reload.automatic: true
+# pipeline.workers: 1
+
+# 生产环境
+# log.level: warn
+# config.reload.automatic: false
+# pipeline.workers: 8
+# queue.type: persisted
+# monitoring.enabled: true
+
+# ===========================================
+# 性能调优配置
+# ===========================================
+# 管道批处理配置
+# pipeline.batch.size: 1000
+# pipeline.batch.delay: 10
+
+# 输出工作线程
+# pipeline.output.workers: 4
+
+# 输入线程
+# pipeline.input.threads: 4
+
+# 过滤器工作线程
+# pipeline.filter.workers: 4
+
+# ===========================================
+# 调试配置
+# ===========================================
+# 调试模式
+# debug: false
+
+# 详细模式
+# verbose: false
+
+# 静默模式
+# quiet: false
+
+# ===========================================
+# 插件管理配置
+# ===========================================
+# 插件管理代理
+# http_proxy: "http://proxy.example.com:8080"
+# https_proxy: "https://proxy.example.com:8080"
+
+# 插件管理超时
+# plugin.timeout: 120
+
+# ===========================================
+# 字符集配置
+# ===========================================
+# 默认字符集
+# default_charset: "UTF-8"
+
+# ===========================================
+# 临时文件配置
+# ===========================================
+# 临时目录
+# path.temp: "/tmp/logstash"
+
+# ===========================================
+# 锁文件配置
+# ===========================================
+# 锁文件路径
+# path.lock: "/var/lock/logstash"
+
+# ===========================================
+# 配置验证
+# ===========================================
+# 配置测试和退出
+# config.test_and_exit: false
+
+# 配置字符串
+# config.string: ""
+
+# ===========================================
+# 管道配置文件
+# ===========================================
+# 管道配置文件路径
+# path.config: ["/usr/share/logstash/pipeline/logstash.conf"]
+
+# 管道配置字符串
+# config.string: "input { stdin { } } output { stdout {} }"
+
+# ===========================================
+# 日志轮转配置
+# ===========================================
+# 日志轮转
+# log.rotation.policy: size_and_time
+# log.rotation.max_size: 100mb
+# log.rotation.max_files: 7
+
+# ===========================================
+# 内存使用配置
+# ===========================================
+# 堆内存使用监控
+# monitoring.heap_dump.path: "/usr/share/logstash/heapdump"
+
+# ===========================================
+# 集群配置
+# ===========================================
+# 集群名称
+# cluster.name: "aiops-logstash-cluster"
+
+# 节点角色
+# node.roles: ["ingest", "transform"]
+
+# ===========================================
+# API配置
+# ===========================================
+# API启用
+api.enabled: true
+
+# API主机
+api.host: "0.0.0.0"
+
+# API端口
+api.port: 9600
+
+# API SSL
+# api.ssl.enabled: false
+# api.ssl.keystore.path: "/path/to/keystore.jks"
+# api.ssl.keystore.password: "password"
+
+# API认证
+# api.auth.type: basic
+# api.auth.basic.username: "logstash"
+# api.auth.basic.password: "password"
+
+# ===========================================
+# 统计配置
+# ===========================================
+# 统计收集
+stats.enabled: true
+
+# 统计刷新间隔
+stats.refresh_interval: 5s

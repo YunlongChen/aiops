@@ -1,0 +1,323 @@
+# Traefik动态配置文件
+# 定义路由规则、中间件和服务发现
+# 作者: AI Assistant
+# 创建时间: 2024
+
+# HTTP路由配置
+http:
+  # 路由规则
+  routers:
+    # AI引擎路由
+    ai-engine:
+      rule: "Host(`ai-engine.local`) || PathPrefix(`/api/ai`)"
+      service: ai-engine-service
+      middlewares:
+        - auth
+        - rate-limit
+        - cors
+      tls:
+        certResolver: letsencrypt
+    
+    # API网关路由
+    api-gateway:
+      rule: "Host(`api.local`) || PathPrefix(`/api/v1`)"
+      service: api-gateway-service
+      middlewares:
+        - auth
+        - rate-limit
+        - cors
+      tls:
+        certResolver: letsencrypt
+    
+    # Grafana监控面板路由
+    grafana:
+      rule: "Host(`grafana.local`) || PathPrefix(`/grafana`)"
+      service: grafana-service
+      middlewares:
+        - auth
+        - strip-prefix-grafana
+      tls:
+        certResolver: letsencrypt
+    
+    # Prometheus指标路由
+    prometheus:
+      rule: "Host(`prometheus.local`) || PathPrefix(`/prometheus`)"
+      service: prometheus-service
+      middlewares:
+        - auth
+        - strip-prefix-prometheus
+      tls:
+        certResolver: letsencrypt
+    
+    # Kibana日志分析路由
+    kibana:
+      rule: "Host(`kibana.local`) || PathPrefix(`/kibana`)"
+      service: kibana-service
+      middlewares:
+        - auth
+        - strip-prefix-kibana
+      tls:
+        certResolver: letsencrypt
+    
+    # Elasticsearch搜索引擎路由
+    elasticsearch:
+      rule: "Host(`elasticsearch.local`) || PathPrefix(`/elasticsearch`)"
+      service: elasticsearch-service
+      middlewares:
+        - auth
+        - strip-prefix-elasticsearch
+      tls:
+        certResolver: letsencrypt
+    
+    # Traefik仪表板路由
+    traefik-dashboard:
+      rule: "Host(`traefik.local`) || PathPrefix(`/dashboard`)"
+      service: api@internal
+      middlewares:
+        - dashboard-auth
+      tls:
+        certResolver: letsencrypt
+
+  # 服务定义
+  services:
+    # AI引擎服务
+    ai-engine-service:
+      loadBalancer:
+        servers:
+          - url: "http://ai-engine:8000"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+        sticky:
+          cookie:
+            name: "ai-engine-session"
+            secure: true
+            httpOnly: true
+    
+    # API网关服务
+    api-gateway-service:
+      loadBalancer:
+        servers:
+          - url: "http://api-gateway:8080"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "5s"
+    
+    # Grafana服务
+    grafana-service:
+      loadBalancer:
+        servers:
+          - url: "http://grafana:3000"
+        healthCheck:
+          path: "/api/health"
+          interval: "30s"
+          timeout: "5s"
+    
+    # Prometheus服务
+    prometheus-service:
+      loadBalancer:
+        servers:
+          - url: "http://prometheus:9090"
+        healthCheck:
+          path: "/-/healthy"
+          interval: "30s"
+          timeout: "5s"
+    
+    # Kibana服务
+    kibana-service:
+      loadBalancer:
+        servers:
+          - url: "http://kibana:5601"
+        healthCheck:
+          path: "/api/status"
+          interval: "30s"
+          timeout: "5s"
+    
+    # Elasticsearch服务
+    elasticsearch-service:
+      loadBalancer:
+        servers:
+          - url: "http://elasticsearch:9200"
+        healthCheck:
+          path: "/_cluster/health"
+          interval: "30s"
+          timeout: "5s"
+
+  # 中间件配置
+  middlewares:
+    # 认证中间件
+    auth:
+      basicAuth:
+        users:
+          - "admin:$2y$10$2b2cu/0P6dvFRlm/IXkhWuNP2hdHfkdmP8YF/GFGFqvXD9m/QMVK6" # admin:admin123
+          - "user:$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi" # user:password
+    
+    # 仪表板认证
+    dashboard-auth:
+      basicAuth:
+        users:
+          - "traefik:$2y$10$2b2cu/0P6dvFRlm/IXkhWuNP2hdHfkdmP8YF/GFGFqvXD9m/QMVK6" # traefik:admin123
+    
+    # 速率限制
+    rate-limit:
+      rateLimit:
+        burst: 100
+        average: 50
+        period: "1m"
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+    
+    # CORS跨域
+    cors:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowOriginList:
+          - "*"
+        accessControlAllowHeaders:
+          - "*"
+        accessControlExposeHeaders:
+          - "*"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 100
+        addVaryHeader: true
+    
+    # 路径前缀移除
+    strip-prefix-grafana:
+      stripPrefix:
+        prefixes:
+          - "/grafana"
+    
+    strip-prefix-prometheus:
+      stripPrefix:
+        prefixes:
+          - "/prometheus"
+    
+    strip-prefix-kibana:
+      stripPrefix:
+        prefixes:
+          - "/kibana"
+    
+    strip-prefix-elasticsearch:
+      stripPrefix:
+        prefixes:
+          - "/elasticsearch"
+    
+    # 安全头部
+    security-headers:
+      headers:
+        frameDeny: true
+        sslRedirect: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+    
+    # 压缩中间件
+    compression:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"
+    
+    # 重试中间件
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: "100ms"
+    
+    # 断路器
+    circuit-breaker:
+      circuitBreaker:
+        expression: "NetworkErrorRatio() > 0.30"
+        checkPeriod: "3s"
+        fallbackDuration: "10s"
+        recoveryDuration: "10s"
+    
+    # IP白名单
+    ip-whitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+    
+    # 重定向到HTTPS
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+# TCP路由配置（用于数据库等服务）
+tcp:
+  routers:
+    # PostgreSQL数据库路由
+    postgres:
+      rule: "HostSNI(`*`)"
+      service: postgres-service
+      entryPoints:
+        - postgres
+    
+    # Redis缓存路由
+    redis:
+      rule: "HostSNI(`*`)"
+      service: redis-service
+      entryPoints:
+        - redis
+  
+  services:
+    # PostgreSQL服务
+    postgres-service:
+      loadBalancer:
+        servers:
+          - address: "postgres:5432"
+    
+    # Redis服务
+    redis-service:
+      loadBalancer:
+        servers:
+          - address: "redis:6379"
+
+# TLS配置
+tls:
+  # 证书配置
+  certificates:
+    - certFile: "/etc/traefik/certs/cert.pem"
+      keyFile: "/etc/traefik/certs/key.pem"
+      stores:
+        - default
+  
+  # 存储配置
+  stores:
+    default:
+      defaultCertificate:
+        certFile: "/etc/traefik/certs/cert.pem"
+        keyFile: "/etc/traefik/certs/key.pem"
+  
+  # TLS选项
+  options:
+    default:
+      minVersion: "VersionTLS12"
+      maxVersion: "VersionTLS13"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+      curvePreferences:
+        - "CurveP521"
+        - "CurveP384"
+      sniStrict: false
+      alpnProtocols:
+        - "h2"
+        - "http/1.1"

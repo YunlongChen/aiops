@@ -1,0 +1,344 @@
+# AI引擎默认配置文件
+# 应用配置
+app:
+  name: "AIOps AI Engine"
+  version: "1.0.0"
+  debug: false
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: false
+  log_level: "INFO"
+
+# 数据库配置
+database:
+  # 主数据库（PostgreSQL）
+  primary:
+    type: "postgresql"
+    host: "localhost"
+    port: 5432
+    database: "aiops"
+    username: "aiops"
+    password: "aiops123"
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+    pool_recycle: 3600
+    echo: false
+  
+  # 时间序列数据库（InfluxDB）
+  timeseries:
+    type: "influxdb"
+    host: "localhost"
+    port: 8086
+    database: "aiops_metrics"
+    username: "aiops"
+    password: "aiops123"
+    retention_policy: "autogen"
+
+# Redis缓存配置
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+  max_connections: 100
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  health_check_interval: 30
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "structured"
+  file:
+    enabled: true
+    path: "logs/ai-engine.log"
+    max_size: "100MB"
+    backup_count: 10
+    rotation: "daily"
+  console:
+    enabled: true
+    colored: true
+  performance:
+    enabled: true
+    threshold: 1.0  # 秒
+
+# 异常检测配置
+anomaly_detection:
+  # 默认算法
+  default_algorithm: "isolation_forest"
+  
+  # 算法参数
+  algorithms:
+    isolation_forest:
+      contamination: 0.1
+      n_estimators: 100
+      max_samples: "auto"
+      random_state: 42
+    
+    local_outlier_factor:
+      n_neighbors: 20
+      contamination: 0.1
+      algorithm: "auto"
+    
+    one_class_svm:
+      kernel: "rbf"
+      gamma: "scale"
+      nu: 0.1
+    
+    statistical:
+      method: "zscore"
+      threshold: 3.0
+      window_size: 100
+    
+    lstm_autoencoder:
+      sequence_length: 50
+      encoding_dim: 32
+      epochs: 100
+      batch_size: 32
+      validation_split: 0.2
+  
+  # 数据预处理
+  preprocessing:
+    scaling: "standard"  # standard, minmax, robust
+    feature_selection: true
+    feature_count: 10
+    handle_missing: "interpolate"  # drop, interpolate, forward_fill
+  
+  # 性能配置
+  performance:
+    batch_size: 1000
+    max_memory_usage: "2GB"
+    parallel_jobs: -1
+
+# 预测配置
+prediction:
+  # 默认算法
+  default_algorithm: "lstm"
+  
+  # 算法参数
+  algorithms:
+    lstm:
+      sequence_length: 60
+      hidden_units: 50
+      dropout: 0.2
+      epochs: 100
+      batch_size: 32
+      validation_split: 0.2
+    
+    gru:
+      sequence_length: 60
+      hidden_units: 50
+      dropout: 0.2
+      epochs: 100
+      batch_size: 32
+    
+    cnn_lstm:
+      sequence_length: 60
+      cnn_filters: 64
+      kernel_size: 3
+      lstm_units: 50
+      dropout: 0.2
+      epochs: 100
+    
+    arima:
+      order: [1, 1, 1]
+      seasonal_order: [1, 1, 1, 12]
+      trend: "add"
+    
+    prophet:
+      seasonality_mode: "additive"
+      yearly_seasonality: true
+      weekly_seasonality: true
+      daily_seasonality: false
+    
+    xgboost:
+      n_estimators: 100
+      max_depth: 6
+      learning_rate: 0.1
+      subsample: 0.8
+      colsample_bytree: 0.8
+  
+  # 预测配置
+  forecast:
+    horizon: 24  # 预测时间步数
+    confidence_interval: 0.95
+    update_frequency: "1h"  # 模型更新频率
+
+# 决策引擎配置
+decision_engine:
+  # 规则引擎
+  rules:
+    cpu_threshold: 80.0
+    memory_threshold: 85.0
+    disk_threshold: 90.0
+    response_time_threshold: 5000  # 毫秒
+    error_rate_threshold: 0.05
+  
+  # 决策策略
+  strategies:
+    auto_scaling:
+      enabled: true
+      min_instances: 1
+      max_instances: 10
+      scale_up_threshold: 0.8
+      scale_down_threshold: 0.3
+      cooldown_period: 300  # 秒
+    
+    load_balancing:
+      enabled: true
+      algorithm: "round_robin"  # round_robin, least_connections, weighted
+      health_check_interval: 30
+    
+    failover:
+      enabled: true
+      max_retries: 3
+      retry_delay: 5
+      circuit_breaker_threshold: 0.5
+  
+  # 风险评估
+  risk_assessment:
+    enabled: true
+    factors:
+      - "system_load"
+      - "error_rate"
+      - "response_time"
+      - "resource_usage"
+    weights:
+      system_load: 0.3
+      error_rate: 0.4
+      response_time: 0.2
+      resource_usage: 0.1
+
+# 模型管理配置
+model_management:
+  # 存储配置
+  storage:
+    type: "local"  # local, s3, gcs
+    path: "models/"
+    compression: true
+    encryption: false
+  
+  # 版本控制
+  versioning:
+    enabled: true
+    max_versions: 10
+    auto_cleanup: true
+    retention_days: 30
+  
+  # 性能监控
+  monitoring:
+    enabled: true
+    metrics:
+      - "accuracy"
+      - "precision"
+      - "recall"
+      - "f1_score"
+      - "mse"
+      - "mae"
+    alert_thresholds:
+      accuracy_drop: 0.1
+      performance_degradation: 0.2
+  
+  # A/B测试
+  ab_testing:
+    enabled: false
+    traffic_split: 0.1
+    duration_days: 7
+    success_criteria:
+      - "accuracy_improvement"
+      - "latency_reduction"
+
+# API配置
+api:
+  # 认证
+  authentication:
+    enabled: false
+    type: "jwt"  # jwt, api_key
+    secret_key: "your-secret-key-here"
+    algorithm: "HS256"
+    expire_minutes: 1440
+  
+  # 限流
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 100
+    burst_size: 10
+  
+  # CORS
+  cors:
+    enabled: true
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_headers: ["*"]
+  
+  # 文档
+  docs:
+    enabled: true
+    title: "AIOps AI Engine API"
+    description: "智能运维AI引擎接口文档"
+    version: "1.0.0"
+
+# 监控配置
+monitoring:
+  # Prometheus指标
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+  
+  # 健康检查
+  health_check:
+    enabled: true
+    path: "/health"
+    interval: 30
+    timeout: 10
+  
+  # 性能指标
+  performance:
+    enabled: true
+    collect_system_metrics: true
+    collect_application_metrics: true
+    retention_days: 7
+
+# 安全配置
+security:
+  # 加密
+  encryption:
+    enabled: false
+    algorithm: "AES-256-GCM"
+    key_rotation_days: 90
+  
+  # 审计日志
+  audit:
+    enabled: true
+    log_requests: true
+    log_responses: false
+    sensitive_fields: ["password", "token", "key"]
+  
+  # 输入验证
+  validation:
+    enabled: true
+    max_request_size: "10MB"
+    sanitize_input: true
+
+# 开发配置
+development:
+  # 调试
+  debug:
+    enabled: false
+    profiling: false
+    sql_echo: false
+  
+  # 测试
+  testing:
+    enabled: false
+    mock_external_services: true
+    test_data_path: "tests/data/"
+  
+  # 热重载
+  hot_reload:
+    enabled: false
+    watch_directories: ["core", "utils"]
+    ignore_patterns: ["*.pyc", "__pycache__"]

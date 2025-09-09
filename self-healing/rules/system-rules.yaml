@@ -1,0 +1,380 @@
+# 系统级自愈规则配置
+# 定义服务器、网络、存储等基础设施的自动修复策略
+
+id: high-cpu-usage
+name: CPU使用率过高
+description: 处理服务器CPU使用率持续过高的问题
+alert_pattern: HighCPUUsage
+severity: high
+cooldown: 300
+enabled: true
+
+actions:
+  - id: identify-cpu-intensive-processes
+    name: 识别CPU密集型进程
+    playbook: system/identify-cpu-processes.yml
+    timeout: 60
+    retry_count: 1
+    conditions:
+      cpu_threshold: 80
+    variables:
+      top_processes_count: 10
+      cpu_time_threshold: 300
+      create_report: true
+  
+  - id: restart-high-cpu-services
+    name: 重启高CPU使用服务
+    playbook: system/restart-cpu-services.yml
+    timeout: 180
+    retry_count: 2
+    conditions:
+      service_cpu_threshold: 50
+      service_restart_allowed: true
+    variables:
+      excluded_services:
+        - "systemd"
+        - "kernel"
+        - "init"
+      graceful_restart: true
+      wait_after_restart: 30
+  
+  - id: scale-out-services
+    name: 横向扩展服务
+    playbook: system/scale-out-services.yml
+    timeout: 300
+    retry_count: 1
+    conditions:
+      auto_scaling_enabled: true
+      max_instances_not_reached: true
+    variables:
+      scaling_factor: 1.5
+      max_instances: 10
+      health_check_timeout: 120
+
+---
+
+id: high-memory-usage
+name: 内存使用率过高
+description: 处理服务器内存使用率过高的问题
+alert_pattern: HighMemoryUsage
+severity: high
+cooldown: 300
+enabled: true
+
+actions:
+  - id: clear-system-cache
+    name: 清理系统缓存
+    playbook: system/clear-system-cache.yml
+    timeout: 60
+    retry_count: 1
+    conditions:
+      cache_size_threshold: 2048
+    variables:
+      clear_page_cache: true
+      clear_dentries: true
+      clear_inodes: true
+      sync_before_clear: true
+  
+  - id: identify-memory-leaks
+    name: 识别内存泄漏
+    playbook: system/identify-memory-leaks.yml
+    timeout: 120
+    retry_count: 1
+    conditions:
+      memory_growth_rate: 10
+    variables:
+      monitoring_duration: 300
+      memory_dump_enabled: false
+      create_analysis_report: true
+  
+  - id: restart-memory-intensive-services
+    name: 重启内存密集型服务
+    playbook: system/restart-memory-services.yml
+    timeout: 180
+    retry_count: 2
+    conditions:
+      service_memory_threshold: 1024
+      service_restart_allowed: true
+    variables:
+      memory_threshold_mb: 1024
+      graceful_shutdown_timeout: 30
+      force_kill_timeout: 60
+
+---
+
+id: disk-space-full
+name: 磁盘空间不足
+description: 处理服务器磁盘空间不足的问题
+alert_pattern: DiskSpaceFull
+severity: critical
+cooldown: 600
+enabled: true
+
+actions:
+  - id: cleanup-log-files
+    name: 清理日志文件
+    playbook: system/cleanup-logs.yml
+    timeout: 300
+    retry_count: 1
+    conditions:
+      disk_usage_threshold: 90
+    variables:
+      log_retention_days: 7
+      log_directories:
+        - "/var/log"
+        - "/opt/*/logs"
+        - "/home/*/logs"
+      compress_old_logs: true
+      exclude_patterns:
+        - "*.gz"
+        - "audit.log"
+  
+  - id: cleanup-temp-files
+    name: 清理临时文件
+    playbook: system/cleanup-temp-files.yml
+    timeout: 180
+    retry_count: 1
+    conditions:
+      temp_size_threshold: 1024
+    variables:
+      temp_directories:
+        - "/tmp"
+        - "/var/tmp"
+        - "/var/cache"
+      file_age_days: 7
+      exclude_running_processes: true
+  
+  - id: archive-old-data
+    name: 归档旧数据
+    playbook: system/archive-old-data.yml
+    timeout: 1800
+    retry_count: 1
+    conditions:
+      archive_enabled: true
+      data_age_threshold: 30
+    variables:
+      archive_destination: "/mnt/archive"
+      compression_enabled: true
+      verify_archive: true
+      data_directories:
+        - "/var/lib/mysql"
+        - "/var/lib/postgresql"
+        - "/opt/data"
+
+---
+
+id: network-connectivity-issue
+name: 网络连接问题
+description: 处理网络连接异常或中断的问题
+alert_pattern: NetworkConnectivityIssue
+severity: high
+cooldown: 180
+enabled: true
+
+actions:
+  - id: diagnose-network-issue
+    name: 诊断网络问题
+    playbook: network/diagnose-connectivity.yml
+    timeout: 120
+    retry_count: 1
+    conditions:
+      connectivity_test_failed: true
+    variables:
+      test_targets:
+        - "8.8.8.8"
+        - "114.114.114.114"
+        - "www.baidu.com"
+      ping_count: 5
+      traceroute_enabled: true
+      dns_test_enabled: true
+  
+  - id: restart-network-services
+    name: 重启网络服务
+    playbook: network/restart-network-services.yml
+    timeout: 180
+    retry_count: 2
+    conditions:
+      network_service_restart_allowed: true
+    variables:
+      services_to_restart:
+        - "networking"
+        - "NetworkManager"
+        - "systemd-networkd"
+      wait_after_restart: 30
+      verify_connectivity: true
+  
+  - id: reset-network-interface
+    name: 重置网络接口
+    playbook: network/reset-interface.yml
+    timeout: 120
+    retry_count: 1
+    conditions:
+      interface_reset_allowed: true
+      backup_route_available: true
+    variables:
+      primary_interface: "eth0"
+      backup_interface: "eth1"
+      dhcp_enabled: true
+      static_config_backup: true
+
+---
+
+id: service-unavailable
+name: 服务不可用
+description: 处理关键服务停止或无响应的问题
+alert_pattern: ServiceUnavailable
+severity: critical
+cooldown: 120
+enabled: true
+
+actions:
+  - id: check-service-status
+    name: 检查服务状态
+    playbook: system/check-service-status.yml
+    timeout: 60
+    retry_count: 1
+    conditions:
+      service_check_enabled: true
+    variables:
+      check_methods:
+        - "systemctl"
+        - "process"
+        - "port"
+      timeout_per_check: 10
+      create_status_report: true
+  
+  - id: restart-failed-service
+    name: 重启失败服务
+    playbook: system/restart-service.yml
+    timeout: 180
+    retry_count: 3
+    conditions:
+      service_restart_allowed: true
+      dependency_check_passed: true
+    variables:
+      pre_restart_backup: true
+      post_restart_verification: true
+      rollback_on_failure: true
+      health_check_timeout: 60
+  
+  - id: failover-to-backup
+    name: 故障转移到备用服务
+    playbook: system/failover-service.yml
+    timeout: 300
+    retry_count: 1
+    conditions:
+      backup_service_available: true
+      failover_enabled: true
+    variables:
+      backup_service_endpoint: "backup.example.com"
+      traffic_switch_method: "dns"
+      health_check_interval: 30
+      automatic_failback: false
+
+---
+
+id: database-connection-failure
+name: 数据库连接失败
+description: 处理数据库连接异常或超时的问题
+alert_pattern: DatabaseConnectionFailure
+severity: critical
+cooldown: 180
+enabled: true
+
+actions:
+  - id: check-database-connectivity
+    name: 检查数据库连通性
+    playbook: database/check-connectivity.yml
+    timeout: 60
+    retry_count: 1
+    conditions:
+      connection_test_enabled: true
+    variables:
+      connection_timeout: 10
+      query_timeout: 5
+      test_query: "SELECT 1"
+      check_replication: true
+  
+  - id: restart-database-service
+    name: 重启数据库服务
+    playbook: database/restart-service.yml
+    timeout: 300
+    retry_count: 2
+    conditions:
+      database_restart_allowed: true
+      backup_completed: true
+    variables:
+      graceful_shutdown_timeout: 60
+      force_shutdown_timeout: 120
+      verify_data_integrity: true
+      run_consistency_check: true
+  
+  - id: switch-to-slave-database
+    name: 切换到从数据库
+    playbook: database/switch-to-slave.yml
+    timeout: 180
+    retry_count: 1
+    conditions:
+      slave_database_available: true
+      replication_lag_acceptable: true
+    variables:
+      max_replication_lag: 60
+      promote_slave: true
+      update_application_config: true
+      notify_administrators: true
+
+---
+
+id: ssl-certificate-expiry
+name: SSL证书即将过期
+description: 处理SSL证书过期或即将过期的问题
+alert_pattern: SSLCertificateExpiry
+severity: medium
+cooldown: 86400
+enabled: true
+
+actions:
+  - id: check-certificate-status
+    name: 检查证书状态
+    playbook: security/check-certificate-status.yml
+    timeout: 120
+    retry_count: 1
+    conditions:
+      certificate_check_enabled: true
+    variables:
+      domains_to_check:
+        - "example.com"
+        - "api.example.com"
+        - "admin.example.com"
+      expiry_warning_days: 30
+      create_status_report: true
+  
+  - id: renew-ssl-certificate
+    name: 续期SSL证书
+    playbook: security/renew-ssl-certificate.yml
+    timeout: 300
+    retry_count: 2
+    conditions:
+      auto_renewal_enabled: true
+      certificate_authority_available: true
+    variables:
+      certificate_authority: "letsencrypt"
+      renewal_method: "acme"
+      backup_old_certificate: true
+      test_new_certificate: true
+  
+  - id: update-certificate-deployment
+    name: 更新证书部署
+    playbook: security/update-certificate-deployment.yml
+    timeout: 180
+    retry_count: 1
+    conditions:
+      certificate_renewed: true
+      deployment_update_required: true
+    variables:
+      services_to_restart:
+        - "nginx"
+        - "apache2"
+        - "haproxy"
+      verify_ssl_configuration: true
+      rollback_on_failure: true

@@ -1,0 +1,612 @@
+# Kibana Configuration
+# AIOps-Platform 日志可视化配置
+# 版本: 1.0.0
+
+# ===========================================
+# 服务器配置
+# ===========================================
+# 服务器端口
+server.port: 5601
+
+# 服务器主机
+server.host: "0.0.0.0"
+
+# 服务器名称
+server.name: "aiops-kibana"
+
+# 基础路径
+# server.basePath: "/kibana"
+
+# 重写基础路径
+# server.rewriteBasePath: true
+
+# 最大负载大小
+server.maxPayload: 1048576
+
+# 保持连接超时
+server.keepaliveTimeout: 120000
+
+# 套接字超时
+server.socketTimeout: 120000
+
+# 压缩
+server.compression.enabled: true
+
+# 注意：server.compression.threshold 在新版本中已移除
+
+# UUID
+server.uuid: "aiops-kibana-uuid"
+
+# ===========================================
+# Elasticsearch配置
+# ===========================================
+# Elasticsearch主机
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# Elasticsearch用户名
+# elasticsearch.username: "kibana_system"
+
+# Elasticsearch密码
+# elasticsearch.password: "kibana_password"
+
+# 请求超时
+elasticsearch.requestTimeout: 30000
+
+# Ping超时
+elasticsearch.pingTimeout: 3000
+
+# 启动超时
+elasticsearch.startupTimeout: 5000
+
+# SSL配置
+# elasticsearch.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca.crt"]
+# elasticsearch.ssl.certificate: "/usr/share/kibana/config/certs/kibana.crt"
+# elasticsearch.ssl.key: "/usr/share/kibana/config/certs/kibana.key"
+# elasticsearch.ssl.verificationMode: certificate
+
+# 自定义头部
+# elasticsearch.customHeaders: {}
+
+# 分片超时
+elasticsearch.shardTimeout: 30000
+
+# 日志查询
+elasticsearch.logQueries: false
+
+# ===========================================
+# 路径配置
+# ===========================================
+# 数据路径
+path.data: /usr/share/kibana/data
+
+# 日志路径
+# path.logs: /usr/share/kibana/logs
+
+# ===========================================
+# 日志配置
+# ===========================================
+# 日志配置
+logging:
+  appenders:
+    default:
+      type: console
+      layout:
+        type: json
+  root:
+    appenders: [default]
+    level: info
+  loggers:
+    - name: elasticsearch
+      level: warn
+    - name: elasticsearch.query
+      level: warn
+    - name: plugins.security
+      level: info
+
+# 静默模式
+# logging.silent: false
+
+# 详细模式
+# logging.verbose: false
+
+# 日志轮转
+# logging.rotate:
+#   enabled: true
+#   everyBytes: 10485760
+#   keepFiles: 7
+
+# ===========================================
+# 操作配置
+# ===========================================
+# 操作超时
+ops.interval: 5000
+
+# 操作缓冲区
+# ops.bufferSize: 1000
+
+# ===========================================
+# 插件配置
+# ===========================================
+# 插件路径
+# path.plugins: /usr/share/kibana/plugins
+
+# 插件扫描目录
+# plugins.scanDirs: []
+
+# 插件初始化超时
+# plugins.initialize: true
+
+# ===========================================
+# 国际化配置
+# ===========================================
+# 默认语言
+i18n.locale: "zh-CN"
+
+# ===========================================
+# 监控配置
+# ===========================================
+# 监控启用
+monitoring.enabled: true
+
+# 监控UI启用
+monitoring.ui.enabled: true
+
+# 监控Kibana启用
+monitoring.kibana.collection.enabled: true
+
+# 监控间隔
+monitoring.kibana.collection.interval: 10000
+
+# 监控Elasticsearch
+# monitoring.elasticsearch.hosts: ["http://elasticsearch:9200"]
+# monitoring.elasticsearch.username: "monitoring_user"
+# monitoring.elasticsearch.password: "monitoring_password"
+
+# ===========================================
+# 安全配置
+# ===========================================
+# X-Pack安全
+# xpack.security.enabled: true
+# xpack.security.encryptionKey: "something_at_least_32_characters"
+# xpack.security.sessionTimeout: 600000
+
+# 安全头部
+# server.securityResponseHeaders.strictTransportSecurity: "max-age=31536000"
+# server.securityResponseHeaders.xContentTypeOptions: "nosniff"
+# server.securityResponseHeaders.xFrameOptions: "DENY"
+
+# CSP配置
+# csp.rules:
+#   - "script-src 'unsafe-eval' 'self'"
+#   - "worker-src blob: 'self'"
+#   - "child-src blob: 'self'"
+
+# ===========================================
+# 报告配置
+# ===========================================
+# X-Pack报告
+# xpack.reporting.enabled: true
+# xpack.reporting.encryptionKey: "something_at_least_32_characters"
+# xpack.reporting.kibanaServer.hostname: "localhost"
+# xpack.reporting.kibanaServer.port: 5601
+
+# 报告队列超时
+# xpack.reporting.queue.timeout: 120000
+
+# 报告捕获超时
+# xpack.reporting.capture.timeout: 20000
+
+# 报告浏览器类型
+# xpack.reporting.capture.browser.type: chromium
+
+# ===========================================
+# 告警配置
+# ===========================================
+# X-Pack告警
+# xpack.actions.enabled: true
+# xpack.alerting.enabled: true
+# xpack.task_manager.enabled: true
+
+# 告警健康检查
+# xpack.alerting.healthCheck.interval: "60s"
+
+# ===========================================
+# 机器学习配置
+# ===========================================
+# X-Pack机器学习
+# xpack.ml.enabled: true
+
+# ===========================================
+# 图形配置
+# ===========================================
+# X-Pack图形
+# xpack.graph.enabled: true
+
+# ===========================================
+# Canvas配置
+# ===========================================
+# Canvas启用
+# xpack.canvas.enabled: true
+
+# ===========================================
+# 地图配置
+# ===========================================
+# 地图启用
+map.includeElasticMapsService: true
+
+# 地图瓦片服务
+# map.tilemap.url: "https://tiles.elastic.co/v2/default/{z}/{x}/{y}.png?elastic_tile_service_tos=agree&my_app_name=kibana"
+
+# 地图选项
+map.tilemap.options.attribution: "© [Elastic Maps Service](https://www.elastic.co/elastic-maps-service)"
+
+# ===========================================
+# 遥测配置
+# ===========================================
+# 遥测启用
+telemetry.enabled: true
+
+# 遥测选择加入
+telemetry.optIn: false
+
+# 遥测横幅
+telemetry.banner: true
+
+# ===========================================
+# 新平台配置
+# ===========================================
+# 新平台启用
+# newsfeed.enabled: true
+
+# ===========================================
+# 控制台配置
+# ===========================================
+# 控制台启用
+console.enabled: true
+
+# 控制台代理配置
+# console.proxyConfig:
+#   - match:
+#       protocol: "https"
+#       host: "*.amazonaws.com"
+#       port: 443
+#     timeout: 180000
+#     ssl:
+#       verificationMode: full
+
+# ===========================================
+# 状态配置
+# ===========================================
+# 状态页面启用
+status.allowAnonymous: false
+
+# ===========================================
+# 保存对象配置
+# ===========================================
+# 保存对象最大导入大小
+savedObjects.maxImportPayloadBytes: 26214400
+
+# 保存对象最大导出数量
+savedObjects.maxImportExportSize: 10000
+
+# ===========================================
+# 数据配置
+# ===========================================
+# 数据搜索超时
+data.search.timeout: 600000
+
+# 数据搜索会话超时
+data.search.sessions.defaultExpiration: 604800000
+
+# 数据搜索会话管理超时
+data.search.sessions.management.expiration: 604800000
+
+# 数据搜索会话管理刷新间隔
+data.search.sessions.management.refreshInterval: 60000
+
+# 数据搜索会话管理最大会话数
+data.search.sessions.management.maxSessions: 10000
+
+# ===========================================
+# 可视化配置
+# ===========================================
+# 可视化最大桶数
+vis.defaultAggSize: 10
+
+# 可视化最大聚合大小
+visualize.enableLabs: true
+
+# ===========================================
+# 发现配置
+# ===========================================
+# 发现默认索引
+# discover.defaultIndex: "aiops-logs-*"
+
+# 发现样本大小
+discover.sampleSize: 500
+
+# 发现最大文档数
+discover.maxDocTableRows: 500
+
+# ===========================================
+# 时间线配置
+# ===========================================
+# 时间线启用
+timelion.enabled: true
+
+# 时间线UI启用
+timelion.ui.enabled: true
+
+# ===========================================
+# 区域地图配置
+# ===========================================
+# 区域地图启用
+regionmap.enabled: true
+
+# 区域地图包含Elastic地图服务
+regionmap.includeElasticMapsService: true
+
+# ===========================================
+# 坐标地图配置
+# ===========================================
+# 坐标地图启用
+tilemap.enabled: true
+
+# 坐标地图URL
+# tilemap.url: "https://tiles.elastic.co/v2/default/{z}/{x}/{y}.png?elastic_tile_service_tos=agree&my_app_name=kibana"
+
+# 坐标地图选项
+tilemap.options.attribution: "© [Elastic Maps Service](https://www.elastic.co/elastic-maps-service)"
+
+# ===========================================
+# 自定义配置
+# ===========================================
+# 自定义品牌
+# server.customResponseHeaders: {}
+
+# 自定义CSS
+# uiSettings.overrides: {}
+
+# ===========================================
+# 性能配置
+# ===========================================
+# 优化包
+# optimize.enabled: true
+
+# 优化延迟
+# optimize.lazy: false
+
+# 优化延迟代理超时
+# optimize.lazyProxyTimeout: 5 * 60000
+
+# 优化预构建
+# optimize.useBundleCache: true
+
+# ===========================================
+# 开发配置
+# ===========================================
+# 开发模式
+# env: "development"
+
+# 开发基础路径代理
+# server.basePath: "/dev-kibana"
+
+# 开发重写基础路径
+# server.rewriteBasePath: false
+
+# ===========================================
+# 集群配置
+# ===========================================
+# 集群UUID
+# cluster.uuid: "aiops-cluster-uuid"
+
+# ===========================================
+# 索引管理配置
+# ===========================================
+# 索引管理启用
+# xpack.index_management.enabled: true
+
+# ===========================================
+# 索引生命周期管理配置
+# ===========================================
+# ILM启用
+# xpack.ilm.enabled: true
+
+# ===========================================
+# 快照和恢复配置
+# ===========================================
+# 快照和恢复启用
+# xpack.snapshot_restore.enabled: true
+
+# ===========================================
+# 跨集群复制配置
+# ===========================================
+# CCR启用
+# xpack.ccr.enabled: true
+
+# ===========================================
+# 远程集群配置
+# ===========================================
+# 远程集群启用
+# xpack.remote_clusters.enabled: true
+
+# ===========================================
+# 升级助手配置
+# ===========================================
+# 升级助手启用
+# xpack.upgrade_assistant.enabled: true
+
+# ===========================================
+# 许可证管理配置
+# ===========================================
+# 许可证管理启用
+# xpack.license_management.enabled: true
+
+# ===========================================
+# 索引模式管理配置
+# ===========================================
+# 索引模式管理启用
+# xpack.index_lifecycle_management.enabled: true
+
+# ===========================================
+# Watcher配置
+# ===========================================
+# Watcher启用
+# xpack.watcher.enabled: true
+
+# ===========================================
+# 空间配置
+# ===========================================
+# 空间启用
+# xpack.spaces.enabled: true
+# xpack.spaces.maxSpaces: 1000
+
+# ===========================================
+# 角色映射配置
+# ===========================================
+# 角色映射启用
+# xpack.security.roleMapping.enabled: true
+
+# ===========================================
+# API密钥配置
+# ===========================================
+# API密钥启用
+# xpack.security.authc.api_key.enabled: true
+
+# ===========================================
+# 审计配置
+# ===========================================
+# 审计启用
+# xpack.security.audit.enabled: true
+# xpack.security.audit.appender.type: console
+# xpack.security.audit.appender.layout.type: json
+
+# ===========================================
+# 字段格式配置
+# ===========================================
+# 字段格式
+# format:bytes:defaultPattern: "0,0.[0]b"
+# format:currency:defaultPattern: "($0,0.[00])"
+# format:number:defaultPattern: "0,0.[000]"
+# format:percent:defaultPattern: "0,0.[000]%"
+
+# ===========================================
+# 时区配置
+# ===========================================
+# 默认时区
+# dateFormat:tz: "Asia/Shanghai"
+
+# ===========================================
+# 主题配置
+# ===========================================
+# 暗色主题
+# theme:darkMode: false
+
+# ===========================================
+# 通知配置
+# ===========================================
+# 通知生命周期
+# notifications:lifetime:banner: 3000000
+# notifications:lifetime:error: 300000
+# notifications:lifetime:warning: 10000
+# notifications:lifetime:info: 5000
+
+# ===========================================
+# 元字段配置
+# ===========================================
+# 元字段
+# metaFields: ["_source", "_id", "_type", "_index", "_score"]
+
+# ===========================================
+# 发现配置扩展
+# ===========================================
+# 发现启用
+discover:enableSql: true
+
+# 发现上下文大小
+discover:context:defaultSize: 5
+
+# 发现上下文步长
+discover:context:step: 5
+
+# 发现上下文时间字段选项
+discover:context:tieBreakerFields: ["_doc"]
+
+# ===========================================
+# 历史记录配置
+# ===========================================
+# 历史记录限制
+history:limit: 10
+
+# ===========================================
+# 短URL配置
+# ===========================================
+# 短URL
+shortUrl:timeout: 60000
+
+# ===========================================
+# 搜索配置
+# ===========================================
+# 搜索查询语言
+search:queryLanguage: kuery
+
+# 搜索超时
+search:timeout: 600000
+
+# ===========================================
+# 排序配置
+# ===========================================
+# 默认排序
+sort:options: []
+
+# ===========================================
+# 状态配置扩展
+# ===========================================
+# 状态包含UUID
+status:v6ApiFormat: false
+
+# ===========================================
+# 时间选择器配置
+# ===========================================
+# 时间选择器刷新间隔默认值
+timepicker:refreshIntervalDefaults:
+  pause: false
+  value: 0
+
+# 时间选择器时间默认值
+timepicker:timeDefaults:
+  from: now-15m
+  to: now
+
+# 时间选择器快速范围
+timepicker:quickRanges:
+  - from: now/d
+    to: now/d
+    display: Today
+  - from: now/w
+    to: now/w
+    display: This week
+  - from: now-15m
+    to: now
+    display: Last 15 minutes
+  - from: now-30m
+    to: now
+    display: Last 30 minutes
+  - from: now-1h
+    to: now
+    display: Last 1 hour
+  - from: now-24h
+    to: now
+    display: Last 24 hours
+  - from: now-7d
+    to: now
+    display: Last 7 days
+  - from: now-30d
+    to: now
+    display: Last 30 days
+  - from: now-90d
+    to: now
+    display: Last 90 days
+  - from: now-1y
+    to: now
+    display: Last 1 year

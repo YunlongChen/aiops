@@ -1,0 +1,22 @@
+[2025-09-09 21:39:12] [INFO] AIOps智能运维平台部署开始
+[2025-09-09 21:39:12] [INFO] 部署类型: docker
+[2025-09-09 21:39:12] [INFO] 环境: development
+[2025-09-09 21:39:12] [INFO] 日志文件: E:\workspace\gitea\aiops\logs\deployment-20250909-213912.log
+[2025-09-09 21:39:12] [INFO] 开始环境检查...
+[2025-09-09 21:39:13] [INFO] 系统资源检查:
+[2025-09-09 21:39:13] [INFO]   CPU核心数: 20
+[2025-09-09 21:39:13] [INFO]   总内存: 63.72GB
+[2025-09-09 21:39:13] [INFO]   可用磁盘空间: 249.09GB
+[2025-09-09 21:39:46] [WARN] Docker警告（可忽略）: WARNING: No blkio throttle.read_bps_device support
+[2025-09-09 21:39:46] [SUCCESS] Docker环境检查通过
+[2025-09-09 21:39:46] [INFO]   Docker版本: Docker version 28.3.3, build 980b856
+[2025-09-09 21:39:46] [INFO]   Docker Compose版本: Docker Compose version v2.39.2-desktop.1
+[2025-09-09 21:39:46] [SUCCESS] 环境检查完成
+[2025-09-09 21:39:46] [INFO] 开始Docker部署...
+[2025-09-09 21:39:46] [SUCCESS] Docker Compose配置已生成: E:\workspace\gitea\aiops\docker-compose.override.yml
+[2025-09-09 21:39:46] [INFO] 拉取Docker镜像...
+[2025-09-09 21:40:52] [INFO] 启动服务...
+[2025-09-09 21:40:53] [ERROR] Docker部署失败: 服务启动失败
+[2025-09-09 21:40:53] [INFO] 显示服务日志:
+[2025-09-09 21:40:54] [ERROR] 部署失败: 服务启动失败
+[2025-09-09 21:40:54] [ERROR] 详细错误信息请查看日志文件: E:\workspace\gitea\aiops\logs\deployment-20250909-213912.log

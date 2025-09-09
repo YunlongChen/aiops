@@ -1,0 +1,341 @@
+{{/*
+AIOps-Platform Kubernetes Ingress模板
+文件: ingress.yaml
+描述: 定义外部访问路由和TLS配置
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "aiops.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+{{- if and .Values.ingress.className (not (hasKey .Values.ingress.annotations "kubernetes.io/ingress.class")) }}
+  {{- $_ := set .Values.ingress.annotations "kubernetes.io/ingress.class" .Values.ingress.className}}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-main
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingress
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if and .Values.ingress.className (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion) }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- range .Values.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
+            pathType: {{ .pathType }}
+            {{- end }}
+            backend:
+              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
+              service:
+                name: {{ $fullName }}-{{ .backend.service.name }}
+                port:
+                  number: {{ .backend.service.port.number }}
+              {{- else }}
+              serviceName: {{ $fullName }}-{{ .backend.service.name }}
+              servicePort: {{ .backend.service.port.number }}
+              {{- end }}
+          {{- end }}
+    {{- end }}
+
+{{- if .Values.traefik.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-traefik-dashboard
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-auth@kubernetescrd
+    {{- with .Values.traefik.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.traefik.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.traefik.ingress.host }}
+      secretName: {{ .Values.traefik.ingress.tls.secretName | default (printf "%s-traefik-tls" $fullName) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.traefik.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-traefik
+                port:
+                  number: 8080
+{{- end }}
+
+{{- if .Values.grafana.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-grafana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    {{- with .Values.grafana.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.grafana.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.grafana.ingress.host }}
+      secretName: {{ .Values.grafana.ingress.tls.secretName | default (printf "%s-grafana-tls" $fullName) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.grafana.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-grafana
+                port:
+                  number: 3000
+{{- end }}
+
+{{- if .Values.prometheus.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-prometheus
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-auth@kubernetescrd
+    {{- with .Values.prometheus.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.prometheus.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.prometheus.ingress.host }}
+      secretName: {{ .Values.prometheus.ingress.tls.secretName | default (printf "%s-prometheus-tls" $fullName) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.prometheus.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-prometheus
+                port:
+                  number: 9090
+{{- end }}
+
+{{- if .Values.alertmanager.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-alertmanager
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-auth@kubernetescrd
+    {{- with .Values.alertmanager.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.alertmanager.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.alertmanager.ingress.host }}
+      secretName: {{ .Values.alertmanager.ingress.tls.secretName | default (printf "%s-alertmanager-tls" $fullName) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.alertmanager.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-alertmanager
+                port:
+                  number: 9093
+{{- end }}
+
+{{- if .Values.kibana.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-kibana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kibana
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    {{- with .Values.kibana.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.kibana.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.kibana.ingress.host }}
+      secretName: {{ .Values.kibana.ingress.tls.secretName | default (printf "%s-kibana-tls" $fullName) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.kibana.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-kibana
+                port:
+                  number: 5601
+{{- end }}
+
+{{- if .Values.aiEngine.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-ai-engine
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-api-auth@kubernetescrd
+    {{- with .Values.aiEngine.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.aiEngine.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.aiEngine.ingress.host }}
+      secretName: {{ .Values.aiEngine.ingress.tls.secretName | default (printf "%s-ai-engine-tls" $fullName) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.aiEngine.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-ai-engine
+                port:
+                  number: 8000
+{{- end }}
+
+{{- if .Values.apiGateway.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-api-gateway
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-gateway
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-api-auth@kubernetescrd,{{ .Release.Namespace }}-rate-limit@kubernetescrd
+    {{- with .Values.apiGateway.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.apiGateway.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.apiGateway.ingress.host }}
+      secretName: {{ .Values.apiGateway.ingress.tls.secretName | default (printf "%s-api-gateway-tls" $fullName) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.apiGateway.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-api-gateway
+                port:
+                  number: 8080
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-api-gateway
+                port:
+                  number: 8080
+{{- end }}
+{{- end }}

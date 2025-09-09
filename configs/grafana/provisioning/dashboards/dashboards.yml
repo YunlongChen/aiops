@@ -1,0 +1,249 @@
+# Grafana Dashboards Configuration
+# AIOps-Platform 仪表板配置
+# 版本: 1.0.0
+
+apiVersion: 1
+
+# ===========================================
+# 仪表板提供商配置
+# ===========================================
+providers:
+  # 系统监控仪表板
+  - name: 'system-monitoring'
+    orgId: 1
+    folder: 'System Monitoring'
+    folderUid: 'system-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/system
+
+  # 应用监控仪表板
+  - name: 'application-monitoring'
+    orgId: 1
+    folder: 'Application Monitoring'
+    folderUid: 'application-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/application
+
+  # 网络监控仪表板
+  - name: 'network-monitoring'
+    orgId: 1
+    folder: 'Network Monitoring'
+    folderUid: 'network-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/network
+
+  # 数据库监控仪表板
+  - name: 'database-monitoring'
+    orgId: 1
+    folder: 'Database Monitoring'
+    folderUid: 'database-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/database
+
+  # 容器监控仪表板
+  - name: 'container-monitoring'
+    orgId: 1
+    folder: 'Container Monitoring'
+    folderUid: 'container-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/container
+
+  # AI和机器学习监控仪表板
+  - name: 'ai-ml-monitoring'
+    orgId: 1
+    folder: 'AI & ML Monitoring'
+    folderUid: 'ai-ml-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/ai-ml
+
+  # 自愈系统监控仪表板
+  - name: 'self-healing-monitoring'
+    orgId: 1
+    folder: 'Self-Healing Monitoring'
+    folderUid: 'self-healing-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/self-healing
+
+  # 日志分析仪表板
+  - name: 'log-analysis'
+    orgId: 1
+    folder: 'Log Analysis'
+    folderUid: 'log-analysis-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/logs
+
+  # 安全监控仪表板
+  - name: 'security-monitoring'
+    orgId: 1
+    folder: 'Security Monitoring'
+    folderUid: 'security-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/security
+
+  # 业务指标仪表板
+  - name: 'business-metrics'
+    orgId: 1
+    folder: 'Business Metrics'
+    folderUid: 'business-metrics-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/business
+
+  # SLA和SLO监控仪表板
+  - name: 'sla-slo-monitoring'
+    orgId: 1
+    folder: 'SLA & SLO Monitoring'
+    folderUid: 'sla-slo-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/sla-slo
+
+  # 告警和通知仪表板
+  - name: 'alerting-notifications'
+    orgId: 1
+    folder: 'Alerting & Notifications'
+    folderUid: 'alerting-notifications-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/alerting
+
+  # 性能分析仪表板
+  - name: 'performance-analysis'
+    orgId: 1
+    folder: 'Performance Analysis'
+    folderUid: 'performance-analysis-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/performance
+
+  # 容量规划仪表板
+  - name: 'capacity-planning'
+    orgId: 1
+    folder: 'Capacity Planning'
+    folderUid: 'capacity-planning-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/capacity
+
+  # 成本优化仪表板
+  - name: 'cost-optimization'
+    orgId: 1
+    folder: 'Cost Optimization'
+    folderUid: 'cost-optimization-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/cost
+
+  # 开发和调试仪表板
+  - name: 'development-debugging'
+    orgId: 1
+    folder: 'Development & Debugging'
+    folderUid: 'development-debugging-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/development
+
+  # 合规性和审计仪表板
+  - name: 'compliance-audit'
+    orgId: 1
+    folder: 'Compliance & Audit'
+    folderUid: 'compliance-audit-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/compliance
+
+  # 用户体验监控仪表板
+  - name: 'user-experience'
+    orgId: 1
+    folder: 'User Experience'
+    folderUid: 'user-experience-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/ux
+
+  # 实时监控仪表板
+  - name: 'real-time-monitoring'
+    orgId: 1
+    folder: 'Real-time Monitoring'
+    folderUid: 'real-time-monitoring-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/realtime
+
+  # 历史趋势分析仪表板
+  - name: 'historical-trends'
+    orgId: 1
+    folder: 'Historical Trends'
+    folderUid: 'historical-trends-folder'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/historical

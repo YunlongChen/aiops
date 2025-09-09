@@ -1,0 +1,326 @@
+{{/*
+AIOps-Platform Kubernetes服务模板
+文件: service.yaml
+描述: 定义所有核心服务的Kubernetes Service资源
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.traefik.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+  {{- with .Values.traefik.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.traefik.service.type }}
+  ports:
+    - port: {{ .Values.traefik.service.ports.web }}
+      targetPort: web
+      protocol: TCP
+      name: web
+    - port: {{ .Values.traefik.service.ports.websecure }}
+      targetPort: websecure
+      protocol: TCP
+      name: websecure
+    - port: {{ .Values.traefik.service.ports.traefik }}
+      targetPort: traefik
+      protocol: TCP
+      name: traefik
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+{{- end }}
+
+{{- if .Values.prometheus.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9090
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+{{- end }}
+
+{{- if .Values.grafana.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+spec:
+  type: {{ .Values.grafana.service.type }}
+  ports:
+    - port: {{ .Values.grafana.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+{{- end }}
+
+{{- if .Values.alertmanager.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-alertmanager
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9093"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9093
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9094
+      targetPort: cluster
+      protocol: TCP
+      name: cluster
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+{{- end }}
+
+{{- if .Values.elasticsearch.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-elasticsearch
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+spec:
+  type: {{ .Values.elasticsearch.service.type }}
+  ports:
+    - port: {{ .Values.elasticsearch.service.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: {{ .Values.elasticsearch.service.ports.transport }}
+      targetPort: transport
+      protocol: TCP
+      name: transport
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-elasticsearch-headless
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+spec:
+  clusterIP: None
+  ports:
+    - port: {{ .Values.elasticsearch.service.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: {{ .Values.elasticsearch.service.ports.transport }}
+      targetPort: transport
+      protocol: TCP
+      name: transport
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+{{- end }}
+
+{{- if .Values.logstash.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-logstash
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logstash
+spec:
+  type: {{ .Values.logstash.service.type }}
+  ports:
+    - port: {{ .Values.logstash.service.ports.beats }}
+      targetPort: beats
+      protocol: TCP
+      name: beats
+    - port: {{ .Values.logstash.service.ports.http }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: logstash
+{{- end }}
+
+{{- if .Values.kibana.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-kibana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kibana
+spec:
+  type: {{ .Values.kibana.service.type }}
+  ports:
+    - port: {{ .Values.kibana.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: kibana
+{{- end }}
+
+{{- if .Values.redis.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-redis
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  type: {{ .Values.redis.service.type }}
+  ports:
+    - port: {{ .Values.redis.service.ports.redis }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-postgresql
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  type: {{ .Values.postgresql.service.type }}
+  ports:
+    - port: {{ .Values.postgresql.service.ports.postgresql }}
+      targetPort: postgresql
+      protocol: TCP
+      name: postgresql
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+{{- end }}
+
+{{- if .Values.aiEngine.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  type: {{ .Values.aiEngine.service.type }}
+  ports:
+    - port: {{ .Values.aiEngine.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+{{- end }}
+
+{{- if .Values.apiGateway.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-api-gateway
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-gateway
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  type: {{ .Values.apiGateway.service.type }}
+  ports:
+    - port: {{ .Values.apiGateway.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api-gateway
+{{- end }}
+
+{{- if .Values.selfHealing.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  type: {{ .Values.selfHealing.service.type }}
+  ports:
+    - port: {{ .Values.selfHealing.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aiops.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+{{- end }}

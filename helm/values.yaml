@@ -1,0 +1,822 @@
+# Default values for AIOps-Platform
+# AIOps智能运维平台默认配置值
+# 版本: 1.0.0
+
+# ===========================================
+# 全局配置
+# ===========================================
+global:
+  # 镜像仓库配置
+  imageRegistry: ""
+  imagePullSecrets: []
+  
+  # 存储类
+  storageClass: ""
+  
+  # 网络策略
+  networkPolicy:
+    enabled: false
+  
+  # 安全上下文
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+  
+  # 服务账户
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  
+  # 标签和注解
+  commonLabels: {}
+  commonAnnotations: {}
+  
+  # 时区
+  timezone: "Asia/Shanghai"
+  
+  # 集群域名
+  clusterDomain: cluster.local
+
+# ===========================================
+# 命名空间配置
+# ===========================================
+namespaceOverride: ""
+fullnameOverride: ""
+nameOverride: ""
+
+# ===========================================
+# Traefik配置
+# ===========================================
+traefik:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: traefik
+    tag: "v3.0"
+    pullPolicy: IfNotPresent
+  
+  # 服务配置
+  service:
+    type: LoadBalancer
+    ports:
+      web: 80
+      websecure: 443
+      traefik: 8080
+  
+  # Ingress配置
+  ingressRoute:
+    dashboard:
+      enabled: true
+      annotations: {}
+      tls:
+        enabled: true
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # 副本数
+  replicaCount: 2
+  
+  # 自动扩缩容
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  # 节点选择器
+  nodeSelector: {}
+  
+  # 容忍度
+  tolerations: []
+  
+  # 亲和性
+  affinity: {}
+
+# ===========================================
+# Prometheus监控堆栈配置
+# ===========================================
+prometheus:
+  enabled: true
+  
+  # Prometheus服务器配置
+  server:
+    image:
+      repository: prom/prometheus
+      tag: "v2.45.0"
+      pullPolicy: IfNotPresent
+    
+    # 持久化存储
+    persistentVolume:
+      enabled: true
+      size: 50Gi
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+    
+    # 资源配置
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+    
+    # 副本数
+    replicaCount: 1
+    
+    # 保留时间
+    retention: "30d"
+    
+    # 配置
+    config:
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+      
+      rule_files:
+        - "/etc/prometheus/rules/*.yml"
+      
+      scrape_configs:
+        - job_name: 'prometheus'
+          static_configs:
+            - targets: ['localhost:9090']
+        
+        - job_name: 'kubernetes-apiservers'
+          kubernetes_sd_configs:
+            - role: endpoints
+          scheme: https
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+              action: keep
+              regex: default;kubernetes;https
+
+# ===========================================
+# Grafana配置
+# ===========================================
+grafana:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: grafana/grafana
+    tag: "10.0.0"
+    pullPolicy: IfNotPresent
+  
+  # 管理员配置
+  adminUser: admin
+  adminPassword: "aiops123"
+  
+  # 持久化存储
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    port: 3000
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  
+  # 数据源配置
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus-server:9090
+          access: proxy
+          isDefault: true
+        
+        - name: Elasticsearch
+          type: elasticsearch
+          url: http://elasticsearch:9200
+          access: proxy
+          database: "aiops-logs-*"
+          timeField: "@timestamp"
+  
+  # 仪表板配置
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+# ===========================================
+# Alertmanager配置
+# ===========================================
+alertmanager:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: prom/alertmanager
+    tag: "v0.25.0"
+    pullPolicy: IfNotPresent
+  
+  # 持久化存储
+  persistentVolume:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  # 副本数
+  replicaCount: 1
+  
+  # 配置
+  config:
+    global:
+      smtp_smarthost: 'localhost:587'
+      smtp_from: 'alerts@aiops-platform.com'
+    
+    route:
+      group_by: ['alertname']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'web.hook'
+    
+    receivers:
+      - name: 'web.hook'
+        webhook_configs:
+          - url: 'http://api-gateway:8080/api/v1/alerts/webhook'
+
+# ===========================================
+# Elasticsearch配置
+# ===========================================
+elasticsearch:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: docker.elastic.co/elasticsearch/elasticsearch
+    tag: "8.8.0"
+    pullPolicy: IfNotPresent
+  
+  # 集群配置
+  clusterName: "aiops-elasticsearch"
+  nodeGroup: "master"
+  
+  # 副本数
+  replicas: 3
+  minimumMasterNodes: 2
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  
+  # JVM配置
+  esJavaOpts: "-Xmx2g -Xms2g"
+  
+  # 持久化存储
+  volumeClaimTemplate:
+    accessModes: ["ReadWriteOnce"]
+    storageClassName: ""
+    resources:
+      requests:
+        storage: 100Gi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    ports:
+      http: 9200
+      transport: 9300
+  
+  # 安全配置
+  esConfig:
+    elasticsearch.yml: |
+      cluster.name: aiops-elasticsearch
+      network.host: 0.0.0.0
+      discovery.type: zen
+      discovery.zen.minimum_master_nodes: 2
+      discovery.zen.ping.unicast.hosts: elasticsearch-master-headless
+      xpack.security.enabled: false
+      xpack.monitoring.collection.enabled: true
+
+# ===========================================
+# Logstash配置
+# ===========================================
+logstash:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: docker.elastic.co/logstash/logstash
+    tag: "8.8.0"
+    pullPolicy: IfNotPresent
+  
+  # 副本数
+  replicaCount: 2
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    ports:
+      beats: 5044
+      http: 9600
+  
+  # 持久化存储
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+  
+  # 管道配置
+  logstashPipeline:
+    logstash.conf: |
+      input {
+        beats {
+          port => 5044
+        }
+      }
+      
+      filter {
+        if [fields][log_type] == "application" {
+          grok {
+            match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:log_level}\] %{DATA:logger_name} - %{GREEDYDATA:log_message}" }
+          }
+          date {
+            match => [ "timestamp", "ISO8601" ]
+          }
+        }
+      }
+      
+      output {
+        elasticsearch {
+          hosts => ["elasticsearch:9200"]
+          index => "aiops-logs-%{+YYYY.MM.dd}"
+        }
+      }
+
+# ===========================================
+# Kibana配置
+# ===========================================
+kibana:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: docker.elastic.co/kibana/kibana
+    tag: "8.8.0"
+    pullPolicy: IfNotPresent
+  
+  # 副本数
+  replicaCount: 1
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    port: 5601
+  
+  # Elasticsearch连接
+  elasticsearchHosts: "http://elasticsearch:9200"
+  
+  # Kibana配置
+  kibanaConfig:
+    kibana.yml: |
+      server.host: 0.0.0.0
+      elasticsearch.hosts: ["http://elasticsearch:9200"]
+      monitoring.ui.container.elasticsearch.enabled: true
+      i18n.locale: "zh-CN"
+
+# ===========================================
+# Redis配置
+# ===========================================
+redis:
+  enabled: true
+  
+  # 架构模式
+  architecture: standalone
+  
+  # 认证配置
+  auth:
+    enabled: true
+    password: "redis123"
+  
+  # 主节点配置
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+
+# ===========================================
+# PostgreSQL配置
+# ===========================================
+postgresql:
+  enabled: true
+  
+  # 认证配置
+  auth:
+    postgresPassword: "postgres123"
+    username: "aiops"
+    password: "aiops123"
+    database: "aiops"
+  
+  # 主节点配置
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: ""
+    
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: 5432
+
+# ===========================================
+# AI引擎配置
+# ===========================================
+aiEngine:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: aiops/ai-engine
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  # 副本数
+  replicaCount: 2
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    port: 8000
+  
+  # 环境变量
+  env:
+    - name: REDIS_URL
+      value: "redis://redis:6379"
+    - name: POSTGRES_URL
+      value: "postgresql://aiops:aiops123@postgresql:5432/aiops"
+    - name: ELASTICSEARCH_URL
+      value: "http://elasticsearch:9200"
+  
+  # 持久化存储
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+  
+  # 模型配置
+  models:
+    anomalyDetection:
+      enabled: true
+      modelPath: "/app/models/anomaly_detection.pkl"
+    
+    forecasting:
+      enabled: true
+      modelPath: "/app/models/forecasting.pkl"
+    
+    classification:
+      enabled: true
+      modelPath: "/app/models/classification.pkl"
+
+# ===========================================
+# API网关配置
+# ===========================================
+apiGateway:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: aiops/api-gateway
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  # 副本数
+  replicaCount: 2
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    port: 8080
+  
+  # 自动扩缩容
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+  
+  # 环境变量
+  env:
+    - name: REDIS_URL
+      value: "redis://redis:6379"
+    - name: POSTGRES_URL
+      value: "postgresql://aiops:aiops123@postgresql:5432/aiops"
+    - name: AI_ENGINE_URL
+      value: "http://ai-engine:8000"
+    - name: SELF_HEALING_URL
+      value: "http://self-healing:8080"
+
+# ===========================================
+# 自愈执行器配置
+# ===========================================
+selfHealing:
+  enabled: true
+  
+  # 镜像配置
+  image:
+    repository: aiops/self-healing
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  
+  # 副本数
+  replicaCount: 1
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  
+  # 服务配置
+  service:
+    type: ClusterIP
+    port: 8080
+  
+  # 环境变量
+  env:
+    - name: REDIS_URL
+      value: "redis://redis:6379"
+    - name: POSTGRES_URL
+      value: "postgresql://aiops:aiops123@postgresql:5432/aiops"
+    - name: KUBERNETES_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+  
+  # 服务账户权限
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: "self-healing"
+  
+  # RBAC配置
+  rbac:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: ["pods", "services", "endpoints"]
+        verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "replicasets"]
+        verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+      - apiGroups: ["autoscaling"]
+        resources: ["horizontalpodautoscalers"]
+        verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# ===========================================
+# Ingress配置
+# ===========================================
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  
+  hosts:
+    - host: aiops.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: api-gateway
+            port: 8080
+        - path: /grafana
+          pathType: Prefix
+          service:
+            name: grafana
+            port: 3000
+        - path: /kibana
+          pathType: Prefix
+          service:
+            name: kibana
+            port: 5601
+        - path: /prometheus
+          pathType: Prefix
+          service:
+            name: prometheus-server
+            port: 9090
+        - path: /alertmanager
+          pathType: Prefix
+          service:
+            name: alertmanager
+            port: 9093
+  
+  tls:
+    - secretName: aiops-tls
+      hosts:
+        - aiops.local
+
+# ===========================================
+# 网络策略配置
+# ===========================================
+networkPolicy:
+  enabled: false
+  
+  # 入站规则
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: TCP
+          port: 8080
+  
+  # 出站规则
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+
+# ===========================================
+# Pod安全策略配置
+# ===========================================
+podSecurityPolicy:
+  enabled: false
+  
+  # 策略配置
+  policy:
+    privileged: false
+    allowPrivilegeEscalation: false
+    requiredDropCapabilities:
+      - ALL
+    volumes:
+      - 'configMap'
+      - 'emptyDir'
+      - 'projected'
+      - 'secret'
+      - 'downwardAPI'
+      - 'persistentVolumeClaim'
+    runAsUser:
+      rule: 'MustRunAsNonRoot'
+    seLinux:
+      rule: 'RunAsAny'
+    fsGroup:
+      rule: 'RunAsAny'
+
+# ===========================================
+# 监控配置
+# ===========================================
+monitoring:
+  # ServiceMonitor配置
+  serviceMonitor:
+    enabled: true
+    namespace: ""
+    labels: {}
+    interval: 30s
+    scrapeTimeout: 10s
+  
+  # PrometheusRule配置
+  prometheusRule:
+    enabled: true
+    namespace: ""
+    labels: {}
+    rules: []
+
+# ===========================================
+# 测试配置
+# ===========================================
+tests:
+  enabled: true
+  
+  # 测试镜像
+  image:
+    repository: busybox
+    tag: "1.35"
+    pullPolicy: IfNotPresent
+  
+  # 测试资源
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi

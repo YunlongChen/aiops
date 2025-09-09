@@ -1,0 +1,595 @@
+#========================== APM Server Configuration ========================
+
+# APM Server配置文件
+# AIOps-Platform 应用性能监控配置
+# 版本: 1.0.0
+
+#================================ General =====================================
+
+# APM Server名称
+name: "aiops-apm-server"
+
+# 标签
+tags: ["aiops", "apm", "monitoring"]
+
+# 字段
+fields:
+  env: "production"
+  service: "aiops-platform"
+  datacenter: "dc1"
+
+# 字段在根级别
+fields_under_root: false
+
+#================================ APM Server ==================================
+
+# APM Server主机和端口
+apm-server:
+  # 监听地址
+  host: "0.0.0.0:8200"
+  
+  # 最大头部大小
+  max_header_size: 1048576
+  
+  # 空闲超时
+  idle_timeout: 45s
+  
+  # 读取超时
+  read_timeout: 30s
+  
+  # 写入超时
+  write_timeout: 30s
+  
+  # 关闭超时
+  shutdown_timeout: 5s
+  
+  # 最大事件大小
+  max_event_size: 307200
+  
+  # 最大连接数
+  max_connections: 0
+  
+  # 响应头
+  response_headers:
+    X-Content-Type-Options: "nosniff"
+    X-Frame-Options: "DENY"
+    X-XSS-Protection: "1; mode=block"
+  
+  # 捕获个人数据
+  capture_personal_data: true
+  
+  # 默认服务环境
+  default_service_environment: "production"
+  
+  # 扩展映射
+  expvar:
+    enabled: true
+    url: "/debug/vars"
+  
+  # 健康检查
+  pprof:
+    enabled: true
+  
+  # RUM配置
+  rum:
+    enabled: true
+    event_rate:
+      limit: 300
+      lru_size: 1000
+    allow_origins: ["*"]
+    allow_headers: ["*"]
+    library_pattern: "node_modules|bower_components|~"
+    exclude_from_grouping: "^/webpack"
+    source_mapping:
+      enabled: true
+      cache:
+        expiration: 5m
+      index_pattern: "apm-*-sourcemap*"
+      timeout: 5s
+  
+  # 代理配置
+  jaeger:
+    grpc:
+      enabled: false
+      host: "0.0.0.0:14250"
+    http:
+      enabled: false
+      host: "0.0.0.0:14268"
+  
+  # 注册配置
+  register:
+    ingest:
+      pipeline:
+        enabled: true
+        overwrite: true
+        path: "${path.config}/ingest"
+  
+  # 数据流
+  data_streams:
+    enabled: true
+    namespace: "default"
+  
+  # 聚合
+  aggregation:
+    transactions:
+      enabled: true
+      interval: 1m
+      max_groups: 1000
+    service_destinations:
+      enabled: true
+      interval: 1m
+      max_groups: 1000
+
+#================================ SSL/TLS =====================================
+
+# SSL配置
+# apm-server.ssl.enabled: true
+# apm-server.ssl.certificate: "/path/to/apm-server.crt"
+# apm-server.ssl.key: "/path/to/apm-server.key"
+# apm-server.ssl.key_passphrase: "password"
+# apm-server.ssl.certificate_authorities: ["/path/to/ca.crt"]
+# apm-server.ssl.client_authentication: "required"
+# apm-server.ssl.verification_mode: "full"
+# apm-server.ssl.cipher_suites: []
+# apm-server.ssl.curve_types: []
+# apm-server.ssl.supported_protocols: ["TLSv1.2", "TLSv1.3"]
+
+#================================ Instrumentation =============================
+
+# 仪表化配置
+instrumentation:
+  enabled: true
+  environment: "production"
+  hosts:
+    - "http://apm-server:8200"
+  
+#================================ Elasticsearch Output ========================
+
+# Elasticsearch输出配置
+output.elasticsearch:
+  # Elasticsearch主机
+  hosts: ["http://elasticsearch:9200"]
+  
+  # 协议
+  protocol: "http"
+  
+  # 用户名和密码
+  # username: "apm_system"
+  # password: "apm_password"
+  
+  # 索引设置
+  indices:
+    - index: "apm-%{[observer.version]}-sourcemap"
+      when.contains:
+        processor.event: "sourcemap"
+    - index: "apm-%{[observer.version]}-error-%{+yyyy.MM.dd}"
+      when.contains:
+        processor.event: "error"
+    - index: "apm-%{[observer.version]}-transaction-%{+yyyy.MM.dd}"
+      when.contains:
+        processor.event: "transaction"
+    - index: "apm-%{[observer.version]}-span-%{+yyyy.MM.dd}"
+      when.contains:
+        processor.event: "span"
+    - index: "apm-%{[observer.version]}-metric-%{+yyyy.MM.dd}"
+      when.contains:
+        processor.event: "metric"
+    - index: "apm-%{[observer.version]}-profile-%{+yyyy.MM.dd}"
+      when.contains:
+        processor.event: "profile"
+  
+  # 模板设置
+  template:
+    enabled: true
+    pattern: "apm-*"
+    name: "apm"
+    settings:
+      index:
+        number_of_shards: 1
+        number_of_replicas: 0
+        codec: "best_compression"
+        mapping:
+          total_fields:
+            limit: 2000
+        refresh_interval: "5s"
+        max_result_window: 10000
+        max_docvalue_fields_search: 200
+  
+  # ILM策略
+  ilm:
+    enabled: true
+    rollover_alias: "apm-write"
+    pattern: "{now/d}-000001"
+    policy: "apm-rollover-30-days"
+    check_exists: true
+  
+  # 批处理设置
+  bulk_max_size: 5120
+  
+  # 工作线程数
+  worker: 1
+  
+  # 超时设置
+  timeout: 90s
+  
+  # 压缩
+  compression_level: 1
+  
+  # 管道
+  pipeline: "apm"
+  
+  # SSL设置
+  # ssl:
+  #   enabled: true
+  #   certificate_authorities: ["/path/to/ca.crt"]
+  #   certificate: "/path/to/client.crt"
+  #   key: "/path/to/client.key"
+  #   verification_mode: "full"
+
+#================================ Kibana ======================================
+
+# Kibana配置
+setup.kibana:
+  host: "http://kibana:5601"
+  # username: "kibana_system"
+  # password: "kibana_password"
+  
+  # SSL设置
+  # ssl:
+  #   enabled: true
+  #   certificate_authorities: ["/path/to/ca.crt"]
+  #   certificate: "/path/to/client.crt"
+  #   key: "/path/to/client.key"
+  #   verification_mode: "full"
+
+#================================ Template ====================================
+
+# 模板配置
+setup.template:
+  enabled: true
+  name: "apm"
+  pattern: "apm-*"
+  settings:
+    index:
+      number_of_shards: 1
+      number_of_replicas: 0
+      codec: "best_compression"
+      refresh_interval: "5s"
+      mapping:
+        total_fields:
+          limit: 2000
+  
+#================================ ILM =========================================
+
+# ILM配置
+setup.ilm:
+  enabled: true
+  rollover_alias: "apm-write"
+  pattern: "{now/d}-000001"
+  policy: "apm-rollover-30-days"
+  check_exists: true
+  overwrite: false
+
+#================================ Dashboards ==================================
+
+# 仪表板配置
+setup.dashboards:
+  enabled: true
+  directory: "${path.home}/kibana"
+  index: ".kibana"
+  
+#================================ Logging =====================================
+
+# 日志配置
+logging:
+  # 日志级别
+  level: info
+  
+  # 选择器
+  selectors: ["*"]
+  
+  # 输出到文件
+  to_files: true
+  
+  # 输出到系统日志
+  to_syslog: false
+  
+  # 输出到事件日志
+  to_eventlog: false
+  
+  # 文件配置
+  files:
+    path: "/var/log/apm-server"
+    name: "apm-server"
+    keepfiles: 7
+    permissions: 0644
+    rotateeverybytes: 10485760
+    interval: 24h
+  
+  # 指标
+  metrics:
+    enabled: true
+    period: 30s
+  
+  # JSON格式
+  json: false
+  
+  # 时间戳
+  timestamp:
+    precision: millisecond
+
+#================================ HTTP Endpoint ===============================
+
+# HTTP端点配置
+http:
+  enabled: true
+  host: "0.0.0.0"
+  port: 5066
+  
+  # 命名管道
+  # named_pipe: ""
+  
+  # pprof配置
+  pprof:
+    enabled: true
+  
+#================================ Process Security ============================
+
+# 进程安全
+seccomp:
+  default_action: allow
+  syscalls:
+    - action: allow
+      names:
+        - rseq
+
+#================================ Processors ===================================
+
+# 处理器配置
+processors:
+  # 添加主机信息
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      
+  # 添加Docker元数据
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+      
+  # 添加Kubernetes元数据
+  - add_kubernetes_metadata:
+      host: ${NODE_NAME}
+      indexers:
+        - ip_port:
+      matchers:
+        - fields:
+            lookup_fields: ["host.ip"]
+  
+  # 删除字段
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "agent.hostname", "agent.id", "agent.type", "agent.version"]
+      ignore_missing: true
+  
+  # 添加标签
+  - add_tags:
+      tags: ["apm", "aiops"]
+      target: "tags"
+  
+  # 重命名字段
+  - rename:
+      fields:
+        - from: "agent.name"
+          to: "service.name"
+      ignore_missing: true
+      fail_on_error: false
+
+#================================ Migration ===================================
+
+# 迁移配置
+migration:
+  6_to_7:
+    enabled: true
+
+#================================ Monitoring ==================================
+
+# 监控配置
+monitoring:
+  enabled: true
+  
+  # Elasticsearch监控
+  elasticsearch:
+    hosts: ["http://elasticsearch:9200"]
+    # username: "apm_system"
+    # password: "apm_password"
+    
+    # 指标
+    metrics:
+      period: 10s
+      
+    # 状态
+    state:
+      period: 1m
+
+#================================ X-Pack ======================================
+
+# X-Pack配置
+xpack:
+  # 监控
+  monitoring:
+    enabled: true
+    elasticsearch:
+      hosts: ["http://elasticsearch:9200"]
+      # username: "apm_system"
+      # password: "apm_password"
+  
+  # 安全
+  # security:
+  #   enabled: true
+  #   authc:
+  #     anonymous:
+  #       username: "anonymous"
+  #       roles: ["apm_user"]
+  #       authz_exception: false
+
+#================================ Queue Settings ==============================
+
+# 队列配置
+queue:
+  mem:
+    events: 4096
+    flush:
+      min_events: 2048
+      timeout: 1s
+
+#================================ Max Procs ===================================
+
+# 最大进程数
+max_procs: 0
+
+#================================ Reload ======================================
+
+# 重载配置
+reload:
+  enabled: false
+  period: 10s
+
+#================================ Autodiscover ================================
+
+# 自动发现配置
+autodiscover:
+  providers:
+    - type: docker
+      host: unix:///var/run/docker.sock
+      templates:
+        - condition:
+            contains:
+              docker.container.image: "aiops"
+          config:
+            - type: docker
+              containers.ids:
+                - "${data.docker.container.id}"
+              
+    - type: kubernetes
+      host: ${NODE_NAME}
+      templates:
+        - condition:
+            contains:
+              kubernetes.labels.app: "aiops"
+          config:
+            - type: kubernetes
+              containers.ids:
+                - "${data.kubernetes.container.id}"
+
+#================================ Central Management ==========================
+
+# 中央管理
+management:
+  enabled: false
+  
+#================================ Cloud ====================================
+
+# 云配置
+# cloud:
+#   id: "deployment-id"
+#   auth: "username:password"
+
+#================================ Feature Flags ============================
+
+# 功能标志
+feature_flags:
+  # 数据流
+  data_streams: true
+  
+  # 聚合
+  aggregation: true
+
+#================================ Path =====================================
+
+# 路径配置
+path:
+  home: "/usr/share/apm-server"
+  config: "/usr/share/apm-server"
+  data: "/usr/share/apm-server/data"
+  logs: "/var/log/apm-server"
+
+#================================ Name =====================================
+
+# 名称
+name: "aiops-apm-server"
+
+#================================ Tags =====================================
+
+# 标签
+tags: ["aiops", "apm", "monitoring", "performance"]
+
+#================================ Fields ===================================
+
+# 字段
+fields:
+  environment: "production"
+  service: "aiops-platform"
+  datacenter: "dc1"
+  region: "us-east-1"
+
+# 字段在根级别
+fields_under_root: false
+
+#================================ Output ===================================
+
+# 输出配置已在上面的Elasticsearch部分定义
+
+#================================ Setup ====================================
+
+# 设置配置已在上面的相关部分定义
+
+#================================ Logging ==================================
+
+# 日志配置已在上面定义
+
+#================================ HTTP =====================================
+
+# HTTP配置已在上面定义
+
+#================================ Internal =================================
+
+# 内部配置
+internal:
+  # 主机
+  host: "localhost:6060"
+  
+  # 启用
+  enabled: false
+
+#================================ Runtime ==================================
+
+# 运行时配置
+runtime:
+  gc_percent: 100
+
+#================================ Shipper ==================================
+
+# 传输器配置
+# shipper:
+#   enabled: false
+#   target: "localhost:8200"
+
+#================================ Custom ===================================
+
+# 自定义配置
+# 可以在这里添加特定于环境的配置
+
+# 开发环境配置
+# development:
+#   logging.level: debug
+#   apm-server.rum.enabled: true
+#   apm-server.rum.allow_origins: ["*"]
+
+# 生产环境配置
+# production:
+#   logging.level: warn
+#   apm-server.rum.enabled: true
+#   apm-server.rum.allow_origins: ["https://yourdomain.com"]
+
+# 测试环境配置
+# testing:
+#   logging.level: info
+#   apm-server.rum.enabled: false

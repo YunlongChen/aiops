@@ -1,0 +1,175 @@
+# Traefik Docker Compose配置文件
+# 定义Traefik边缘路由器的容器配置
+# 作者: AI Assistant
+# 创建时间: 2024
+
+version: '3.8'
+
+services:
+  # Traefik边缘路由器
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "80:80"       # HTTP入口点
+      - "443:443"     # HTTPS入口点
+      - "8080:8080"   # Traefik仪表板
+      - "5432:5432"   # PostgreSQL代理
+      - "6379:6379"   # Redis代理
+    
+    # 环境变量
+    environment:
+      - TRAEFIK_LOG_LEVEL=INFO
+      - TRAEFIK_API_DASHBOARD=true
+      - TRAEFIK_API_INSECURE=false
+      - TRAEFIK_PROVIDERS_DOCKER=true
+      - TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT=false
+      - TRAEFIK_ENTRYPOINTS_WEB_ADDRESS=:80
+      - TRAEFIK_ENTRYPOINTS_WEBSECURE_ADDRESS=:443
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=admin@example.com
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE=/letsencrypt/acme.json
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT=web
+    
+    # 卷挂载
+    volumes:
+      # Docker套接字（用于服务发现）
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Traefik配置文件
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic.yml:/etc/traefik/dynamic.yml:ro
+      # SSL证书存储
+      - ./certs:/etc/traefik/certs:ro
+      - ./letsencrypt:/letsencrypt
+      # 日志文件
+      - ./logs:/var/log/traefik
+    
+    # 网络配置
+    networks:
+      - traefik-network
+      - aiops-network
+    
+    # 标签配置（用于自身路由）
+    labels:
+      # 启用Traefik
+      - "traefik.enable=true"
+      
+      # 仪表板路由
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.local`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth@file"
+      
+      # HTTP到HTTPS重定向
+      - "traefik.http.routers.traefik-dashboard-http.rule=Host(`traefik.local`)"
+      - "traefik.http.routers.traefik-dashboard-http.entrypoints=web"
+      - "traefik.http.routers.traefik-dashboard-http.middlewares=redirect-to-https@file"
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+    
+    # 用户配置
+    user: "1000:1000"
+    
+    # 依赖服务
+    depends_on:
+      - whoami
+
+  # 测试服务（用于验证Traefik配置）
+  whoami:
+    image: traefik/whoami:v1.8
+    container_name: whoami
+    restart: unless-stopped
+    
+    # 网络配置
+    networks:
+      - traefik-network
+    
+    # 标签配置
+    labels:
+      # 启用Traefik
+      - "traefik.enable=true"
+      
+      # HTTP路由
+      - "traefik.http.routers.whoami.rule=Host(`whoami.local`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=letsencrypt"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+      
+      # HTTP到HTTPS重定向
+      - "traefik.http.routers.whoami-http.rule=Host(`whoami.local`)"
+      - "traefik.http.routers.whoami-http.entrypoints=web"
+      - "traefik.http.routers.whoami-http.middlewares=redirect-to-https@file"
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# 网络配置
+networks:
+  # Traefik专用网络
+  traefik-network:
+    driver: bridge
+    name: traefik-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    labels:
+      - "traefik.network=true"
+  
+  # AIOps主网络
+  aiops-network:
+    external: true
+    name: aiops-network
+
+# 卷配置
+volumes:
+  # Let's Encrypt证书存储
+  letsencrypt:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./letsencrypt
+  
+  # SSL证书存储
+  certs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./certs
+  
+  # 日志存储
+  logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs

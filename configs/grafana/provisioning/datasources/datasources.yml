@@ -1,0 +1,404 @@
+# Grafana Datasources Configuration
+# AIOps-Platform 数据源配置
+# 版本: 1.0.0
+
+apiVersion: 1
+
+# ===========================================
+# 数据源删除列表
+# ===========================================
+deleteDatasources:
+  - name: old-prometheus
+    orgId: 1
+  - name: old-elasticsearch
+    orgId: 1
+
+# ===========================================
+# 数据源配置列表
+# ===========================================
+datasources:
+  # Prometheus数据源 - 主要指标数据
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: http://prometheus:9090
+    password: ''
+    user: ''
+    database: ''
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: true
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: POST
+      queryTimeout: 60s
+      timeInterval: 15s
+      # 自定义查询参数
+      customQueryParameters: ''
+      # 启用Exemplars
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger-uid
+          url: 'http://jaeger:16686/trace/$${__value.raw}'
+      # Prometheus类型
+      prometheusType: Prometheus
+      # Prometheus版本
+      prometheusVersion: 2.40.0
+      # 缓存级别
+      cacheLevel: High
+      # 增量查询
+      incrementalQuerying: true
+      # 禁用指标查找
+      disableMetricsLookup: false
+      # 浏览器访问模式
+      directUrl: http://prometheus:9090
+    secureJsonData:
+      # TLS客户端认证
+      # tlsClientCert: ''
+      # tlsClientKey: ''
+      # 基本认证密码
+      # basicAuthPassword: ''
+      # HTTP头认证
+      # httpHeaderValue1: ''
+    uid: prometheus-uid
+
+  # Elasticsearch数据源 - 日志数据
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    orgId: 1
+    url: http://elasticsearch:9200
+    password: ''
+    user: ''
+    database: '[logstash-]YYYY.MM.DD'
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # Elasticsearch版本
+      esVersion: '8.0.0'
+      # 时间字段
+      timeField: '@timestamp'
+      # 间隔
+      interval: Daily
+      # 最大并发分片请求数
+      maxConcurrentShardRequests: 5
+      # 日志消息字段
+      logMessageField: 'message'
+      # 日志级别字段
+      logLevelField: 'level'
+      # 包含冻结索引
+      includeFrozen: false
+      # X-Pack启用
+      xpack: false
+      # 索引模式
+      index: 'logstash-*'
+      # 时间间隔
+      timeInterval: '10s'
+      # 签名版本
+      sigV4Auth: false
+      # 服务器端加密
+      serverSideEncryption: false
+    uid: elasticsearch-uid
+
+  # Loki数据源 - 日志聚合
+  - name: Loki
+    type: loki
+    access: proxy
+    orgId: 1
+    url: http://loki:3100
+    password: ''
+    user: ''
+    database: ''
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # 最大行数
+      maxLines: 1000
+      # 超时
+      timeout: 60
+      # 派生字段
+      derivedFields:
+        - datasourceUid: jaeger-uid
+          matcherRegex: 'trace_id=(\w+)'
+          name: TraceID
+          url: 'http://jaeger:16686/trace/$${__value.raw}'
+        - datasourceUid: prometheus-uid
+          matcherRegex: 'job="([^"]+)"'
+          name: Job
+          url: 'http://prometheus:9090/graph?g0.expr=up{job="$${__value.raw}"}'
+      # HTTP头名称
+      httpHeaderName1: 'X-Scope-OrgID'
+    secureJsonData:
+      # HTTP头值
+      httpHeaderValue1: '1'
+    uid: loki-uid
+
+  # Jaeger数据源 - 分布式追踪
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    orgId: 1
+    url: http://jaeger:16686
+    password: ''
+    user: ''
+    database: ''
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # 追踪到日志
+      tracesToLogs:
+        datasourceUid: loki-uid
+        tags: ['job', 'instance', 'pod', 'namespace']
+        mappedTags: [{ key: 'service.name', value: 'service' }]
+        mapTagNamesEnabled: true
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true
+        filterBySpanID: false
+      # 追踪到指标
+      tracesToMetrics:
+        datasourceUid: prometheus-uid
+        tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+        queries:
+          - name: 'Sample query'
+            query: 'sum(rate(traces_spanmetrics_latency_bucket{$$__tags}[5m]))'
+      # 服务映射
+      serviceMap:
+        datasourceUid: prometheus-uid
+      # 节点图
+      nodeGraph:
+        enabled: true
+      # Span栏
+      spanBar:
+        type: Tag
+        tag: 'http.path'
+    uid: jaeger-uid
+
+  # InfluxDB数据源 - 时序数据
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    orgId: 1
+    url: http://influxdb:8086
+    password: 'influxdb-password'
+    user: 'influxdb-user'
+    database: 'aiops'
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # InfluxDB版本
+      version: Flux
+      # 组织
+      organization: 'aiops-platform'
+      # 默认桶
+      defaultBucket: 'metrics'
+      # 最大序列
+      maxSeries: 1000000
+      # HTTP模式
+      httpMode: GET
+      # 时间间隔
+      timeInterval: '10s'
+    secureJsonData:
+      # Token
+      token: 'influxdb-token-here'
+    uid: influxdb-uid
+
+  # PostgreSQL数据源 - 关系型数据
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    orgId: 1
+    url: postgres:5432
+    password: ''
+    user: 'grafana'
+    database: 'aiops'
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # SSL模式
+      sslmode: 'disable'
+      # 最大打开连接数
+      maxOpenConns: 100
+      # 最大空闲连接数
+      maxIdleConns: 100
+      # 连接最大生存时间
+      connMaxLifetime: 14400
+      # PostgreSQL版本
+      postgresVersion: 1300
+      # 时间列
+      timescaledb: false
+    secureJsonData:
+      # 密码
+      password: 'postgres-password'
+    uid: postgres-uid
+
+  # Redis数据源 - 缓存数据
+  - name: Redis
+    type: redis-datasource
+    access: proxy
+    orgId: 1
+    url: redis:6379
+    password: ''
+    user: ''
+    database: '0'
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # 客户端类型
+      client: 'standalone'
+      # 池大小
+      poolSize: 5
+      # 超时
+      timeout: 10
+      # ping间隔
+      pingInterval: 0
+      # 管道窗口
+      pipelineWindow: 0
+    secureJsonData:
+      # 密码
+      password: 'redis-password'
+    uid: redis-uid
+
+  # Graphite数据源 - 指标数据
+  - name: Graphite
+    type: graphite
+    access: proxy
+    orgId: 1
+    url: http://graphite:8080
+    password: ''
+    user: ''
+    database: ''
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # Graphite版本
+      graphiteVersion: '1.1'
+      # 滚动汇总
+      rollupIndicatorEnabled: false
+    uid: graphite-uid
+
+  # CloudWatch数据源 - AWS监控
+  - name: CloudWatch
+    type: cloudwatch
+    access: proxy
+    orgId: 1
+    url: ''
+    password: ''
+    user: ''
+    database: ''
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # 默认区域
+      defaultRegion: 'us-east-1'
+      # 认证类型
+      authType: 'keys'
+      # 假设角色ARN
+      assumeRoleArn: ''
+      # 外部ID
+      externalId: ''
+      # 配置文件
+      profile: ''
+      # 端点
+      endpoint: ''
+      # 自定义指标命名空间
+      customMetricsNamespaces: 'AWS/ApplicationELB,AWS/ELB,AWS/Lambda'
+    secureJsonData:
+      # 访问密钥
+      accessKey: 'aws-access-key'
+      # 密钥
+      secretKey: 'aws-secret-key'
+    uid: cloudwatch-uid
+
+  # Azure Monitor数据源 - Azure监控
+  - name: Azure Monitor
+    type: grafana-azure-monitor-datasource
+    access: proxy
+    orgId: 1
+    url: ''
+    password: ''
+    user: ''
+    database: ''
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      # 云名称
+      cloudName: 'azuremonitor'
+      # 订阅ID
+      subscriptionId: 'azure-subscription-id'
+      # 租户ID
+      tenantId: 'azure-tenant-id'
+      # 客户端ID
+      clientId: 'azure-client-id'
+    secureJsonData:
+      # 客户端密钥
+      clientSecret: 'azure-client-secret'
+    uid: azure-monitor-uid
+
+  # TestData数据源 - 测试数据
+  - name: TestData
+    type: testdata
+    access: proxy
+    orgId: 1
+    url: ''
+    password: ''
+    user: ''
+    database: ''
+    basicAuth: false
+    basicAuthUser: ''
+    basicAuthPassword: ''
+    withCredentials: false
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData: {}
+    uid: testdata-uid

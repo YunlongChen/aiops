@@ -1,0 +1,675 @@
+---
+# 系统健康检查Playbook
+# 用于监控系统状态并生成健康报告
+
+- name: "系统健康检查和监控"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # 健康检查配置
+    check_cpu: "{{ check_cpu | default(true) }}"
+    check_memory: "{{ check_memory | default(true) }}"
+    check_disk: "{{ check_disk | default(true) }}"
+    check_network: "{{ check_network | default(true) }}"
+    check_services: "{{ check_services | default(true) }}"
+    check_processes: "{{ check_processes | default(true) }}"
+    check_security: "{{ check_security | default(true) }}"
+    check_logs: "{{ check_logs | default(true) }}"
+    
+    # 阈值配置
+    cpu_warning_threshold: "{{ cpu_warning_threshold | default(70) }}"
+    cpu_critical_threshold: "{{ cpu_critical_threshold | default(90) }}"
+    memory_warning_threshold: "{{ memory_warning_threshold | default(80) }}"
+    memory_critical_threshold: "{{ memory_critical_threshold | default(95) }}"
+    disk_warning_threshold: "{{ disk_warning_threshold | default(80) }}"
+    disk_critical_threshold: "{{ disk_critical_threshold | default(95) }}"
+    
+    # 服务检查列表
+    critical_services: "{{ critical_services | default(['sshd', 'systemd', 'NetworkManager']) }}"
+    optional_services: "{{ optional_services | default(['nginx', 'apache2', 'mysql', 'postgresql', 'docker', 'elasticsearch']) }}"
+    
+    # 进程检查列表
+    critical_processes: "{{ critical_processes | default(['init', 'kernel', 'systemd']) }}"
+    
+    # 网络检查配置
+    network_targets: "{{ network_targets | default(['8.8.8.8', '1.1.1.1', 'google.com']) }}"
+    network_timeout: "{{ network_timeout | default(5) }}"
+    
+    # 日志检查配置
+    log_files: "{{ log_files | default(['/var/log/syslog', '/var/log/messages', '/var/log/auth.log']) }}"
+    log_error_patterns: "{{ log_error_patterns | default(['ERROR', 'CRITICAL', 'FATAL', 'panic', 'segfault']) }}"
+    log_check_hours: "{{ log_check_hours | default(24) }}"
+    
+    # 报告配置
+    report_file: "/var/log/self-healing/health-check-{{ ansible_date_time.epoch }}.json"
+    summary_file: "/var/log/self-healing/health-summary.json"
+    log_file: "/var/log/self-healing/health-check.log"
+    
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "/var/log/self-healing"
+        state: directory
+        mode: '0755'
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+        check_timestamp: "{{ ansible_date_time.epoch }}"
+    
+    - name: "记录健康检查开始"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ start_time }}] 开始系统健康检查 - 主机: {{ inventory_hostname }}"
+        create: yes
+    
+    - name: "初始化健康检查结果"
+      set_fact:
+        health_results:
+          timestamp: "{{ start_time }}"
+          host: "{{ inventory_hostname }}"
+          checks: {}
+          overall_status: "healthy"
+          warnings: []
+          errors: []
+          summary: {}
+
+  tasks:
+    # CPU检查
+    - name: "检查CPU使用率"
+      shell: |
+        echo "=== CPU使用率检查 ==="
+        
+        # 获取CPU使用率（1分钟平均）
+        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//' | sed 's/,//')
+        if [ -z "$cpu_usage" ]; then
+          # 备用方法
+          cpu_usage=$(grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4)} END {print usage}')
+        fi
+        
+        # 获取负载平均值
+        load_avg=$(uptime | awk -F'load average:' '{print $2}' | sed 's/^ *//')
+        
+        # 获取CPU核心数
+        cpu_cores=$(nproc)
+        
+        # 获取CPU信息
+        cpu_info=$(lscpu | grep "Model name" | cut -d: -f2 | sed 's/^ *//')
+        
+        echo "CPU使用率: ${cpu_usage}%"
+        echo "负载平均值: $load_avg"
+        echo "CPU核心数: $cpu_cores"
+        echo "CPU型号: $cpu_info"
+        
+        # 检查阈值
+        cpu_int=$(echo "$cpu_usage" | cut -d. -f1)
+        if [ "$cpu_int" -gt {{ cpu_critical_threshold }} ]; then
+          echo "CPU状态: CRITICAL"
+        elif [ "$cpu_int" -gt {{ cpu_warning_threshold }} ]; then
+          echo "CPU状态: WARNING"
+        else
+          echo "CPU状态: OK"
+        fi
+        
+        echo "cpu_usage=$cpu_usage"
+        echo "load_avg=$load_avg"
+        echo "cpu_cores=$cpu_cores"
+      register: cpu_check
+      when: check_cpu
+      changed_when: false
+    
+    # 内存检查
+    - name: "检查内存使用率"
+      shell: |
+        echo "=== 内存使用率检查 ==="
+        
+        # 获取内存信息
+        mem_info=$(free -m)
+        echo "$mem_info"
+        
+        # 计算内存使用率
+        total_mem=$(echo "$mem_info" | awk 'NR==2{print $2}')
+        used_mem=$(echo "$mem_info" | awk 'NR==2{print $3}')
+        available_mem=$(echo "$mem_info" | awk 'NR==2{print $7}')
+        
+        if [ -z "$available_mem" ]; then
+          available_mem=$(echo "$mem_info" | awk 'NR==2{print $4}')
+        fi
+        
+        mem_usage_percent=$(echo "scale=2; $used_mem * 100 / $total_mem" | bc)
+        
+        echo "总内存: ${total_mem}MB"
+        echo "已用内存: ${used_mem}MB"
+        echo "可用内存: ${available_mem}MB"
+        echo "内存使用率: ${mem_usage_percent}%"
+        
+        # 获取交换分区信息
+        swap_info=$(echo "$mem_info" | awk 'NR==3{print "总交换: "$2"MB, 已用交换: "$3"MB"}')
+        echo "$swap_info"
+        
+        # 检查阈值
+        mem_int=$(echo "$mem_usage_percent" | cut -d. -f1)
+        if [ "$mem_int" -gt {{ memory_critical_threshold }} ]; then
+          echo "内存状态: CRITICAL"
+        elif [ "$mem_int" -gt {{ memory_warning_threshold }} ]; then
+          echo "内存状态: WARNING"
+        else
+          echo "内存状态: OK"
+        fi
+        
+        echo "mem_usage_percent=$mem_usage_percent"
+        echo "total_mem=$total_mem"
+        echo "available_mem=$available_mem"
+      register: memory_check
+      when: check_memory
+      changed_when: false
+    
+    # 磁盘检查
+    - name: "检查磁盘使用率"
+      shell: |
+        echo "=== 磁盘使用率检查 ==="
+        
+        # 获取磁盘使用情况
+        disk_info=$(df -h)
+        echo "$disk_info"
+        
+        # 检查各个挂载点
+        critical_mounts=""
+        warning_mounts=""
+        
+        while IFS= read -r line; do
+          if [[ $line == /dev/* ]] || [[ $line == *% ]]; then
+            usage=$(echo "$line" | awk '{print $5}' | sed 's/%//')
+            mount_point=$(echo "$line" | awk '{print $6}')
+            
+            if [ "$usage" -gt {{ disk_critical_threshold }} ]; then
+              critical_mounts="$critical_mounts $mount_point($usage%)"
+            elif [ "$usage" -gt {{ disk_warning_threshold }} ]; then
+              warning_mounts="$warning_mounts $mount_point($usage%)"
+            fi
+          fi
+        done <<< "$disk_info"
+        
+        # 获取inode使用情况
+        echo "\n=== Inode使用情况 ==="
+        inode_info=$(df -i)
+        echo "$inode_info"
+        
+        # 检查磁盘I/O
+        if command -v iostat >/dev/null 2>&1; then
+          echo "\n=== 磁盘I/O统计 ==="
+          iostat -x 1 1 | tail -n +4
+        fi
+        
+        # 确定磁盘状态
+        if [ -n "$critical_mounts" ]; then
+          echo "磁盘状态: CRITICAL - 关键挂载点: $critical_mounts"
+        elif [ -n "$warning_mounts" ]; then
+          echo "磁盘状态: WARNING - 警告挂载点: $warning_mounts"
+        else
+          echo "磁盘状态: OK"
+        fi
+        
+        echo "critical_mounts=$critical_mounts"
+        echo "warning_mounts=$warning_mounts"
+      register: disk_check
+      when: check_disk
+      changed_when: false
+    
+    # 网络检查
+    - name: "检查网络连接"
+      shell: |
+        echo "=== 网络连接检查 ==="
+        
+        # 检查网络接口
+        echo "网络接口状态:"
+        ip addr show | grep -E '^[0-9]+:|inet '
+        
+        # 检查路由表
+        echo "\n默认路由:"
+        ip route | grep default
+        
+        # 检查DNS
+        echo "\nDNS配置:"
+        cat /etc/resolv.conf | grep nameserver
+        
+        # 测试网络连通性
+        echo "\n网络连通性测试:"
+        failed_targets=""
+        successful_targets=""
+        
+        {% for target in network_targets %}
+        if ping -c 1 -W {{ network_timeout }} {{ target }} >/dev/null 2>&1; then
+          echo "{{ target }}: OK ✓"
+          successful_targets="$successful_targets {{ target }}"
+        else
+          echo "{{ target }}: FAILED ✗"
+          failed_targets="$failed_targets {{ target }}"
+        fi
+        {% endfor %}
+        
+        # 检查网络统计
+        echo "\n网络统计:"
+        cat /proc/net/dev | head -2
+        cat /proc/net/dev | grep -v "lo:"
+        
+        # 检查监听端口
+        echo "\n监听端口:"
+        netstat -tlnp 2>/dev/null | head -10 || ss -tlnp | head -10
+        
+        # 确定网络状态
+        if [ -n "$failed_targets" ]; then
+          echo "网络状态: WARNING - 失败目标: $failed_targets"
+        else
+          echo "网络状态: OK"
+        fi
+        
+        echo "failed_targets=$failed_targets"
+        echo "successful_targets=$successful_targets"
+      register: network_check
+      when: check_network
+      changed_when: false
+    
+    # 服务检查
+    - name: "检查关键服务状态"
+      shell: |
+        echo "=== 服务状态检查 ==="
+        
+        failed_critical=""
+        failed_optional=""
+        running_services=""
+        
+        # 检查关键服务
+        echo "关键服务状态:"
+        {% for service in critical_services %}
+        if systemctl is-active {{ service }} >/dev/null 2>&1; then
+          echo "{{ service }}: RUNNING ✓"
+          running_services="$running_services {{ service }}"
+        else
+          echo "{{ service }}: FAILED ✗"
+          failed_critical="$failed_critical {{ service }}"
+        fi
+        {% endfor %}
+        
+        # 检查可选服务
+        echo "\n可选服务状态:"
+        {% for service in optional_services %}
+        if systemctl list-unit-files | grep -q "^{{ service }}.service"; then
+          if systemctl is-active {{ service }} >/dev/null 2>&1; then
+            echo "{{ service }}: RUNNING ✓"
+            running_services="$running_services {{ service }}"
+          else
+            echo "{{ service }}: STOPPED ⚠"
+            failed_optional="$failed_optional {{ service }}"
+          fi
+        else
+          echo "{{ service }}: NOT INSTALLED -"
+        fi
+        {% endfor %}
+        
+        # 检查系统服务总体状态
+        echo "\n系统服务概览:"
+        systemctl list-units --failed --no-pager
+        
+        # 确定服务状态
+        if [ -n "$failed_critical" ]; then
+          echo "服务状态: CRITICAL - 关键服务失败: $failed_critical"
+        elif [ -n "$failed_optional" ]; then
+          echo "服务状态: WARNING - 可选服务停止: $failed_optional"
+        else
+          echo "服务状态: OK"
+        fi
+        
+        echo "failed_critical=$failed_critical"
+        echo "failed_optional=$failed_optional"
+        echo "running_services=$running_services"
+      register: service_check
+      when: check_services
+      changed_when: false
+    
+    # 进程检查
+    - name: "检查关键进程"
+      shell: |
+        echo "=== 进程状态检查 ==="
+        
+        # 显示系统负载和进程概览
+        echo "系统负载:"
+        uptime
+        
+        echo "\n进程概览:"
+        ps aux --sort=-%cpu | head -10
+        
+        echo "\n内存使用TOP10:"
+        ps aux --sort=-%mem | head -10
+        
+        # 检查关键进程
+        echo "\n关键进程检查:"
+        missing_processes=""
+        running_processes=""
+        
+        {% for process in critical_processes %}
+        if pgrep {{ process }} >/dev/null 2>&1; then
+          echo "{{ process }}: RUNNING ✓"
+          running_processes="$running_processes {{ process }}"
+        else
+          echo "{{ process }}: MISSING ✗"
+          missing_processes="$missing_processes {{ process }}"
+        fi
+        {% endfor %}
+        
+        # 检查僵尸进程
+        zombie_count=$(ps aux | awk '$8 ~ /^Z/ { count++ } END { print count+0 }')
+        echo "\n僵尸进程数量: $zombie_count"
+        
+        # 检查进程数量
+        total_processes=$(ps aux | wc -l)
+        echo "总进程数量: $total_processes"
+        
+        # 确定进程状态
+        if [ -n "$missing_processes" ]; then
+          echo "进程状态: CRITICAL - 缺失关键进程: $missing_processes"
+        elif [ "$zombie_count" -gt 10 ]; then
+          echo "进程状态: WARNING - 僵尸进程过多: $zombie_count"
+        else
+          echo "进程状态: OK"
+        fi
+        
+        echo "missing_processes=$missing_processes"
+        echo "zombie_count=$zombie_count"
+        echo "total_processes=$total_processes"
+      register: process_check
+      when: check_processes
+      changed_when: false
+    
+    # 安全检查
+    - name: "安全状态检查"
+      shell: |
+        echo "=== 安全状态检查 ==="
+        
+        security_issues=""
+        
+        # 检查登录失败
+        echo "最近登录失败尝试:"
+        if [ -f /var/log/auth.log ]; then
+          failed_logins=$(grep "Failed password" /var/log/auth.log | tail -5)
+          if [ -n "$failed_logins" ]; then
+            echo "$failed_logins"
+            security_issues="$security_issues failed_logins"
+          else
+            echo "无最近登录失败记录"
+          fi
+        elif [ -f /var/log/secure ]; then
+          failed_logins=$(grep "Failed password" /var/log/secure | tail -5)
+          if [ -n "$failed_logins" ]; then
+            echo "$failed_logins"
+            security_issues="$security_issues failed_logins"
+          else
+            echo "无最近登录失败记录"
+          fi
+        fi
+        
+        # 检查sudo使用
+        echo "\n最近sudo使用:"
+        if [ -f /var/log/auth.log ]; then
+          sudo_usage=$(grep "sudo:" /var/log/auth.log | tail -3)
+          if [ -n "$sudo_usage" ]; then
+            echo "$sudo_usage"
+          else
+            echo "无最近sudo使用记录"
+          fi
+        fi
+        
+        # 检查开放端口
+        echo "\n开放端口检查:"
+        open_ports=$(netstat -tlnp 2>/dev/null | grep LISTEN | wc -l || ss -tlnp | grep LISTEN | wc -l)
+        echo "监听端口数量: $open_ports"
+        
+        # 检查防火墙状态
+        echo "\n防火墙状态:"
+        if command -v ufw >/dev/null 2>&1; then
+          ufw_status=$(ufw status | head -1)
+          echo "UFW: $ufw_status"
+          if [[ $ufw_status == *"inactive"* ]]; then
+            security_issues="$security_issues firewall_inactive"
+          fi
+        elif command -v firewall-cmd >/dev/null 2>&1; then
+          firewalld_status=$(systemctl is-active firewalld)
+          echo "Firewalld: $firewalld_status"
+          if [[ $firewalld_status != "active" ]]; then
+            security_issues="$security_issues firewall_inactive"
+          fi
+        else
+          echo "未检测到防火墙配置"
+          security_issues="$security_issues no_firewall"
+        fi
+        
+        # 检查系统更新
+        echo "\n系统更新检查:"
+        if command -v apt >/dev/null 2>&1; then
+          updates=$(apt list --upgradable 2>/dev/null | wc -l)
+          echo "可用更新数量: $updates"
+          if [ "$updates" -gt 50 ]; then
+            security_issues="$security_issues many_updates"
+          fi
+        elif command -v yum >/dev/null 2>&1; then
+          updates=$(yum check-update 2>/dev/null | grep -c "^[a-zA-Z]" || echo "0")
+          echo "可用更新数量: $updates"
+          if [ "$updates" -gt 50 ]; then
+            security_issues="$security_issues many_updates"
+          fi
+        fi
+        
+        # 确定安全状态
+        if [[ $security_issues == *"failed_logins"* ]] || [[ $security_issues == *"no_firewall"* ]]; then
+          echo "安全状态: WARNING - 发现安全问题: $security_issues"
+        else
+          echo "安全状态: OK"
+        fi
+        
+        echo "security_issues=$security_issues"
+      register: security_check
+      when: check_security
+      changed_when: false
+    
+    # 日志检查
+    - name: "检查系统日志"
+      shell: |
+        echo "=== 系统日志检查 ==="
+        
+        log_errors=""
+        log_warnings=""
+        
+        # 检查指定的日志文件
+        {% for log_file in log_files %}
+        if [ -f "{{ log_file }}" ]; then
+          echo "检查日志文件: {{ log_file }}"
+          
+          # 检查最近24小时的错误
+          {% for pattern in log_error_patterns %}
+          error_count=$(grep -i "{{ pattern }}" "{{ log_file }}" | grep "$(date +'%Y-%m-%d')\|$(date -d '1 day ago' +'%Y-%m-%d')" | wc -l)
+          if [ "$error_count" -gt 0 ]; then
+            echo "  发现 {{ pattern }} 错误: $error_count 条"
+            log_errors="$log_errors {{ pattern }}($error_count)"
+          fi
+          {% endfor %}
+        else
+          echo "日志文件不存在: {{ log_file }}"
+        fi
+        {% endfor %}
+        
+        # 检查系统日志
+        echo "\n系统日志概览:"
+        if command -v journalctl >/dev/null 2>&1; then
+          echo "最近系统错误:"
+          journalctl --since "{{ log_check_hours }} hours ago" --priority=err --no-pager | tail -5
+          
+          echo "\n最近系统警告:"
+          journalctl --since "{{ log_check_hours }} hours ago" --priority=warning --no-pager | tail -5
+        fi
+        
+        # 检查磁盘空间日志
+        echo "\n磁盘空间相关日志:"
+        grep -i "no space left\|disk full" /var/log/syslog /var/log/messages 2>/dev/null | tail -3 || echo "无磁盘空间问题"
+        
+        # 确定日志状态
+        if [ -n "$log_errors" ]; then
+          echo "日志状态: WARNING - 发现错误: $log_errors"
+        else
+          echo "日志状态: OK"
+        fi
+        
+        echo "log_errors=$log_errors"
+      register: log_check
+      when: check_logs
+      changed_when: false
+    
+    # 汇总健康检查结果
+    - name: "汇总健康检查结果"
+      set_fact:
+        health_results: |
+          {%- set results = health_results -%}
+          {%- if cpu_check is defined -%}
+            {%- set _ = results.checks.update({'cpu': {
+              'status': 'CRITICAL' if 'CRITICAL' in cpu_check.stdout else ('WARNING' if 'WARNING' in cpu_check.stdout else 'OK'),
+              'usage_percent': cpu_check.stdout | regex_search('cpu_usage=([0-9.]+)', '\\1') | first | default('0') | float,
+              'load_average': cpu_check.stdout | regex_search('load_avg=(.+)', '\\1') | first | default(''),
+              'cores': cpu_check.stdout | regex_search('cpu_cores=([0-9]+)', '\\1') | first | default('0') | int
+            }}) -%}
+          {%- endif -%}
+          {%- if memory_check is defined -%}
+            {%- set _ = results.checks.update({'memory': {
+              'status': 'CRITICAL' if 'CRITICAL' in memory_check.stdout else ('WARNING' if 'WARNING' in memory_check.stdout else 'OK'),
+              'usage_percent': memory_check.stdout | regex_search('mem_usage_percent=([0-9.]+)', '\\1') | first | default('0') | float,
+              'total_mb': memory_check.stdout | regex_search('total_mem=([0-9]+)', '\\1') | first | default('0') | int,
+              'available_mb': memory_check.stdout | regex_search('available_mem=([0-9]+)', '\\1') | first | default('0') | int
+            }}) -%}
+          {%- endif -%}
+          {%- if disk_check is defined -%}
+            {%- set _ = results.checks.update({'disk': {
+              'status': 'CRITICAL' if 'CRITICAL' in disk_check.stdout else ('WARNING' if 'WARNING' in disk_check.stdout else 'OK'),
+              'critical_mounts': disk_check.stdout | regex_search('critical_mounts=(.+)', '\\1') | first | default('') | trim,
+              'warning_mounts': disk_check.stdout | regex_search('warning_mounts=(.+)', '\\1') | first | default('') | trim
+            }}) -%}
+          {%- endif -%}
+          {%- if network_check is defined -%}
+            {%- set _ = results.checks.update({'network': {
+              'status': 'WARNING' if 'WARNING' in network_check.stdout else 'OK',
+              'failed_targets': network_check.stdout | regex_search('failed_targets=(.+)', '\\1') | first | default('') | trim,
+              'successful_targets': network_check.stdout | regex_search('successful_targets=(.+)', '\\1') | first | default('') | trim
+            }}) -%}
+          {%- endif -%}
+          {%- if service_check is defined -%}
+            {%- set _ = results.checks.update({'services': {
+              'status': 'CRITICAL' if 'CRITICAL' in service_check.stdout else ('WARNING' if 'WARNING' in service_check.stdout else 'OK'),
+              'failed_critical': service_check.stdout | regex_search('failed_critical=(.+)', '\\1') | first | default('') | trim,
+              'failed_optional': service_check.stdout | regex_search('failed_optional=(.+)', '\\1') | first | default('') | trim,
+              'running_services': service_check.stdout | regex_search('running_services=(.+)', '\\1') | first | default('') | trim
+            }}) -%}
+          {%- endif -%}
+          {%- if process_check is defined -%}
+            {%- set _ = results.checks.update({'processes': {
+              'status': 'CRITICAL' if 'CRITICAL' in process_check.stdout else ('WARNING' if 'WARNING' in process_check.stdout else 'OK'),
+              'missing_processes': process_check.stdout | regex_search('missing_processes=(.+)', '\\1') | first | default('') | trim,
+              'zombie_count': process_check.stdout | regex_search('zombie_count=([0-9]+)', '\\1') | first | default('0') | int,
+              'total_processes': process_check.stdout | regex_search('total_processes=([0-9]+)', '\\1') | first | default('0') | int
+            }}) -%}
+          {%- endif -%}
+          {%- if security_check is defined -%}
+            {%- set _ = results.checks.update({'security': {
+              'status': 'WARNING' if 'WARNING' in security_check.stdout else 'OK',
+              'issues': security_check.stdout | regex_search('security_issues=(.+)', '\\1') | first | default('') | trim
+            }}) -%}
+          {%- endif -%}
+          {%- if log_check is defined -%}
+            {%- set _ = results.checks.update({'logs': {
+              'status': 'WARNING' if 'WARNING' in log_check.stdout else 'OK',
+              'errors': log_check.stdout | regex_search('log_errors=(.+)', '\\1') | first | default('') | trim
+            }}) -%}
+          {%- endif -%}
+          {{ results }}
+    
+    - name: "确定整体健康状态"
+      set_fact:
+        overall_status: |
+          {%- set critical_checks = health_results.checks.values() | selectattr('status', 'equalto', 'CRITICAL') | list -%}
+          {%- set warning_checks = health_results.checks.values() | selectattr('status', 'equalto', 'WARNING') | list -%}
+          {%- if critical_checks | length > 0 -%}
+            critical
+          {%- elif warning_checks | length > 0 -%}
+            warning
+          {%- else -%}
+            healthy
+          {%- endif -%}
+    
+    - name: "更新健康检查结果"
+      set_fact:
+        health_results: "{{ health_results | combine({'overall_status': overall_status}) }}"
+    
+    - name: "记录健康检查结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 健康检查完成 - 状态: {{ overall_status }}"
+
+  post_tasks:
+    - name: "生成健康检查报告"
+      copy:
+        content: "{{ health_results | to_nice_json }}"
+        dest: "{{ report_file }}"
+        mode: '0644'
+    
+    - name: "更新健康摘要"
+      copy:
+        content: |
+          {
+            "last_check": "{{ health_results.timestamp }}",
+            "host": "{{ health_results.host }}",
+            "overall_status": "{{ health_results.overall_status }}",
+            "summary": {
+              "total_checks": {{ health_results.checks | length }},
+              "critical_issues": {{ health_results.checks.values() | selectattr('status', 'equalto', 'CRITICAL') | list | length }},
+              "warnings": {{ health_results.checks.values() | selectattr('status', 'equalto', 'WARNING') | list | length }},
+              "healthy_checks": {{ health_results.checks.values() | selectattr('status', 'equalto', 'OK') | list | length }}
+            },
+            "report_file": "{{ report_file }}"
+          }
+        dest: "{{ summary_file }}"
+        mode: '0644'
+    
+    - name: "发送健康报告通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "health_check"
+          status: "{{ health_results.overall_status }}"
+          host: "{{ inventory_hostname }}"
+          message: "系统健康检查完成 - 状态: {{ health_results.overall_status }}"
+          details: "{{ health_results }}"
+        status_code: [200, 201, 204]
+      when: notification_webhook_url is defined
+      ignore_errors: yes
+    
+    - name: "清理旧的健康检查报告"
+      shell: |
+        # 保留最近7天的报告
+        find /var/log/self-healing -name "health-check-*.json" -mtime +7 -delete
+        
+        # 保留最近100行日志
+        if [ -f "{{ log_file }}" ]; then
+          tail -100 "{{ log_file }}" > "{{ log_file }}.tmp"
+          mv "{{ log_file }}.tmp" "{{ log_file }}"
+        fi
+      ignore_errors: yes
+
+  handlers:
+    - name: "重启监控服务"
+      systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - prometheus-node-exporter
+        - collectd
+      ignore_errors: yes

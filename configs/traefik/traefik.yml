@@ -1,0 +1,296 @@
+# Traefik Configuration File
+# AIOps-Platform 边缘路由配置
+# 版本: 1.0.0
+
+# ===========================================
+# 全局配置
+# ===========================================
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+# ===========================================
+# API和仪表板配置
+# ===========================================
+api:
+  dashboard: true
+  insecure: true
+  debug: true
+
+# ===========================================
+# 入口点配置
+# ===========================================
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        options: default
+  
+  traefik:
+    address: ":8080"
+
+# ===========================================
+# 服务提供者配置
+# ===========================================
+providers:
+  # Docker提供者
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: "aiops-platform_frontend"
+    watch: true
+  
+  # 文件提供者
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+# ===========================================
+# 证书解析器配置
+# ===========================================
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@aiops-platform.com
+      storage: /certificates/acme.json
+      httpChallenge:
+        entryPoint: web
+      # 生产环境使用以下配置
+      # caServer: https://acme-v02.api.letsencrypt.org/directory
+      # 测试环境使用以下配置
+      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+  
+  # 自签名证书解析器
+  selfsigned:
+    acme:
+      email: admin@aiops-platform.com
+      storage: /certificates/selfsigned.json
+      keyType: EC256
+      httpChallenge:
+        entryPoint: web
+
+# ===========================================
+# 日志配置
+# ===========================================
+log:
+  level: INFO
+  format: json
+  filePath: "/var/log/traefik/traefik.log"
+
+# 访问日志配置
+accessLog:
+  format: json
+  filePath: "/var/log/traefik/access.log"
+  bufferingSize: 100
+  filters:
+    statusCodes:
+      - "400-499"
+      - "500-599"
+    retryAttempts: true
+    minDuration: "10ms"
+  fields:
+    defaultMode: keep
+    names:
+      ClientUsername: drop
+    headers:
+      defaultMode: keep
+      names:
+        User-Agent: redact
+        Authorization: drop
+        Content-Type: keep
+
+# ===========================================
+# 指标配置
+# ===========================================
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+    buckets:
+      - 0.1
+      - 0.3
+      - 1.2
+      - 5.0
+
+# ===========================================
+# 追踪配置 (暂时禁用，等待Jaeger服务就绪)
+# ===========================================
+# tracing:
+#   jaeger:
+#     samplingParam: 1.0
+#     samplingServerURL: http://jaeger:14268/api/sampling
+#     localAgentHostPort: jaeger:6831
+#     gen128Bit: true
+#     propagation: jaeger
+#     traceContextHeaderName: uber-trace-id
+
+# ===========================================
+# 健康检查配置
+# ===========================================
+ping:
+  entryPoint: "traefik"
+
+# ===========================================
+# 集群配置（可选）
+# ===========================================
+# cluster:
+#   store: consul
+#   prefix: traefik
+#   endpoints:
+#     - "consul:8500"
+
+# ===========================================
+# 实验性功能
+# ===========================================
+experimental:
+  plugins:
+    # 插件配置
+    demo:
+      moduleName: github.com/traefik/plugindemo
+      version: v0.2.1
+
+# ===========================================
+# 服务发现配置
+# ===========================================
+serversTransport:
+  insecureSkipVerify: true
+  rootCAs:
+    - /certificates/ca.pem
+  maxIdleConnsPerHost: 42
+  forwardingTimeouts:
+    dialTimeout: 30s
+    responseHeaderTimeout: 0s
+    idleConnTimeout: 90s
+
+# ===========================================
+# 中间件配置
+# ===========================================
+http:
+  middlewares:
+    # 安全头中间件
+    security-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - OPTIONS
+          - PUT
+          - POST
+          - DELETE
+        accessControlAllowOriginList:
+          - "*"
+        accessControlMaxAge: 100
+        hostsProxyHeaders:
+          - "X-Forwarded-Host"
+        referrerPolicy: "same-origin"
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-Custom-Response-Header: "AIOps-Platform"
+        sslRedirect: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+    
+    # 限流中间件
+    rate-limit:
+      rateLimit:
+        average: 100
+        period: 1m
+        burst: 200
+    
+    # 重试中间件
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms
+    
+    # 压缩中间件
+    compression:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"
+    
+    # 认证中间件
+    auth:
+      basicAuth:
+        users:
+          - "admin:$2y$10$2b2cu/b9/QXE.VksN/qgAOyG.7fxb7piSj.bS8YUiMKQf2PQFN1jC"  # admin:admin123
+    
+    # CORS中间件
+    cors:
+      headers:
+        accessControlAllowCredentials: true
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowMethods:
+          - "*"
+        accessControlAllowOriginList:
+          - "*"
+        accessControlExposeHeaders:
+          - "*"
+        accessControlMaxAge: 100
+        addVaryHeader: true
+
+# ===========================================
+# TLS配置
+# ===========================================
+tls:
+  options:
+    default:
+      sslStrategies:
+        - "tls.SniStrict"
+      minVersion: "VersionTLS12"
+      maxVersion: "VersionTLS13"
+      cipherSuites:
+        - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+        - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+        - "TLS_RSA_WITH_AES_256_GCM_SHA384"
+        - "TLS_RSA_WITH_AES_128_GCM_SHA256"
+      curvePreferences:
+        - CurveP521
+        - CurveP384
+      alpnProtocols:
+        - h2
+        - http/1.1
+    
+    mintls13:
+      minVersion: "VersionTLS13"
+  
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certificates/default.crt
+        keyFile: /certificates/default.key
+
+# ===========================================
+# UDP配置（可选）
+# ===========================================
+udp:
+  routers:
+    dns:
+      entryPoints:
+        - "dns"
+      service: "dns-service"
+  
+  services:
+    dns-service:
+      loadBalancer:
+        servers:
+          - address: "8.8.8.8:53"
+          - address: "8.8.4.4:53"

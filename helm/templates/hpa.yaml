@@ -1,0 +1,256 @@
+{{/*
+AIOps-Platform Kubernetes HPA模板
+文件: hpa.yaml
+描述: 定义水平Pod自动扩缩容配置
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.autoscaling.enabled }}
+{{- range $component := list "traefik" "prometheus" "grafana" "alertmanager" "elasticsearch" "logstash" "kibana" "aiEngine" "apiGateway" "selfHealing" }}
+{{- $componentConfig := index $.Values $component }}
+{{- if and $componentConfig.enabled $componentConfig.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "aiops.fullname" $ }}-{{ $component | kebabcase }}
+  labels:
+    {{- include "aiops.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component | kebabcase }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "aiops.fullname" $ }}-{{ $component | kebabcase }}
+  minReplicas: {{ $componentConfig.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ $componentConfig.autoscaling.maxReplicas | default 10 }}
+  metrics:
+    {{- if $componentConfig.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $componentConfig.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if $componentConfig.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $componentConfig.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+    {{- if $componentConfig.autoscaling.customMetrics }}
+    {{- range $componentConfig.autoscaling.customMetrics }}
+    - type: {{ .type | default "Pods" }}
+      {{- if eq .type "Pods" }}
+      pods:
+        metric:
+          name: {{ .name }}
+          {{- if .selector }}
+          selector:
+            {{- toYaml .selector | nindent 12 }}
+          {{- end }}
+        target:
+          type: {{ .targetType | default "AverageValue" }}
+          {{- if eq .targetType "AverageValue" }}
+          averageValue: {{ .targetValue }}
+          {{- else }}
+          value: {{ .targetValue }}
+          {{- end }}
+      {{- else if eq .type "Object" }}
+      object:
+        metric:
+          name: {{ .name }}
+          {{- if .selector }}
+          selector:
+            {{- toYaml .selector | nindent 12 }}
+          {{- end }}
+        describedObject:
+          apiVersion: {{ .describedObject.apiVersion }}
+          kind: {{ .describedObject.kind }}
+          name: {{ .describedObject.name }}
+        target:
+          type: {{ .targetType | default "Value" }}
+          value: {{ .targetValue }}
+      {{- else if eq .type "External" }}
+      external:
+        metric:
+          name: {{ .name }}
+          {{- if .selector }}
+          selector:
+            {{- toYaml .selector | nindent 12 }}
+          {{- end }}
+        target:
+          type: {{ .targetType | default "Value" }}
+          value: {{ .targetValue }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- if $componentConfig.autoscaling.behavior }}
+  behavior:
+    {{- if $componentConfig.autoscaling.behavior.scaleDown }}
+    scaleDown:
+      {{- if $componentConfig.autoscaling.behavior.scaleDown.stabilizationWindowSeconds }}
+      stabilizationWindowSeconds: {{ $componentConfig.autoscaling.behavior.scaleDown.stabilizationWindowSeconds }}
+      {{- end }}
+      {{- if $componentConfig.autoscaling.behavior.scaleDown.policies }}
+      policies:
+        {{- range $componentConfig.autoscaling.behavior.scaleDown.policies }}
+        - type: {{ .type }}
+          value: {{ .value }}
+          periodSeconds: {{ .periodSeconds }}
+        {{- end }}
+      {{- end }}
+      {{- if $componentConfig.autoscaling.behavior.scaleDown.selectPolicy }}
+      selectPolicy: {{ $componentConfig.autoscaling.behavior.scaleDown.selectPolicy }}
+      {{- end }}
+    {{- end }}
+    {{- if $componentConfig.autoscaling.behavior.scaleUp }}
+    scaleUp:
+      {{- if $componentConfig.autoscaling.behavior.scaleUp.stabilizationWindowSeconds }}
+      stabilizationWindowSeconds: {{ $componentConfig.autoscaling.behavior.scaleUp.stabilizationWindowSeconds }}
+      {{- end }}
+      {{- if $componentConfig.autoscaling.behavior.scaleUp.policies }}
+      policies:
+        {{- range $componentConfig.autoscaling.behavior.scaleUp.policies }}
+        - type: {{ .type }}
+          value: {{ .value }}
+          periodSeconds: {{ .periodSeconds }}
+        {{- end }}
+      {{- end }}
+      {{- if $componentConfig.autoscaling.behavior.scaleUp.selectPolicy }}
+      selectPolicy: {{ $componentConfig.autoscaling.behavior.scaleUp.selectPolicy }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.autoscaling.enabled .Values.autoscaling.customHPA }}
+{{- range .Values.autoscaling.customHPA }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "aiops.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "aiops.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: custom-hpa
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: {{ .scaleTargetRef.apiVersion | default "apps/v1" }}
+    kind: {{ .scaleTargetRef.kind | default "Deployment" }}
+    name: {{ .scaleTargetRef.name }}
+  minReplicas: {{ .minReplicas | default 1 }}
+  maxReplicas: {{ .maxReplicas | default 10 }}
+  metrics:
+    {{- if .targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .targetMemoryUtilizationPercentage }}
+    {{- end }}
+    {{- if .customMetrics }}
+    {{- range .customMetrics }}
+    - type: {{ .type }}
+      {{- if eq .type "Pods" }}
+      pods:
+        metric:
+          name: {{ .name }}
+          {{- if .selector }}
+          selector:
+            {{- toYaml .selector | nindent 12 }}
+          {{- end }}
+        target:
+          type: {{ .targetType | default "AverageValue" }}
+          {{- if eq .targetType "AverageValue" }}
+          averageValue: {{ .targetValue }}
+          {{- else }}
+          value: {{ .targetValue }}
+          {{- end }}
+      {{- else if eq .type "Object" }}
+      object:
+        metric:
+          name: {{ .name }}
+          {{- if .selector }}
+          selector:
+            {{- toYaml .selector | nindent 12 }}
+          {{- end }}
+        describedObject:
+          apiVersion: {{ .describedObject.apiVersion }}
+          kind: {{ .describedObject.kind }}
+          name: {{ .describedObject.name }}
+        target:
+          type: {{ .targetType | default "Value" }}
+          value: {{ .targetValue }}
+      {{- else if eq .type "External" }}
+      external:
+        metric:
+          name: {{ .name }}
+          {{- if .selector }}
+          selector:
+            {{- toYaml .selector | nindent 12 }}
+          {{- end }}
+        target:
+          type: {{ .targetType | default "Value" }}
+          value: {{ .targetValue }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- if .behavior }}
+  behavior:
+    {{- if .behavior.scaleDown }}
+    scaleDown:
+      {{- if .behavior.scaleDown.stabilizationWindowSeconds }}
+      stabilizationWindowSeconds: {{ .behavior.scaleDown.stabilizationWindowSeconds }}
+      {{- end }}
+      {{- if .behavior.scaleDown.policies }}
+      policies:
+        {{- range .behavior.scaleDown.policies }}
+        - type: {{ .type }}
+          value: {{ .value }}
+          periodSeconds: {{ .periodSeconds }}
+        {{- end }}
+      {{- end }}
+      {{- if .behavior.scaleDown.selectPolicy }}
+      selectPolicy: {{ .behavior.scaleDown.selectPolicy }}
+      {{- end }}
+    {{- end }}
+    {{- if .behavior.scaleUp }}
+    scaleUp:
+      {{- if .behavior.scaleUp.stabilizationWindowSeconds }}
+      stabilizationWindowSeconds: {{ .behavior.scaleUp.stabilizationWindowSeconds }}
+      {{- end }}
+      {{- if .behavior.scaleUp.policies }}
+      policies:
+        {{- range .behavior.scaleUp.policies }}
+        - type: {{ .type }}
+          value: {{ .value }}
+          periodSeconds: {{ .periodSeconds }}
+        {{- end }}
+      {{- end }}
+      {{- if .behavior.scaleUp.selectPolicy }}
+      selectPolicy: {{ .behavior.scaleUp.selectPolicy }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

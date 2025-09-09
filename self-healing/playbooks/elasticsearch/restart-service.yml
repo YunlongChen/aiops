@@ -1,0 +1,353 @@
+---
+# Elasticsearch服务重启 Playbook
+# 用于自动重启Elasticsearch服务并验证集群健康状态
+
+- name: 重启Elasticsearch服务
+  hosts: elasticsearch_cluster
+  become: yes
+  gather_facts: yes
+  serial: 1  # 逐个节点执行，避免整个集群同时重启
+  
+  vars:
+    service_name: "{{ service_name | default('elasticsearch') }}"
+    wait_for_service: "{{ wait_for_service | default(true) }}"
+    health_check_timeout: "{{ health_check_timeout | default(60) }}"
+    elasticsearch_port: 9200
+    cluster_health_timeout: 300
+    backup_config: true
+    
+  pre_tasks:
+    - name: 检查当前用户权限
+      command: whoami
+      register: current_user
+      changed_when: false
+    
+    - name: 显示执行信息
+      debug:
+        msg: "开始重启 {{ inventory_hostname }} 上的 {{ service_name }} 服务 (执行用户: {{ current_user.stdout }})"
+    
+    - name: 检查Elasticsearch服务状态
+      systemd:
+        name: "{{ service_name }}"
+      register: service_status
+      failed_when: false
+    
+    - name: 显示当前服务状态
+      debug:
+        msg: "当前服务状态: {{ service_status.status.ActiveState | default('unknown') }}"
+  
+  tasks:
+    - name: 备份Elasticsearch配置文件
+      block:
+        - name: 创建备份目录
+          file:
+            path: "/backup/elasticsearch/{{ ansible_date_time.date }}"
+            state: directory
+            mode: '0755'
+          when: backup_config | bool
+        
+        - name: 备份主配置文件
+          copy:
+            src: "/etc/elasticsearch/elasticsearch.yml"
+            dest: "/backup/elasticsearch/{{ ansible_date_time.date }}/elasticsearch.yml.{{ ansible_date_time.time }}"
+            remote_src: yes
+            backup: yes
+          when: backup_config | bool
+        
+        - name: 备份JVM配置文件
+          copy:
+            src: "/etc/elasticsearch/jvm.options"
+            dest: "/backup/elasticsearch/{{ ansible_date_time.date }}/jvm.options.{{ ansible_date_time.time }}"
+            remote_src: yes
+            backup: yes
+          when: backup_config | bool
+      rescue:
+        - name: 备份失败警告
+          debug:
+            msg: "警告: 配置文件备份失败，继续执行重启操作"
+    
+    - name: 检查集群状态（重启前）
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/health"
+        method: GET
+        timeout: 10
+      register: cluster_health_before
+      failed_when: false
+      changed_when: false
+    
+    - name: 显示重启前集群状态
+      debug:
+        msg: "重启前集群状态: {{ cluster_health_before.json.status | default('unknown') }}"
+      when: cluster_health_before.json is defined
+    
+    - name: 优雅停止Elasticsearch服务
+      block:
+        - name: 禁用分片分配（避免数据迁移）
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/settings"
+            method: PUT
+            body_format: json
+            body:
+              persistent:
+                cluster.routing.allocation.enable: "primaries"
+            timeout: 30
+          register: disable_allocation
+          failed_when: false
+        
+        - name: 执行同步刷新
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_flush/synced"
+            method: POST
+            timeout: 60
+          register: sync_flush
+          failed_when: false
+        
+        - name: 停止Elasticsearch服务
+          systemd:
+            name: "{{ service_name }}"
+            state: stopped
+          register: stop_result
+        
+        - name: 等待服务完全停止
+          wait_for:
+            port: "{{ elasticsearch_port }}"
+            host: "{{ ansible_default_ipv4.address }}"
+            state: stopped
+            timeout: 60
+          when: wait_for_service | bool
+      rescue:
+        - name: 强制停止服务
+          systemd:
+            name: "{{ service_name }}"
+            state: stopped
+          register: force_stop_result
+        
+        - name: 强制终止Elasticsearch进程
+          shell: |
+            pkill -f elasticsearch || true
+            sleep 5
+            pkill -9 -f elasticsearch || true
+          when: force_stop_result is failed
+    
+    - name: 清理临时文件和锁文件
+      block:
+        - name: 清理PID文件
+          file:
+            path: "/var/run/elasticsearch/elasticsearch.pid"
+            state: absent
+        
+        - name: 清理锁文件
+          find:
+            paths: "/var/lib/elasticsearch"
+            patterns: "*.lock"
+            recurse: yes
+          register: lock_files
+        
+        - name: 删除锁文件
+          file:
+            path: "{{ item.path }}"
+            state: absent
+          loop: "{{ lock_files.files }}"
+          when: lock_files.files | length > 0
+      rescue:
+        - name: 清理失败警告
+          debug:
+            msg: "警告: 临时文件清理失败，继续执行启动操作"
+    
+    - name: 启动Elasticsearch服务
+      systemd:
+        name: "{{ service_name }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      register: start_result
+    
+    - name: 等待Elasticsearch服务启动
+      wait_for:
+        port: "{{ elasticsearch_port }}"
+        host: "{{ ansible_default_ipv4.address }}"
+        timeout: "{{ health_check_timeout }}"
+      when: wait_for_service | bool
+    
+    - name: 等待节点加入集群
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/health?wait_for_status=yellow&timeout=60s"
+        method: GET
+        timeout: 70
+      register: node_health
+      retries: 5
+      delay: 10
+      until: node_health.status == 200
+    
+    - name: 重新启用分片分配
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/settings"
+        method: PUT
+        body_format: json
+        body:
+          persistent:
+            cluster.routing.allocation.enable: null
+        timeout: 30
+      register: enable_allocation
+      retries: 3
+      delay: 5
+      until: enable_allocation.status == 200
+    
+    - name: 等待集群恢复健康状态
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/health?wait_for_status=green&timeout={{ cluster_health_timeout }}s"
+        method: GET
+        timeout: "{{ cluster_health_timeout + 10 }}"
+      register: final_health
+      retries: 3
+      delay: 30
+      until: final_health.status == 200
+      failed_when: false
+    
+    - name: 检查最终集群状态
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/health"
+        method: GET
+        timeout: 10
+      register: cluster_health_after
+      changed_when: false
+    
+    - name: 验证节点状态
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_nodes/_local"
+        method: GET
+        timeout: 10
+      register: node_info
+      changed_when: false
+    
+    - name: 检查服务状态
+      systemd:
+        name: "{{ service_name }}"
+      register: final_service_status
+      changed_when: false
+  
+  post_tasks:
+    - name: 显示重启结果
+      debug:
+        msg: |
+          Elasticsearch服务重启完成:
+          - 节点: {{ inventory_hostname }}
+          - 服务状态: {{ final_service_status.status.ActiveState }}
+          - 集群状态: {{ cluster_health_after.json.status | default('unknown') }}
+          - 集群节点数: {{ cluster_health_after.json.number_of_nodes | default('unknown') }}
+          - 数据节点数: {{ cluster_health_after.json.number_of_data_nodes | default('unknown') }}
+          - 活跃分片数: {{ cluster_health_after.json.active_shards | default('unknown') }}
+          - 重定位分片数: {{ cluster_health_after.json.relocating_shards | default('unknown') }}
+          - 初始化分片数: {{ cluster_health_after.json.initializing_shards | default('unknown') }}
+          - 未分配分片数: {{ cluster_health_after.json.unassigned_shards | default('unknown') }}
+    
+    - name: 记录重启日志
+      lineinfile:
+        path: "/var/log/elasticsearch-restart.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ inventory_hostname }} - Elasticsearch服务重启完成 - 集群状态: {{ cluster_health_after.json.status | default('unknown') }}"
+        create: yes
+        mode: '0644'
+    
+    - name: 发送通知（如果配置了）
+      mail:
+        to: "{{ notification_email | default('admin@example.com') }}"
+        subject: "Elasticsearch服务重启完成 - {{ inventory_hostname }}"
+        body: |
+          Elasticsearch服务重启操作已完成。
+          
+          节点信息:
+          - 主机: {{ inventory_hostname }}
+          - IP地址: {{ ansible_default_ipv4.address }}
+          - 操作时间: {{ ansible_date_time.iso8601 }}
+          
+          集群状态:
+          - 状态: {{ cluster_health_after.json.status | default('unknown') }}
+          - 节点数: {{ cluster_health_after.json.number_of_nodes | default('unknown') }}
+          - 数据节点数: {{ cluster_health_after.json.number_of_data_nodes | default('unknown') }}
+          - 活跃分片数: {{ cluster_health_after.json.active_shards | default('unknown') }}
+          - 未分配分片数: {{ cluster_health_after.json.unassigned_shards | default('unknown') }}
+          
+          如有问题，请及时检查。
+      when: notification_email is defined and cluster_health_after.json is defined
+      failed_when: false
+  
+  handlers:
+    - name: 重启失败处理
+      debug:
+        msg: "Elasticsearch服务重启失败，请手动检查"
+      listen: "restart_failed"
+    
+    - name: 集群状态异常处理
+      debug:
+        msg: "集群状态异常，可能需要手动干预"
+      listen: "cluster_unhealthy"
+
+# 错误处理和回滚策略
+- name: 错误处理和回滚
+  hosts: elasticsearch_cluster
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: 检查是否需要回滚
+      block:
+        - name: 检查服务状态
+          systemd:
+            name: "{{ service_name | default('elasticsearch') }}"
+          register: service_check
+          failed_when: false
+        
+        - name: 检查集群健康状态
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:9200/_cluster/health"
+            method: GET
+            timeout: 10
+          register: health_check
+          failed_when: false
+        
+        - name: 回滚配置文件
+          block:
+            - name: 查找最新备份
+              find:
+                paths: "/backup/elasticsearch/{{ ansible_date_time.date }}"
+                patterns: "elasticsearch.yml.*"
+              register: backup_files
+              when: backup_config | default(true)
+            
+            - name: 恢复配置文件
+              copy:
+                src: "{{ (backup_files.files | sort(attribute='mtime') | last).path }}"
+                dest: "/etc/elasticsearch/elasticsearch.yml"
+                remote_src: yes
+                backup: yes
+              when: backup_files.files | length > 0 and service_check.status.ActiveState != 'active'
+            
+            - name: 重新启动服务
+              systemd:
+                name: "{{ service_name | default('elasticsearch') }}"
+                state: restarted
+              when: backup_files.files | length > 0 and service_check.status.ActiveState != 'active'
+          rescue:
+            - name: 回滚失败通知
+              debug:
+                msg: "配置文件回滚失败，需要手动干预"
+      when: hostvars[inventory_hostname]['start_result'] is failed or hostvars[inventory_hostname]['final_health'] is failed
+      rescue:
+        - name: 最终错误处理
+          debug:
+            msg: "Elasticsearch服务重启和回滚都失败，需要紧急人工干预"
+          
+        - name: 发送紧急通知
+          mail:
+            to: "{{ emergency_contact | default('emergency@example.com') }}"
+            subject: "紧急: Elasticsearch服务重启失败 - {{ inventory_hostname }}"
+            body: |
+              紧急通知: Elasticsearch服务重启失败，需要立即人工干预。
+              
+              节点信息:
+              - 主机: {{ inventory_hostname }}
+              - IP地址: {{ ansible_default_ipv4.address }}
+              - 失败时间: {{ ansible_date_time.iso8601 }}
+              
+              请立即检查该节点状态并采取必要措施。
+          when: emergency_contact is defined
+          failed_when: false

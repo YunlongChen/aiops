@@ -1,0 +1,584 @@
+# 自愈系统规则配置文件
+# 定义各种监控指标的阈值和对应的自愈动作
+# 作者: AIOps团队
+# 版本: 1.0
+# 创建时间: 2024-01-15
+
+# 全局规则配置
+global:
+  # 规则引擎配置
+  rule_engine:
+    enabled: true
+    check_interval: 30  # 秒
+    max_concurrent_rules: 10
+    rule_timeout: 300  # 秒
+    retry_attempts: 3
+    retry_delay: 60  # 秒
+  
+  # 执行配置
+  execution:
+    dry_run: false
+    parallel_execution: true
+    max_parallel_actions: 5
+    action_timeout: 600  # 秒
+    cooldown_period: 300  # 秒
+  
+  # 通知配置
+  notifications:
+    enabled: true
+    channels:
+      - webhook
+      - email
+    webhook_url: "${WEBHOOK_URL}"
+    email_recipients:
+      - "admin@example.com"
+      - "ops@example.com"
+
+# 系统级规则
+system_rules:
+  # CPU使用率规则
+  cpu_usage:
+    - name: "high_cpu_usage"
+      description: "CPU使用率过高自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "cpu_usage_percent"
+          operator: ">"
+          threshold: 80
+          duration: 300  # 持续5分钟
+        - metric: "load_average_5m"
+          operator: ">"
+          threshold: 4.0
+      actions:
+        - type: "ansible_playbook"
+          playbook: "system/optimize-cpu.yml"
+          parameters:
+            kill_high_cpu_processes: true
+            cpu_threshold: 80
+        - type: "notification"
+          message: "CPU使用率过高，已执行优化操作"
+      cooldown: 600  # 10分钟冷却期
+  
+  # 内存使用率规则
+  memory_usage:
+    - name: "high_memory_usage"
+      description: "内存使用率过高自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "memory_usage_percent"
+          operator: ">"
+          threshold: 85
+          duration: 180  # 持续3分钟
+      actions:
+        - type: "ansible_playbook"
+          playbook: "system/clear-memory.yml"
+          parameters:
+            clear_cache: true
+            restart_services: false
+        - type: "notification"
+          message: "内存使用率过高，已清理缓存"
+      cooldown: 300
+    
+    - name: "critical_memory_usage"
+      description: "内存使用率危险自愈"
+      enabled: true
+      priority: 0  # 最高优先级
+      conditions:
+        - metric: "memory_usage_percent"
+          operator: ">"
+          threshold: 95
+          duration: 60  # 持续1分钟
+      actions:
+        - type: "ansible_playbook"
+          playbook: "system/emergency-memory-cleanup.yml"
+          parameters:
+            force_cleanup: true
+            restart_heavy_services: true
+        - type: "notification"
+          message: "内存使用率危险，已执行紧急清理"
+          severity: "critical"
+      cooldown: 180
+  
+  # 磁盘使用率规则
+  disk_usage:
+    - name: "high_disk_usage"
+      description: "磁盘使用率过高自愈"
+      enabled: true
+      priority: 2
+      conditions:
+        - metric: "disk_usage_percent"
+          operator: ">"
+          threshold: 85
+          duration: 300
+        - metric: "disk_path"
+          operator: "in"
+          threshold: ["/", "/var", "/tmp"]
+      actions:
+        - type: "ansible_playbook"
+          playbook: "system/cleanup-disk.yml"
+          parameters:
+            cleanup_logs: true
+            cleanup_temp: true
+            cleanup_cache: true
+        - type: "notification"
+          message: "磁盘使用率过高，已执行清理操作"
+      cooldown: 1800  # 30分钟
+  
+  # 网络连接规则
+  network_connectivity:
+    - name: "network_connection_failure"
+      description: "网络连接失败自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "ping_success_rate"
+          operator: "<"
+          threshold: 80
+          duration: 120
+        - metric: "network_interface_status"
+          operator: "=="
+          threshold: "down"
+      actions:
+        - type: "ansible_playbook"
+          playbook: "system/fix-network.yml"
+          parameters:
+            restart_network: true
+            flush_dns: true
+        - type: "notification"
+          message: "网络连接异常，已执行修复操作"
+      cooldown: 300
+
+# 应用服务规则
+service_rules:
+  # 服务状态规则
+  service_health:
+    - name: "service_down"
+      description: "服务停止自愈"
+      enabled: true
+      priority: 0
+      conditions:
+        - metric: "service_status"
+          operator: "!="
+          threshold: "active"
+        - metric: "service_name"
+          operator: "in"
+          threshold: ["nginx", "apache2", "mysql", "postgresql"]
+      actions:
+        - type: "ansible_playbook"
+          playbook: "services/restart-service.yml"
+          parameters:
+            service_name: "{{ metric_value.service_name }}"
+            check_config: true
+        - type: "notification"
+          message: "服务 {{ metric_value.service_name }} 已停止，正在重启"
+      cooldown: 180
+    
+    - name: "service_high_response_time"
+      description: "服务响应时间过长自愈"
+      enabled: true
+      priority: 2
+      conditions:
+        - metric: "response_time_ms"
+          operator: ">"
+          threshold: 5000
+          duration: 300
+        - metric: "error_rate_percent"
+          operator: ">"
+          threshold: 10
+      actions:
+        - type: "ansible_playbook"
+          playbook: "services/optimize-service.yml"
+          parameters:
+            restart_service: false
+            clear_cache: true
+            optimize_config: true
+        - type: "notification"
+          message: "服务响应时间过长，已执行优化操作"
+      cooldown: 600
+
+# Elasticsearch规则
+elasticsearch_rules:
+  # 集群健康规则
+  cluster_health:
+    - name: "cluster_status_yellow"
+      description: "ES集群状态黄色自愈"
+      enabled: true
+      priority: 2
+      conditions:
+        - metric: "cluster_status"
+          operator: "=="
+          threshold: "yellow"
+          duration: 300
+      actions:
+        - type: "ansible_playbook"
+          playbook: "elasticsearch/fix-cluster-health.yml"
+          parameters:
+            reallocate_shards: true
+            increase_replicas: false
+        - type: "notification"
+          message: "ES集群状态为黄色，已执行修复操作"
+      cooldown: 600
+    
+    - name: "cluster_status_red"
+      description: "ES集群状态红色紧急自愈"
+      enabled: true
+      priority: 0
+      conditions:
+        - metric: "cluster_status"
+          operator: "=="
+          threshold: "red"
+          duration: 60
+      actions:
+        - type: "ansible_playbook"
+          playbook: "elasticsearch/emergency-cluster-fix.yml"
+          parameters:
+            force_allocation: true
+            restart_nodes: false
+        - type: "notification"
+          message: "ES集群状态为红色，已执行紧急修复"
+          severity: "critical"
+      cooldown: 300
+  
+  # 内存使用规则
+  memory_usage:
+    - name: "high_heap_usage"
+      description: "ES堆内存使用率过高自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "heap_usage_percent"
+          operator: ">"
+          threshold: 85
+          duration: 300
+      actions:
+        - type: "ansible_playbook"
+          playbook: "elasticsearch/clear-cache.yml"
+          parameters:
+            clear_field_data: true
+            clear_query_cache: true
+            clear_request_cache: true
+        - type: "notification"
+          message: "ES堆内存使用率过高，已清理缓存"
+      cooldown: 600
+  
+  # 索引管理规则
+  index_management:
+    - name: "large_index_optimization"
+      description: "大索引优化自愈"
+      enabled: true
+      priority: 3
+      conditions:
+        - metric: "index_size_gb"
+          operator: ">"
+          threshold: 50
+        - metric: "index_segments_count"
+          operator: ">"
+          threshold: 100
+      actions:
+        - type: "ansible_playbook"
+          playbook: "elasticsearch/optimize-index.yml"
+          parameters:
+            force_merge: true
+            max_num_segments: 1
+        - type: "notification"
+          message: "大索引已优化合并"
+      cooldown: 3600  # 1小时
+    
+    - name: "old_index_cleanup"
+      description: "旧索引清理自愈"
+      enabled: true
+      priority: 4
+      conditions:
+        - metric: "index_age_days"
+          operator: ">"
+          threshold: 30
+        - metric: "index_pattern"
+          operator: "match"
+          threshold: "logstash-*"
+      actions:
+        - type: "ansible_playbook"
+          playbook: "elasticsearch/cleanup-old-indices.yml"
+          parameters:
+            retention_days: 30
+            dry_run: false
+        - type: "notification"
+          message: "旧索引已清理"
+      cooldown: 86400  # 24小时
+
+# 数据库规则
+database_rules:
+  # MySQL规则
+  mysql:
+    - name: "mysql_connection_limit"
+      description: "MySQL连接数过多自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "mysql_connections_percent"
+          operator: ">"
+          threshold: 80
+          duration: 180
+      actions:
+        - type: "ansible_playbook"
+          playbook: "database/optimize-mysql.yml"
+          parameters:
+            kill_long_queries: true
+            optimize_connections: true
+        - type: "notification"
+          message: "MySQL连接数过多，已执行优化"
+      cooldown: 300
+    
+    - name: "mysql_slow_queries"
+      description: "MySQL慢查询过多自愈"
+      enabled: true
+      priority: 2
+      conditions:
+        - metric: "mysql_slow_queries_per_second"
+          operator: ">"
+          threshold: 10
+          duration: 300
+      actions:
+        - type: "ansible_playbook"
+          playbook: "database/fix-slow-queries.yml"
+          parameters:
+            analyze_queries: true
+            optimize_tables: true
+        - type: "notification"
+          message: "MySQL慢查询过多，已执行优化"
+      cooldown: 1800
+  
+  # PostgreSQL规则
+  postgresql:
+    - name: "postgresql_connection_limit"
+      description: "PostgreSQL连接数过多自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "postgresql_connections_percent"
+          operator: ">"
+          threshold: 85
+          duration: 180
+      actions:
+        - type: "ansible_playbook"
+          playbook: "database/optimize-postgresql.yml"
+          parameters:
+            terminate_idle_connections: true
+            vacuum_analyze: true
+        - type: "notification"
+          message: "PostgreSQL连接数过多，已执行优化"
+      cooldown: 300
+
+# 容器规则
+container_rules:
+  # Docker规则
+  docker:
+    - name: "container_restart_loop"
+      description: "容器重启循环自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "container_restart_count"
+          operator: ">"
+          threshold: 5
+          duration: 300
+      actions:
+        - type: "ansible_playbook"
+          playbook: "containers/fix-restart-loop.yml"
+          parameters:
+            container_name: "{{ metric_value.container_name }}"
+            check_logs: true
+            recreate_container: true
+        - type: "notification"
+          message: "容器 {{ metric_value.container_name }} 重启循环，已修复"
+      cooldown: 600
+    
+    - name: "high_container_memory"
+      description: "容器内存使用过高自愈"
+      enabled: true
+      priority: 2
+      conditions:
+        - metric: "container_memory_percent"
+          operator: ">"
+          threshold: 90
+          duration: 180
+      actions:
+        - type: "ansible_playbook"
+          playbook: "containers/optimize-container-memory.yml"
+          parameters:
+            container_name: "{{ metric_value.container_name }}"
+            restart_container: false
+            increase_memory_limit: true
+        - type: "notification"
+          message: "容器 {{ metric_value.container_name }} 内存使用过高，已优化"
+      cooldown: 300
+
+# 网络规则
+network_rules:
+  # 带宽使用规则
+  bandwidth:
+    - name: "high_bandwidth_usage"
+      description: "网络带宽使用过高自愈"
+      enabled: true
+      priority: 2
+      conditions:
+        - metric: "network_bandwidth_percent"
+          operator: ">"
+          threshold: 90
+          duration: 300
+      actions:
+        - type: "ansible_playbook"
+          playbook: "network/optimize-bandwidth.yml"
+          parameters:
+            enable_qos: true
+            limit_background_tasks: true
+        - type: "notification"
+          message: "网络带宽使用过高，已启用QoS限制"
+      cooldown: 600
+  
+  # 连接数规则
+  connections:
+    - name: "too_many_connections"
+      description: "网络连接数过多自愈"
+      enabled: true
+      priority: 2
+      conditions:
+        - metric: "network_connections_count"
+          operator: ">"
+          threshold: 10000
+          duration: 180
+      actions:
+        - type: "ansible_playbook"
+          playbook: "network/cleanup-connections.yml"
+          parameters:
+            close_idle_connections: true
+            optimize_tcp_settings: true
+        - type: "notification"
+          message: "网络连接数过多，已清理空闲连接"
+      cooldown: 300
+
+# 安全规则
+security_rules:
+  # 登录失败规则
+  failed_logins:
+    - name: "brute_force_attack"
+      description: "暴力破解攻击自愈"
+      enabled: true
+      priority: 0
+      conditions:
+        - metric: "failed_login_attempts"
+          operator: ">"
+          threshold: 10
+          duration: 300
+        - metric: "source_ip"
+          operator: "not_in"
+          threshold: ["192.168.1.0/24", "10.0.0.0/8"]  # 白名单IP
+      actions:
+        - type: "ansible_playbook"
+          playbook: "security/block-ip.yml"
+          parameters:
+            source_ip: "{{ metric_value.source_ip }}"
+            block_duration: 3600  # 1小时
+        - type: "notification"
+          message: "检测到暴力破解攻击，已封禁IP: {{ metric_value.source_ip }}"
+          severity: "critical"
+      cooldown: 60
+  
+  # 异常进程规则
+  suspicious_processes:
+    - name: "unknown_process"
+      description: "未知进程自愈"
+      enabled: true
+      priority: 1
+      conditions:
+        - metric: "process_name"
+          operator: "not_in"
+          threshold: ["known_processes_list"]
+        - metric: "process_cpu_percent"
+          operator: ">"
+          threshold: 50
+      actions:
+        - type: "ansible_playbook"
+          playbook: "security/investigate-process.yml"
+          parameters:
+            process_name: "{{ metric_value.process_name }}"
+            kill_process: false
+            quarantine: true
+        - type: "notification"
+          message: "发现可疑进程: {{ metric_value.process_name }}"
+          severity: "warning"
+      cooldown: 300
+
+# 规则依赖关系
+rule_dependencies:
+  # 定义规则之间的依赖关系
+  dependencies:
+    - parent: "system_rules.memory_usage.critical_memory_usage"
+      children:
+        - "system_rules.memory_usage.high_memory_usage"
+        - "elasticsearch_rules.memory_usage.high_heap_usage"
+      relationship: "blocks"  # 父规则执行时阻止子规则执行
+    
+    - parent: "elasticsearch_rules.cluster_health.cluster_status_red"
+      children:
+        - "elasticsearch_rules.cluster_health.cluster_status_yellow"
+        - "elasticsearch_rules.index_management.large_index_optimization"
+      relationship: "blocks"
+    
+    - parent: "security_rules.failed_logins.brute_force_attack"
+      children:
+        - "system_rules.cpu_usage.high_cpu_usage"
+      relationship: "triggers"  # 父规则执行后触发子规则检查
+
+# 规则调度配置
+scheduling:
+  # 规则执行调度
+  execution_schedule:
+    # 高优先级规则更频繁检查
+    priority_0: "*/30 * * * * *"  # 每30秒
+    priority_1: "*/60 * * * * *"  # 每分钟
+    priority_2: "*/300 * * * * *"  # 每5分钟
+    priority_3: "*/600 * * * * *"  # 每10分钟
+    priority_4: "*/1800 * * * * *"  # 每30分钟
+  
+  # 维护窗口
+  maintenance_windows:
+    - name: "daily_maintenance"
+      start_time: "02:00"
+      end_time: "04:00"
+      timezone: "UTC"
+      disabled_rules:
+        - "elasticsearch_rules.index_management.old_index_cleanup"
+        - "system_rules.disk_usage.high_disk_usage"
+    
+    - name: "weekly_maintenance"
+      day_of_week: "sunday"
+      start_time: "01:00"
+      end_time: "06:00"
+      timezone: "UTC"
+      disabled_rules:
+        - "all"  # 禁用所有规则
+
+# 规则测试配置
+testing:
+  # 测试模式配置
+  test_mode:
+    enabled: false
+    dry_run: true
+    log_level: "debug"
+    test_duration: 3600  # 1小时
+  
+  # 模拟数据
+  mock_data:
+    enabled: false
+    data_source: "file"  # file, api, generator
+    file_path: "/etc/aiops/test-data.json"
+  
+  # 测试规则
+  test_rules:
+    - name: "test_cpu_spike"
+      simulate_metric: "cpu_usage_percent"
+      simulate_value: 95
+      expected_action: "ansible_playbook"
+      expected_playbook: "system/optimize-cpu.yml"

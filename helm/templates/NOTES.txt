@@ -1,0 +1,179 @@
+{{/*
+AIOps-Platform 部署说明
+文件: NOTES.txt
+描述: Helm Chart部署完成后的使用说明和访问信息
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+🎉 AIOps平台已成功部署到Kubernetes集群！
+
+📋 部署信息:
+  - Release名称: {{ .Release.Name }}
+  - 命名空间: {{ .Release.Namespace }}
+  - Chart版本: {{ .Chart.Version }}
+  - 应用版本: {{ .Chart.AppVersion }}
+
+🌐 服务访问地址:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  * AIOps平台主页: {{ if $.Values.ingress.tls }}https{{ else }}http{{ end }}://{{ $host.host }}{{ $host.path }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.traefik.enabled }}
+  * Traefik仪表板: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/traefik/
+{{- end }}
+
+{{- if .Values.grafana.enabled }}
+  * Grafana监控面板: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/grafana/
+    - 用户名: admin
+    - 密码: kubectl get secret {{ include "aiops.fullname" . }}-grafana-admin -o jsonpath="{.data.password}" | base64 --decode
+{{- end }}
+
+{{- if .Values.prometheus.enabled }}
+  * Prometheus指标查询: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/prometheus/
+{{- end }}
+
+{{- if .Values.alertmanager.enabled }}
+  * Alertmanager告警管理: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/alertmanager/
+{{- end }}
+
+{{- if .Values.kibana.enabled }}
+  * Kibana日志分析: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/kibana/
+{{- end }}
+
+{{- if .Values.aiEngine.enabled }}
+  * AI引擎API: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/ai/
+    - API文档: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/ai/docs
+{{- end }}
+
+{{- if .Values.apiGateway.enabled }}
+  * API网关: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/api/
+    - API文档: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/api/docs
+{{- end }}
+
+🔧 管理命令:
+
+1. 查看所有Pod状态:
+   kubectl get pods -n {{ .Release.Namespace }}
+
+2. 查看服务状态:
+   kubectl get svc -n {{ .Release.Namespace }}
+
+3. 查看Ingress配置:
+   kubectl get ingress -n {{ .Release.Namespace }}
+
+4. 查看PVC存储:
+   kubectl get pvc -n {{ .Release.Namespace }}
+
+5. 查看日志:
+   kubectl logs -f deployment/{{ include "aiops.fullname" . }}-<component> -n {{ .Release.Namespace }}
+
+6. 端口转发（本地访问）:
+{{- if .Values.grafana.enabled }}
+   kubectl port-forward svc/{{ include "aiops.fullname" . }}-grafana 3000:3000 -n {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.prometheus.enabled }}
+   kubectl port-forward svc/{{ include "aiops.fullname" . }}-prometheus 9090:9090 -n {{ .Release.Namespace }}
+{{- end }}
+{{- if .Values.kibana.enabled }}
+   kubectl port-forward svc/{{ include "aiops.fullname" . }}-kibana 5601:5601 -n {{ .Release.Namespace }}
+{{- end }}
+
+📊 监控和告警:
+
+{{- if .Values.prometheus.enabled }}
+- Prometheus正在收集以下组件的指标:
+{{- if .Values.traefik.enabled }}
+  ✓ Traefik (网络流量和路由)
+{{- end }}
+{{- if .Values.elasticsearch.enabled }}
+  ✓ Elasticsearch (搜索和存储)
+{{- end }}
+{{- if .Values.redis.enabled }}
+  ✓ Redis (缓存性能)
+{{- end }}
+{{- if .Values.postgresql.enabled }}
+  ✓ PostgreSQL (数据库性能)
+{{- end }}
+{{- if .Values.aiEngine.enabled }}
+  ✓ AI引擎 (模型推理和异常检测)
+{{- end }}
+{{- if .Values.apiGateway.enabled }}
+  ✓ API网关 (请求处理和响应时间)
+{{- end }}
+{{- if .Values.selfHealing.enabled }}
+  ✓ 自愈执行器 (修复操作和成功率)
+{{- end }}
+{{- end }}
+
+{{- if .Values.alertmanager.enabled }}
+- 告警通知已配置:
+{{- if .Values.alertmanager.config.global.smtp_smarthost }}
+  ✓ 邮件通知 (SMTP: {{ .Values.alertmanager.config.global.smtp_smarthost }})
+{{- end }}
+{{- if .Values.alertmanager.config.global.slack_api_url }}
+  ✓ Slack通知
+{{- end }}
+  ✓ Webhook通知 (自愈触发)
+{{- end }}
+
+🔐 安全信息:
+
+{{- if .Values.elasticsearch.auth.enabled }}
+- Elasticsearch认证:
+  用户名: elastic
+  密码: kubectl get secret {{ include "aiops.fullname" . }}-elasticsearch-auth -o jsonpath="{.data.password}" | base64 --decode
+{{- end }}
+
+{{- if .Values.redis.auth.enabled }}
+- Redis认证:
+  密码: kubectl get secret {{ include "aiops.fullname" . }}-redis-auth -o jsonpath="{.data.password}" | base64 --decode
+{{- end }}
+
+{{- if .Values.postgresql.enabled }}
+- PostgreSQL认证:
+  用户名: {{ .Values.postgresql.auth.username | default "postgres" }}
+  数据库: {{ .Values.postgresql.auth.database | default "aiops" }}
+  密码: kubectl get secret {{ include "aiops.fullname" . }}-postgresql-auth -o jsonpath="{.data.password}" | base64 --decode
+{{- end }}
+
+🚀 快速开始:
+
+1. 等待所有Pod启动完成:
+   kubectl wait --for=condition=ready pod --all -n {{ .Release.Namespace }} --timeout=300s
+
+2. 访问Grafana查看系统监控:
+   - 打开浏览器访问Grafana地址
+   - 使用admin账户登录
+   - 查看预配置的AIOps仪表板
+
+3. 查看日志分析:
+   - 访问Kibana地址
+   - 配置索引模式 (logstash-*)
+   - 开始分析应用日志
+
+4. 测试AI异常检测:
+   - 访问AI引擎API文档
+   - 发送测试数据进行异常检测
+   - 查看检测结果和建议
+
+5. 配置自愈规则:
+   - 访问API网关文档
+   - 创建自定义告警规则
+   - 配置自动修复动作
+
+📚 更多信息:
+
+- 项目文档: https://github.com/your-org/aiops-platform
+- API参考: {{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.hosts | first | get "host" }}/api/docs
+- 问题反馈: https://github.com/your-org/aiops-platform/issues
+
+{{- if .Values.global.development }}
+⚠️  开发模式警告:
+当前部署处于开发模式，某些安全特性可能被禁用。
+生产环境部署请设置 global.development=false
+{{- end }}
+
+感谢使用AIOps智能运维平台！🎯

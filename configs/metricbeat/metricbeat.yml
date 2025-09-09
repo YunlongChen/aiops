@@ -1,0 +1,498 @@
+#=========================== Metricbeat Configuration ===========================
+
+#============================ Metricbeat modules =============================
+
+metricbeat.config.modules:
+  # 模块配置目录
+  path: ${path.config}/modules.d/*.yml
+  # 重新加载模块配置
+  reload.enabled: true
+  reload.period: 10s
+
+#=========================== Metricbeat autodiscover ==========================
+
+# 自动发现配置
+metricbeat.autodiscover:
+  providers:
+    # Docker自动发现
+    - type: docker
+      hints.enabled: true
+      templates:
+        - condition:
+            contains:
+              docker.container.image: nginx
+          config:
+            - module: nginx
+              metricsets: ["stubstatus"]
+              period: 10s
+              hosts: ["http://${data.docker.container.name}:80/nginx_status"]
+        
+        - condition:
+            contains:
+              docker.container.image: redis
+          config:
+            - module: redis
+              metricsets: ["info", "keyspace"]
+              period: 10s
+              hosts: ["redis://${data.docker.container.name}:6379"]
+        
+        - condition:
+            contains:
+              docker.container.image: postgres
+          config:
+            - module: postgresql
+              metricsets: ["database", "bgwriter", "activity"]
+              period: 10s
+              hosts: ["postgres://postgres:password@${data.docker.container.name}:5432/postgres?sslmode=disable"]
+    
+    # Kubernetes自动发现
+    - type: kubernetes
+      node: ${NODE_NAME}
+      hints.enabled: true
+      templates:
+        - condition:
+            contains:
+              kubernetes.labels.app: nginx
+          config:
+            - module: nginx
+              metricsets: ["stubstatus"]
+              period: 10s
+              hosts: ["http://${data.kubernetes.pod.ip}:80/nginx_status"]
+
+#================================ General =====================================
+
+# 实例名称
+name: "metricbeat-${HOSTNAME}"
+
+# 标签
+tags: ["metricbeat", "metrics", "${ENV:production}"]
+
+# 字段
+fields:
+  env: "${ENV:production}"
+  datacenter: "${DATACENTER:dc1}"
+  logtype: metrics
+fields_under_root: false
+
+# 最大启动延迟
+max_start_delay: 10s
+
+# 关闭超时
+shutdown_timeout: 5s
+
+#============================== Dashboards =====================================
+
+# Kibana仪表板设置
+setup.dashboards.enabled: true
+setup.dashboards.url: "https://artifacts.elastic.co/downloads/beats/metricbeat"
+setup.dashboards.directory: ${path.home}/kibana
+setup.dashboards.index: "metricbeat-*"
+
+#============================== Kibana =====================================
+
+# Kibana配置
+setup.kibana:
+  host: "kibana:5601"
+  protocol: "http"
+  username: "elastic"
+  password: "changeme"
+  path: "/kibana"
+  space.id: "default"
+
+#============================== Template ===================================
+
+# 索引模板设置
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+  index.codec: best_compression
+  index.refresh_interval: 5s
+  index.query.default_field: "message"
+
+#================================ Outputs ====================================
+
+# Logstash输出配置
+output.logstash:
+  hosts: ["logstash:5044"]
+  worker: 2
+  compression_level: 3
+  bulk_max_size: 2048
+  template.name: "metricbeat"
+  template.pattern: "metricbeat-*"
+  template.settings:
+    index.number_of_shards: 1
+    index.number_of_replicas: 0
+
+# Elasticsearch输出配置（备用）
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   protocol: "http"
+#   username: "elastic"
+#   password: "changeme"
+#   index: "metricbeat-%{+yyyy.MM.dd}"
+#   template.name: "metricbeat"
+#   template.pattern: "metricbeat-*"
+#   template.settings:
+#     index.number_of_shards: 1
+#     index.number_of_replicas: 0
+
+#================================ Processors =================================
+
+# 处理器配置
+processors:
+  # 添加主机元数据
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      cache.ttl: 5m
+      geo:
+        name: nyc-dc1-rack1
+        location: 40.7128, -74.0060
+        continent_name: North America
+        country_iso_code: US
+        region_name: New York
+        region_iso_code: NY
+        city_name: New York
+  
+  # 添加Docker元数据
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+      match_fields: ["system.process.cgroup.id"]
+      match_pids: ["process.pid", "process.ppid"]
+      match_source: true
+      match_source_index: 4
+      match_short_id: false
+      cleanup_timeout: 60s
+      labels.dedot: false
+      # 要包含的标签
+      labels.include: ["com.docker.compose.service", "com.docker.compose.project"]
+  
+  # 添加Kubernetes元数据
+  - add_kubernetes_metadata:
+      host: ${NODE_NAME}
+      kube_config: ${HOME}/.kube/config
+      default_indexers.enabled: true
+      default_matchers.enabled: true
+      include_labels: ["app", "version", "environment"]
+      include_annotations: ["kubernetes.io/change-cause"]
+  
+  # 添加进程元数据
+  - add_process_metadata:
+      match_pids: ["system.process.ppid"]
+      target: system.process.parent
+      include_fields: ["command", "username"]
+  
+  # 删除不需要的字段
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "agent.hostname", "agent.id", "agent.type", "agent.version"]
+      ignore_missing: true
+  
+  # 重命名字段
+  - rename:
+      fields:
+        - from: "host.name"
+          to: "hostname"
+        - from: "agent.name"
+          to: "beat.name"
+      ignore_missing: true
+  
+  # 添加标签
+  - add_tags:
+      tags: ["metricbeat", "metrics"]
+      target: "tags"
+  
+  # 时间戳处理
+  - timestamp:
+      field: "@timestamp"
+      layouts:
+        - '2006-01-02T15:04:05.000Z'
+        - '2006-01-02T15:04:05Z'
+      test:
+        - '2019-06-22T16:33:51.000Z'
+        - '2019-11-18T04:59:51.123Z'
+  
+  # 脚本处理器
+  - script:
+      lang: javascript
+      id: my_filter
+      source: >
+        function process(event) {
+            // 添加自定义字段
+            event.Put("custom.processed_at", new Date().toISOString());
+            
+            // 计算CPU使用率百分比
+            if (event.Get("system.cpu.user.pct") != null) {
+                var userPct = event.Get("system.cpu.user.pct");
+                var systemPct = event.Get("system.cpu.system.pct");
+                var totalPct = userPct + systemPct;
+                event.Put("system.cpu.total.pct", totalPct);
+            }
+            
+            // 内存使用率计算
+            if (event.Get("system.memory.used.bytes") != null && event.Get("system.memory.total") != null) {
+                var used = event.Get("system.memory.used.bytes");
+                var total = event.Get("system.memory.total");
+                var usedPct = (used / total) * 100;
+                event.Put("system.memory.used.pct", usedPct);
+            }
+        }
+
+#================================ Logging ====================================
+
+# 日志配置
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/metricbeat
+  name: metricbeat
+  keepfiles: 7
+  permissions: 0644
+  rotateeverybytes: 10485760
+  interval: 24h
+
+# 日志输出到标准输出
+logging.to_stderr: false
+
+# 指标日志
+logging.metrics.enabled: true
+logging.metrics.period: 30s
+
+# JSON日志格式
+logging.json: false
+
+#============================== X-Pack Monitoring ===============================
+
+# X-Pack监控
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  username: "elastic"
+  password: "changeme"
+  protocol: "http"
+  path: "/elasticsearch"
+
+# 监控集群UUID
+monitoring.cluster_uuid: ""
+
+#============================== Instrumentation ===============================
+
+# APM性能监控
+instrumentation:
+  enabled: true
+  environment: "production"
+  hosts:
+    - "apm-server:8200"
+  secret_token: ""
+  capture_body: "off"
+  transaction_sample_rate: 0.1
+
+#============================== HTTP endpoint ==============================
+
+# HTTP端点配置
+http.enabled: true
+http.host: "0.0.0.0"
+http.port: 5067
+http.pprof.enabled: false
+
+#============================== Process Security ============================
+
+# 安全配置
+seccomp:
+  default_action: allow
+  syscalls:
+    - action: allow
+      names:
+        - rseq
+
+#============================== Queue Settings ==============================
+
+# 内存队列配置
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s
+
+#============================== Path Settings ===============================
+
+# 路径配置
+path:
+  home: /usr/share/metricbeat
+  config: /usr/share/metricbeat
+  data: /usr/share/metricbeat/data
+  logs: /var/log/metricbeat
+
+#============================== Feature Flags ===============================
+
+# 功能标志
+feature_flags: []
+
+#============================== Migration ===================================
+
+# 迁移配置
+migration.6_to_7.enabled: true
+
+#============================== Shipper ==================================
+
+# 发送器配置
+shipper:
+  name: "metricbeat-shipper"
+  tags: ["metricbeat", "shipper"]
+
+#============================== Modules Configuration ====================
+
+# 内置模块配置（也可以在modules.d/目录中配置）
+
+# 系统模块
+metricbeat.modules:
+
+# 系统指标
+- module: system
+  period: 10s
+  metricsets:
+    - cpu
+    - load
+    - memory
+    - network
+    - process
+    - process_summary
+    - socket_summary
+    - entropy
+    - core
+    - diskio
+    - socket
+    - service
+    - users
+  processes: ['.*']
+  process.include_top_n:
+    by_cpu: 5
+    by_memory: 5
+  process.cmdline.cache.enabled: true
+  process.cgroups.enabled: true
+  process.env.whitelist: ["PATH", "USER", "HOME"]
+  cpu.metrics: ["percentages", "normalized_percentages"]
+  core.metrics: ["percentages"]
+
+# 文件系统指标
+- module: system
+  period: 1m
+  metricsets:
+    - filesystem
+    - fsstat
+  processors:
+  - drop_event.when.regexp:
+      system.filesystem.mount_point: '^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)'
+
+# Docker指标
+- module: docker
+  period: 10s
+  hosts: ["unix:///var/run/docker.sock"]
+  metricsets:
+    - "container"
+    - "cpu"
+    - "diskio"
+    - "event"
+    - "healthcheck"
+    - "info"
+    - "image"
+    - "memory"
+    - "network"
+  processors:
+  - add_docker_metadata: ~
+
+# Kubernetes指标
+- module: kubernetes
+  period: 10s
+  node: ${NODE_NAME}
+  hosts: ["https://${NODE_NAME}:10250"]
+  bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  ssl.certificate_authorities:
+    - /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  metricsets:
+    - node
+    - system
+    - pod
+    - container
+    - volume
+
+# Prometheus指标
+- module: prometheus
+  period: 10s
+  hosts: ["prometheus:9090"]
+  metrics_path: /metrics
+  metricsets: ["collector"]
+
+# Elasticsearch指标
+- module: elasticsearch
+  period: 10s
+  hosts: ["elasticsearch:9200"]
+  username: "elastic"
+  password: "changeme"
+  metricsets:
+    - node
+    - node_stats
+    - cluster_stats
+    - index
+    - index_recovery
+    - index_summary
+    - shard
+    - ml_job
+
+# Logstash指标
+- module: logstash
+  period: 10s
+  hosts: ["logstash:9600"]
+  metricsets: ["node", "node_stats"]
+
+# Kibana指标
+- module: kibana
+  period: 10s
+  hosts: ["kibana:5601"]
+  username: "elastic"
+  password: "changeme"
+  metricsets: ["status"]
+
+# Nginx指标
+- module: nginx
+  period: 10s
+  hosts: ["http://nginx:80"]
+  server_status_path: "/nginx_status"
+  metricsets: ["stubstatus"]
+
+# Redis指标
+- module: redis
+  period: 10s
+  hosts: ["redis:6379"]
+  password: ""
+  metricsets: ["info", "keyspace"]
+
+# PostgreSQL指标
+- module: postgresql
+  period: 10s
+  hosts: ["postgres://postgres:password@postgresql:5432/postgres?sslmode=disable"]
+  metricsets:
+    - database
+    - bgwriter
+    - activity
+
+# HTTP指标
+- module: http
+  period: 10s
+  hosts: ["http://localhost:8080"]
+  path: "/health"
+  metricsets: ["json"]
+  namespace: "health"
+  json.is_array: false
+
+# Beat指标（自监控）
+- module: beat
+  period: 10s
+  hosts: ["http://localhost:5067"]
+  metricsets: ["stats", "state"]
+
+# 进程指标
+- module: system
+  period: 10s
+  metricsets: ["process"]
+  processes: ['metricbeat.*', 'filebeat.*', 'logstash.*', 'elasticsearch.*', 'kibana.*']
+  process.include_top_n:
+    by_cpu: 10
+    by_memory: 10

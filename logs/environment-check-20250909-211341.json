@@ -1,0 +1,180 @@
+﻿{
+    "Summary":  {
+                    "Pass":  14,
+                    "Fail":  1,
+                    "Total":  21,
+                    "Warn":  6
+                },
+    "Timestamp":  "2025-09-09 21:13:41",
+    "DeploymentType":  "docker",
+    "Results":  [
+                    {
+                        "Category":  "系统",
+                        "Item":  "操作系统",
+                        "Status":  "PASS",
+                        "Message":  "Microsoft Windows 11 专业版 10.0.26100",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "系统",
+                        "Item":  "计算机名",
+                        "Status":  "PASS",
+                        "Message":  "DESKTOP-STAN",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "系统",
+                        "Item":  "域/工作组",
+                        "Status":  "PASS",
+                        "Message":  "WORKGROUP",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "系统",
+                        "Item":  "架构",
+                        "Status":  "WARN",
+                        "Message":  "32位系统",
+                        "Recommendation":  "推荐使用64位系统以获得更好的性能",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "系统",
+                        "Item":  "版本兼容性",
+                        "Status":  "PASS",
+                        "Message":  "Windows 10/11 或 Windows Server 2016+",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "硬件",
+                        "Item":  "CPU核心",
+                        "Status":  "PASS",
+                        "Message":  "20 核心 / 28 逻辑处理器",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "硬件",
+                        "Item":  "内存",
+                        "Status":  "PASS",
+                        "Message":  "63.72GB",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "硬件",
+                        "Item":  "磁盘空间",
+                        "Status":  "PASS",
+                        "Message":  "可用: 249.12GB / 总计: 500GB",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "硬件",
+                        "Item":  "存储类型",
+                        "Status":  "PASS",
+                        "Message":  "检测到SSD存储",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "网络",
+                        "Item":  "网络适配器",
+                        "Status":  "PASS",
+                        "Message":  "6 个活动适配器",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "网络",
+                        "Item":  "DNS配置",
+                        "Status":  "PASS",
+                        "Message":  "DNS服务器已配置",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "网络",
+                        "Item":  "Windows防火墙",
+                        "Status":  "WARN",
+                        "Message":  "3 个配置文件已启用",
+                        "Recommendation":  "可能需要配置防火墙规则以允许AIOps服务通信",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "网络",
+                        "Item":  "端口可用性",
+                        "Status":  "PASS",
+                        "Message":  "所有必需端口都可用",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "PowerShell",
+                        "Item":  "版本",
+                        "Status":  "WARN",
+                        "Message":  "PowerShell 5.1.26100.4768",
+                        "Recommendation":  "推荐升级到PowerShell 7",
+                        "FixAction":  "Install-PowerShell7"
+                    },
+                    {
+                        "Category":  "PowerShell",
+                        "Item":  "执行策略",
+                        "Status":  "PASS",
+                        "Message":  "RemoteSigned",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "PowerShell",
+                        "Item":  "模块-PSYaml",
+                        "Status":  "WARN",
+                        "Message":  "未安装",
+                        "Recommendation":  "安装模块以支持YAML处理",
+                        "FixAction":  "Install-Module PSYaml"
+                    },
+                    {
+                        "Category":  "PowerShell",
+                        "Item":  "模块-powershell-yaml",
+                        "Status":  "WARN",
+                        "Message":  "未安装",
+                        "Recommendation":  "安装模块以支持YAML处理",
+                        "FixAction":  "Install-Module powershell-yaml"
+                    },
+                    {
+                        "Category":  "Docker",
+                        "Item":  "版本",
+                        "Status":  "PASS",
+                        "Message":  "Docker version 28.3.3, build 980b856",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "Docker",
+                        "Item":  "服务状态",
+                        "Status":  "PASS",
+                        "Message":  "Docker服务运行正常",
+                        "Recommendation":  "",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "Docker",
+                        "Item":  "内存配置",
+                        "Status":  "WARN",
+                        "Message":  "无法解析内存信息: 28.3.3",
+                        "Recommendation":  "检查Docker配置",
+                        "FixAction":  ""
+                    },
+                    {
+                        "Category":  "Docker",
+                        "Item":  "环境检查",
+                        "Status":  "FAIL",
+                        "Message":  "Docker检查失败: Cannot convert value \"28.3.3\" to type \"System.Int32\". Error: \"Input string was not in a correct format.\"",
+                        "Recommendation":  "检查Docker安装和配置",
+                        "FixAction":  ""
+                    }
+                ]
+}

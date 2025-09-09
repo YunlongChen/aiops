@@ -1,0 +1,366 @@
+# Self-Healing System API Configuration
+# API服务配置文件
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: false
+  log_level: "info"
+  access_log: true
+  
+  # SSL配置（生产环境）
+  ssl:
+    enabled: false
+    cert_file: "/etc/ssl/certs/api.crt"
+    key_file: "/etc/ssl/private/api.key"
+  
+  # 请求限制
+  limits:
+    max_request_size: 10485760  # 10MB
+    request_timeout: 300        # 5分钟
+    keepalive_timeout: 65
+    max_connections: 1000
+
+# 认证配置
+auth:
+  # API Token（生产环境应使用环境变量）
+  api_token: "${API_TOKEN:-self-healing-api-token-2024}"
+  
+  # JWT配置
+  jwt:
+    secret_key: "${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}"
+    algorithm: "HS256"
+    access_token_expire_minutes: 60
+    refresh_token_expire_days: 7
+  
+  # 用户配置
+  users:
+    - username: "admin"
+      password_hash: "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj3L6V5rZKWC"  # admin123
+      roles: ["admin"]
+    - username: "operator"
+      password_hash: "$2b$12$8K1p/a0dLEAMQQW7aiBONOxxx5g7iLqjfz0d7/OGIkV5rZKWC123"  # operator123
+      roles: ["operator"]
+    - username: "viewer"
+      password_hash: "$2b$12$9L2q/b1eMFBNRRX8bjCPOPyxx6h8jMrkgA1e8/PHJlW6sALXD234"  # viewer123
+      roles: ["viewer"]
+
+# 数据库配置
+database:
+  # SQLite配置（开发环境）
+  sqlite:
+    path: "/var/lib/self-healing/api.db"
+    timeout: 30
+    check_same_thread: false
+  
+  # PostgreSQL配置（生产环境）
+  postgresql:
+    host: "${POSTGRES_HOST:-localhost}"
+    port: 5432
+    database: "${POSTGRES_DB:-self_healing}"
+    username: "${POSTGRES_USER:-self_healing}"
+    password: "${POSTGRES_PASSWORD:-password}"
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+  
+  # Redis配置（缓存和会话）
+  redis:
+    host: "${REDIS_HOST:-localhost}"
+    port: 6379
+    database: 0
+    password: "${REDIS_PASSWORD:-}"
+    max_connections: 10
+    socket_timeout: 5
+    socket_connect_timeout: 5
+
+# 外部服务配置
+external_services:
+  # Prometheus配置
+  prometheus:
+    url: "http://prometheus:9090"
+    timeout: 30
+    auth:
+      enabled: false
+      username: ""
+      password: ""
+  
+  # Grafana配置
+  grafana:
+    url: "http://grafana:3000"
+    api_key: "${GRAFANA_API_KEY:-}"
+    timeout: 30
+  
+  # Alertmanager配置
+  alertmanager:
+    url: "http://alertmanager:9093"
+    timeout: 30
+    auth:
+      enabled: false
+      username: ""
+      password: ""
+  
+  # Elasticsearch配置
+  elasticsearch:
+    hosts:
+      - "http://elasticsearch:9200"
+    timeout: 30
+    auth:
+      enabled: false
+      username: "${ES_USERNAME:-}"
+      password: "${ES_PASSWORD:-}"
+    ssl:
+      enabled: false
+      verify_certs: true
+      ca_certs: "/etc/ssl/certs/es-ca.crt"
+
+# 自愈系统配置
+self_healing:
+  # 触发器系统配置文件路径
+  trigger_config: "config/trigger-system.yaml"
+  
+  # 自愈执行器配置文件路径
+  executor_config: "config/self-healing.yaml"
+  
+  # Playbook目录
+  playbooks_dir: "playbooks"
+  
+  # 执行结果存储
+  execution_results:
+    storage_type: "filesystem"  # filesystem, database
+    filesystem:
+      base_dir: "/tmp/playbook_executions"
+      retention_days: 30
+    
+  # 执行限制
+  execution_limits:
+    max_concurrent_executions: 5
+    default_timeout: 300
+    max_timeout: 1800
+    queue_size: 100
+
+# 监控和指标配置
+monitoring:
+  # Prometheus指标
+  metrics:
+    enabled: true
+    path: "/metrics"
+    include_in_schema: false
+  
+  # 健康检查
+  health_check:
+    enabled: true
+    path: "/health"
+    detailed: true
+    
+  # 性能监控
+  performance:
+    enable_profiling: false
+    slow_query_threshold: 1.0
+    log_slow_requests: true
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # 文件日志
+  file:
+    enabled: true
+    path: "/var/log/self-healing/api.log"
+    max_size: "100MB"
+    backup_count: 5
+    rotation: "daily"
+  
+  # 控制台日志
+  console:
+    enabled: true
+    level: "INFO"
+  
+  # 结构化日志
+  structured:
+    enabled: false
+    format: "json"
+  
+  # 日志级别配置
+  loggers:
+    "uvicorn": "INFO"
+    "uvicorn.access": "INFO"
+    "fastapi": "INFO"
+    "sqlalchemy": "WARNING"
+    "aiohttp": "WARNING"
+
+# 安全配置
+security:
+  # CORS配置
+  cors:
+    allow_origins:
+      - "http://localhost:3000"
+      - "http://localhost:8080"
+      - "https://grafana.example.com"
+    allow_methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+    allow_headers:
+      - "*"
+    allow_credentials: true
+    max_age: 86400
+  
+  # 速率限制
+  rate_limiting:
+    enabled: true
+    default_rate: "100/minute"
+    burst_rate: "200/minute"
+    
+    # 特定端点限制
+    endpoints:
+      "/api/v1/playbooks/execute": "10/minute"
+      "/api/v1/alerts": "60/minute"
+      "/api/v1/system/metrics": "30/minute"
+  
+  # 请求验证
+  validation:
+    max_json_size: 1048576  # 1MB
+    max_form_size: 1048576  # 1MB
+    max_file_size: 10485760 # 10MB
+
+# 缓存配置
+caching:
+  # 内存缓存
+  memory:
+    enabled: true
+    max_size: 1000
+    ttl: 300  # 5分钟
+  
+  # Redis缓存
+  redis:
+    enabled: false
+    default_ttl: 3600  # 1小时
+    key_prefix: "self_healing_api:"
+  
+  # 缓存策略
+  strategies:
+    system_metrics: 60      # 系统指标缓存1分钟
+    alert_list: 30          # 告警列表缓存30秒
+    rule_list: 300          # 规则列表缓存5分钟
+    playbook_list: 600      # Playbook列表缓存10分钟
+
+# 通知配置
+notifications:
+  # 邮件通知
+  email:
+    enabled: false
+    smtp_server: "${SMTP_SERVER:-smtp.example.com}"
+    smtp_port: 587
+    username: "${SMTP_USERNAME:-}"
+    password: "${SMTP_PASSWORD:-}"
+    use_tls: true
+    from_address: "self-healing@example.com"
+    
+  # Slack通知
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL:-}"
+    channel: "#alerts"
+    username: "Self-Healing Bot"
+    
+  # 钉钉通知
+  dingtalk:
+    enabled: false
+    webhook_url: "${DINGTALK_WEBHOOK_URL:-}"
+    secret: "${DINGTALK_SECRET:-}"
+    
+  # 企业微信通知
+  wechat:
+    enabled: false
+    webhook_url: "${WECHAT_WEBHOOK_URL:-}"
+
+# API文档配置
+docs:
+  # OpenAPI配置
+  openapi:
+    title: "Self-Healing System API"
+    description: "运维自愈系统RESTful API"
+    version: "1.0.0"
+    contact:
+      name: "DevOps Team"
+      email: "devops@example.com"
+    license:
+      name: "MIT"
+      url: "https://opensource.org/licenses/MIT"
+  
+  # Swagger UI配置
+  swagger_ui:
+    enabled: true
+    path: "/docs"
+    oauth2_redirect_url: "/docs/oauth2-redirect"
+    
+  # ReDoc配置
+  redoc:
+    enabled: true
+    path: "/redoc"
+
+# 开发配置
+development:
+  # 调试模式
+  debug: false
+  
+  # 自动重载
+  auto_reload: false
+  
+  # 测试模式
+  testing: false
+  
+  # 模拟数据
+  mock_data:
+    enabled: false
+    alerts_count: 10
+    metrics_variation: 0.1
+
+# 生产配置
+production:
+  # 性能优化
+  optimization:
+    enable_gzip: true
+    static_file_cache: 3600
+    response_cache: true
+    
+  # 安全加固
+  security:
+    hide_server_header: true
+    enable_hsts: true
+    enable_csp: true
+    
+  # 监控
+  monitoring:
+    enable_apm: false
+    apm_service_name: "self-healing-api"
+    enable_tracing: false
+
+# 扩展配置
+extensions:
+  # 插件系统
+  plugins:
+    enabled: false
+    directory: "plugins"
+    
+  # 自定义处理器
+  handlers:
+    enabled: false
+    directory: "handlers"
+    
+  # 中间件
+  middleware:
+    custom_middleware: []
+    
+  # 钩子函数
+  hooks:
+    pre_request: []
+    post_request: []
+    pre_response: []
+    post_response: []

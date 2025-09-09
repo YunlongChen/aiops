@@ -1,0 +1,183 @@
+# AI引擎测试环境配置文件
+# 继承默认配置并覆盖测试相关设置
+
+# 应用配置
+app:
+  name: "AIOps AI Engine (Test)"
+  debug: true
+  log_level: "DEBUG"
+  workers: 1
+
+# 数据库配置（使用SQLite进行测试）
+database:
+  primary:
+    type: "sqlite"
+    database: ":memory:"  # 内存数据库
+    echo: true
+  
+  timeseries:
+    type: "mock"  # 使用模拟时间序列数据库
+
+# Redis配置（使用fakeredis进行测试）
+redis:
+  host: "localhost"
+  port: 6379
+  db: 15  # 使用测试专用数据库
+  mock: true  # 启用模拟Redis
+
+# 日志配置
+logging:
+  level: "DEBUG"
+  file:
+    enabled: false  # 测试时不写入文件
+  console:
+    enabled: true
+    colored: true
+  performance:
+    enabled: false  # 测试时关闭性能日志
+
+# 异常检测配置（简化用于测试）
+anomaly_detection:
+  algorithms:
+    isolation_forest:
+      n_estimators: 10  # 减少估计器数量以加快测试
+    
+    lstm_autoencoder:
+      epochs: 5  # 减少训练轮数
+      batch_size: 16
+  
+  performance:
+    batch_size: 100  # 减少批次大小
+    max_memory_usage: "512MB"
+
+# 预测配置（简化用于测试）
+prediction:
+  algorithms:
+    lstm:
+      epochs: 5  # 减少训练轮数
+      batch_size: 16
+    
+    gru:
+      epochs: 5
+      batch_size: 16
+    
+    cnn_lstm:
+      epochs: 5
+      batch_size: 16
+  
+  forecast:
+    horizon: 5  # 减少预测步数
+
+# 决策引擎配置
+decision_engine:
+  strategies:
+    auto_scaling:
+      cooldown_period: 10  # 减少冷却时间用于测试
+    
+    load_balancing:
+      health_check_interval: 5  # 减少健康检查间隔
+    
+    failover:
+      retry_delay: 1  # 减少重试延迟
+
+# 模型管理配置
+model_management:
+  storage:
+    path: "test_models/"  # 使用测试模型目录
+    compression: false  # 测试时不压缩以加快速度
+  
+  versioning:
+    max_versions: 3  # 减少版本数量
+    retention_days: 1  # 减少保留天数
+  
+  monitoring:
+    enabled: false  # 测试时关闭监控
+  
+  ab_testing:
+    enabled: false  # 测试时关闭A/B测试
+
+# API配置
+api:
+  authentication:
+    enabled: false  # 测试时关闭认证
+  
+  rate_limiting:
+    enabled: false  # 测试时关闭限流
+  
+  docs:
+    enabled: true  # 保持文档可用
+
+# 监控配置
+monitoring:
+  prometheus:
+    enabled: false  # 测试时关闭Prometheus
+  
+  health_check:
+    interval: 5  # 减少健康检查间隔
+    timeout: 2  # 减少超时时间
+  
+  performance:
+    enabled: false  # 测试时关闭性能监控
+
+# 安全配置
+security:
+  encryption:
+    enabled: false  # 测试时关闭加密
+  
+  audit:
+    enabled: false  # 测试时关闭审计
+  
+  validation:
+    enabled: true  # 保持输入验证
+    max_request_size: "1MB"  # 减少最大请求大小
+
+# 开发配置
+development:
+  debug:
+    enabled: true
+    profiling: true
+    sql_echo: true
+  
+  testing:
+    enabled: true
+    mock_external_services: true
+    test_data_path: "tests/data/"
+  
+  hot_reload:
+    enabled: false  # 测试时关闭热重载
+
+# 测试专用配置
+testing:
+  # 测试数据
+  data:
+    generate_synthetic: true
+    sample_size: 1000
+    noise_level: 0.1
+    trend: true
+    seasonality: true
+  
+  # 模拟服务
+  mock_services:
+    prometheus: true
+    grafana: true
+    elasticsearch: true
+    kubernetes: true
+  
+  # 测试覆盖率
+  coverage:
+    enabled: true
+    min_coverage: 80
+    report_format: "html"
+  
+  # 性能测试
+  performance:
+    enabled: false
+    max_response_time: 1000  # 毫秒
+    concurrent_users: 10
+    test_duration: 60  # 秒
+  
+  # 集成测试
+  integration:
+    enabled: true
+    external_services: false  # 不测试外部服务
+    database_migrations: true

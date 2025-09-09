@@ -1,0 +1,483 @@
+# 自愈系统配置文件
+# Self-Healing System Configuration
+# 版本: 1.0
+# 创建时间: 2024-01-10
+# 描述: 定义自愈系统的策略、规则引擎和执行配置
+
+# 全局配置
+global:
+  # 系统基本信息
+  system:
+    name: "AIOps Self-Healing System"
+    version: "1.0.0"
+    environment: "production"  # development, staging, production
+    timezone: "Asia/Shanghai"
+    
+  # 日志配置
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARN, ERROR
+    format: "json"
+    max_file_size: "100MB"
+    max_files: 10
+    log_dir: "/var/log/self-healing"
+    
+  # 性能配置
+  performance:
+    max_concurrent_healings: 5
+    healing_timeout: 300  # 秒
+    rule_evaluation_interval: 30  # 秒
+    metrics_collection_interval: 15  # 秒
+    
+  # 安全配置
+  security:
+    enable_authentication: true
+    api_key_required: true
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 100
+    audit_logging: true
+
+# 规则引擎配置
+rule_engine:
+  # 规则处理配置
+  processing:
+    max_rules_per_evaluation: 50
+    rule_priority_levels: ["critical", "high", "medium", "low"]
+    parallel_evaluation: true
+    evaluation_timeout: 60  # 秒
+    
+  # 规则存储配置
+  storage:
+    type: "file"  # file, database, redis
+    file_path: "./rules/trigger-rules.yaml"
+    auto_reload: true
+    reload_interval: 60  # 秒
+    
+  # 规则验证配置
+  validation:
+    strict_mode: true
+    validate_on_load: true
+    validate_syntax: true
+    validate_dependencies: true
+
+# 自愈策略配置
+healing_strategies:
+  # 系统资源策略
+  system_resources:
+    cpu:
+      # CPU使用率过高策略
+      high_usage:
+        threshold: 85  # 百分比
+        duration: 300  # 持续时间(秒)
+        actions:
+          - type: "kill_process"
+            priority: 1
+            params:
+              process_pattern: "high_cpu_processes"
+              signal: "TERM"
+              force_after: 30
+          - type: "scale_service"
+            priority: 2
+            params:
+              service_type: "kubernetes"
+              scale_factor: 1.5
+        cooldown: 600  # 冷却时间(秒)
+        
+    memory:
+      # 内存使用率过高策略
+      high_usage:
+        threshold: 90  # 百分比
+        duration: 180  # 持续时间(秒)
+        actions:
+          - type: "restart_service"
+            priority: 1
+            params:
+              service_name: "memory_intensive_service"
+              graceful_timeout: 30
+          - type: "clear_cache"
+            priority: 2
+            params:
+              cache_types: ["redis", "memcached"]
+        cooldown: 300
+        
+    disk:
+      # 磁盘空间不足策略
+      low_space:
+        threshold: 15  # 剩余百分比
+        duration: 60
+        actions:
+          - type: "cleanup_logs"
+            priority: 1
+            params:
+              log_dirs: ["/var/log", "/tmp"]
+              retention_days: 7
+          - type: "cleanup_temp_files"
+            priority: 2
+            params:
+              temp_dirs: ["/tmp", "/var/tmp"]
+              age_hours: 24
+        cooldown: 1800
+
+  # 服务可用性策略
+  service_availability:
+    # 服务不可用策略
+    service_down:
+      detection_methods:
+        - "health_check"
+        - "port_check"
+        - "process_check"
+      actions:
+        - type: "restart_service"
+          priority: 1
+          params:
+            max_attempts: 3
+            restart_delay: 10
+        - type: "failover"
+          priority: 2
+          params:
+            backup_instances: 2
+            traffic_switch_timeout: 30
+      cooldown: 180
+      
+    # 服务响应慢策略
+    slow_response:
+      threshold: 5000  # 毫秒
+      sample_size: 10
+      actions:
+        - type: "scale_service"
+          priority: 1
+          params:
+            scale_factor: 1.2
+            max_instances: 10
+        - type: "optimize_database"
+          priority: 2
+          params:
+            analyze_queries: true
+            rebuild_indexes: false
+      cooldown: 600
+
+  # 网络连接策略
+  network_connectivity:
+    # 网络连接失败策略
+    connection_failure:
+      retry_attempts: 3
+      retry_interval: 30
+      actions:
+        - type: "fix_network"
+          priority: 1
+          params:
+            restart_network_service: true
+            flush_dns: true
+            reset_routes: false
+        - type: "switch_network_path"
+          priority: 2
+          params:
+            backup_routes: true
+            load_balance: true
+      cooldown: 300
+
+  # 数据库策略
+  database:
+    # 数据库连接问题策略
+    connection_issues:
+      timeout: 30  # 秒
+      max_retries: 5
+      actions:
+        - type: "fix_database"
+          priority: 1
+          params:
+            restart_service: false
+            check_connections: true
+            optimize_queries: true
+        - type: "failover_database"
+          priority: 2
+          params:
+            slave_promotion: true
+            data_sync_check: true
+      cooldown: 600
+      
+    # 数据库性能问题策略
+    performance_issues:
+      slow_query_threshold: 10000  # 毫秒
+      actions:
+        - type: "optimize_database"
+          priority: 1
+          params:
+            analyze_slow_queries: true
+            rebuild_indexes: true
+            update_statistics: true
+      cooldown: 3600
+
+  # 容器策略
+  containers:
+    # 容器异常策略
+    container_failure:
+      detection_interval: 30
+      actions:
+        - type: "restart_container"
+          priority: 1
+          params:
+            max_attempts: 3
+            health_check_timeout: 60
+        - type: "recreate_container"
+          priority: 2
+          params:
+            preserve_data: true
+            update_image: false
+      cooldown: 120
+
+# 执行器配置
+executor:
+  # Ansible配置
+  ansible:
+    playbook_dir: "./playbooks"
+    inventory_file: "./inventory/hosts"
+    vault_password_file: "./vault/.vault_pass"
+    timeout: 300
+    parallel_executions: 3
+    retry_attempts: 2
+    
+  # 脚本执行配置
+  scripts:
+    shell: "/bin/bash"
+    timeout: 180
+    working_directory: "/tmp/self-healing"
+    environment_variables:
+      PATH: "/usr/local/bin:/usr/bin:/bin"
+      PYTHONPATH: "/opt/self-healing/lib"
+    
+  # 容器执行配置
+  containers:
+    docker:
+      socket_path: "/var/run/docker.sock"
+      timeout: 120
+    kubernetes:
+      config_file: "~/.kube/config"
+      namespace: "default"
+      timeout: 180
+
+# 通知配置
+notifications:
+  # 通知渠道
+  channels:
+    email:
+      enabled: true
+      smtp_server: "smtp.company.com"
+      smtp_port: 587
+      username: "alerts@company.com"
+      password: "${EMAIL_PASSWORD}"
+      from_address: "noreply@company.com"
+      to_addresses:
+        - "ops-team@company.com"
+        - "admin@company.com"
+        
+    slack:
+      enabled: true
+      webhook_url: "${SLACK_WEBHOOK_URL}"
+      channel: "#ops-alerts"
+      username: "Self-Healing Bot"
+      
+    webhook:
+      enabled: true
+      url: "${WEBHOOK_URL}"
+      timeout: 30
+      retry_attempts: 3
+      
+  # 通知规则
+  rules:
+    # 成功通知
+    success:
+      enabled: true
+      channels: ["slack"]
+      template: "healing_success"
+      
+    # 失败通知
+    failure:
+      enabled: true
+      channels: ["email", "slack"]
+      template: "healing_failure"
+      
+    # 警告通知
+    warning:
+      enabled: true
+      channels: ["slack"]
+      template: "healing_warning"
+
+# 监控和指标配置
+monitoring:
+  # Prometheus指标
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+    
+  # 健康检查
+  health_check:
+    enabled: true
+    port: 8080
+    path: "/health"
+    interval: 30
+    
+  # 指标收集
+  metrics:
+    # 系统指标
+    system:
+      cpu_usage: true
+      memory_usage: true
+      disk_usage: true
+      network_io: true
+      
+    # 应用指标
+    application:
+      healing_attempts: true
+      healing_success_rate: true
+      healing_duration: true
+      rule_evaluation_time: true
+      
+    # 自定义指标
+    custom:
+      enabled: true
+      collection_interval: 60
+
+# 数据存储配置
+storage:
+  # 历史数据存储
+  history:
+    type: "elasticsearch"  # elasticsearch, database, file
+    elasticsearch:
+      hosts: ["elasticsearch:9200"]
+      index_prefix: "self-healing"
+      retention_days: 30
+      
+  # 状态存储
+  state:
+    type: "redis"  # redis, database, memory
+    redis:
+      host: "redis"
+      port: 6379
+      db: 0
+      password: "${REDIS_PASSWORD}"
+      
+  # 配置存储
+  config:
+    type: "file"  # file, database, consul
+    backup_enabled: true
+    backup_interval: 3600  # 秒
+    backup_retention: 7  # 天
+
+# 集成配置
+integrations:
+  # 监控系统集成
+  monitoring_systems:
+    prometheus:
+      enabled: true
+      url: "http://prometheus:9090"
+      query_timeout: 30
+      
+    grafana:
+      enabled: true
+      url: "http://grafana:3000"
+      api_key: "${GRAFANA_API_KEY}"
+      
+    alertmanager:
+      enabled: true
+      url: "http://alertmanager:9093"
+      
+  # 日志系统集成
+  logging_systems:
+    elasticsearch:
+      enabled: true
+      hosts: ["elasticsearch:9200"]
+      index_pattern: "logstash-*"
+      
+    kibana:
+      enabled: true
+      url: "http://kibana:5601"
+      
+  # 容器平台集成
+  container_platforms:
+    docker:
+      enabled: true
+      socket_path: "/var/run/docker.sock"
+      
+    kubernetes:
+      enabled: true
+      config_file: "~/.kube/config"
+      
+  # 云平台集成
+  cloud_platforms:
+    aws:
+      enabled: false
+      region: "us-west-2"
+      access_key: "${AWS_ACCESS_KEY}"
+      secret_key: "${AWS_SECRET_KEY}"
+      
+    azure:
+      enabled: false
+      subscription_id: "${AZURE_SUBSCRIPTION_ID}"
+      tenant_id: "${AZURE_TENANT_ID}"
+      
+    gcp:
+      enabled: false
+      project_id: "${GCP_PROJECT_ID}"
+      credentials_file: "${GCP_CREDENTIALS_FILE}"
+
+# 开发和调试配置
+development:
+  # 调试模式
+  debug:
+    enabled: false
+    log_level: "DEBUG"
+    trace_requests: false
+    
+  # 测试模式
+  testing:
+    enabled: false
+    mock_external_services: true
+    dry_run: false
+    
+  # 性能分析
+  profiling:
+    enabled: false
+    cpu_profiling: false
+    memory_profiling: false
+
+# 扩展配置
+extensions:
+  # 插件配置
+  plugins:
+    enabled: true
+    plugin_dir: "./plugins"
+    auto_load: true
+    
+  # 自定义处理器
+  custom_handlers:
+    enabled: true
+    handler_dir: "./handlers"
+    
+  # API扩展
+  api_extensions:
+    enabled: true
+    extension_dir: "./api/extensions"
+
+# 备份和恢复配置
+backup:
+  # 配置备份
+  config_backup:
+    enabled: true
+    schedule: "0 2 * * *"  # 每天凌晨2点
+    retention_days: 30
+    backup_location: "./backups/config"
+    
+  # 数据备份
+  data_backup:
+    enabled: true
+    schedule: "0 3 * * *"  # 每天凌晨3点
+    retention_days: 7
+    backup_location: "./backups/data"
+    
+  # 恢复配置
+  restore:
+    auto_restore_on_failure: false
+    backup_verification: true
+    rollback_on_error: true

@@ -1,0 +1,554 @@
+# 触发器规则配置文件
+# 定义告警匹配模式和对应的触发动作
+
+rules:
+  # Elasticsearch相关规则
+  - id: "elasticsearch_cluster_red"
+    name: "Elasticsearch集群状态为红色"
+    description: "当Elasticsearch集群状态变为红色时触发重启"
+    pattern: ".*elasticsearch.*cluster.*red.*|.*ElasticsearchClusterRed.*"
+    severity_threshold: "critical"
+    action: "restart_service"
+    cooldown_seconds: 600
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      service: "elasticsearch"
+      cluster_status: "red"
+    
+    parameters:
+      service_name: "elasticsearch"
+      restart_strategy: "rolling"
+      health_check_timeout: 300
+      pre_restart_backup: true
+    
+    notifications:
+      - type: "email"
+        severity: "critical"
+      - type: "slack"
+        severity: "critical"
+
+  - id: "elasticsearch_high_memory"
+    name: "Elasticsearch内存使用率过高"
+    description: "当Elasticsearch内存使用率超过85%时清理缓存"
+    pattern: ".*elasticsearch.*memory.*high.*|.*ElasticsearchHighMemory.*"
+    severity_threshold: "high"
+    action: "clear_cache"
+    cooldown_seconds: 300
+    max_executions: 5
+    enabled: true
+    
+    conditions:
+      service: "elasticsearch"
+      metric: "memory_usage"
+    
+    parameters:
+      cache_types:
+        - "field_data"
+        - "query"
+        - "request"
+      force_gc: true
+      clear_threshold: 85
+    
+    notifications:
+      - type: "email"
+        severity: "high"
+
+  - id: "elasticsearch_disk_full"
+    name: "Elasticsearch磁盘空间不足"
+    description: "当Elasticsearch磁盘使用率超过90%时清理数据"
+    pattern: ".*elasticsearch.*disk.*full.*|.*ElasticsearchDiskFull.*"
+    severity_threshold: "critical"
+    action: "cleanup_disk"
+    cooldown_seconds: 1800
+    max_executions: 2
+    enabled: true
+    
+    conditions:
+      service: "elasticsearch"
+      metric: "disk_usage"
+    
+    parameters:
+      cleanup_strategy: "delete_old_indices"
+      retention_days: 7
+      min_free_space_gb: 10
+      force_merge: true
+    
+    notifications:
+      - type: "email"
+        severity: "critical"
+      - type: "slack"
+        severity: "critical"
+
+  # 系统资源相关规则
+  - id: "high_cpu_usage"
+    name: "CPU使用率过高"
+    description: "当CPU使用率超过80%时识别并终止高消耗进程"
+    pattern: ".*cpu.*usage.*high.*|.*HighCPUUsage.*"
+    severity_threshold: "high"
+    action: "kill_process"
+    cooldown_seconds: 180
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      metric: "cpu_usage"
+      threshold: 80
+    
+    parameters:
+      process_selection: "highest_cpu"
+      exclude_processes:
+        - "systemd"
+        - "kernel"
+        - "elasticsearch"
+        - "prometheus"
+      kill_signal: "SIGTERM"
+      force_kill_delay: 30
+    
+    notifications:
+      - type: "email"
+        severity: "medium"
+
+  - id: "high_memory_usage"
+    name: "内存使用率过高"
+    description: "当内存使用率超过85%时清理系统缓存"
+    pattern: ".*memory.*usage.*high.*|.*HighMemoryUsage.*"
+    severity_threshold: "high"
+    action: "clear_cache"
+    cooldown_seconds: 300
+    max_executions: 4
+    enabled: true
+    
+    conditions:
+      metric: "memory_usage"
+      threshold: 85
+    
+    parameters:
+      cache_types:
+        - "page_cache"
+        - "buffer_cache"
+        - "slab_cache"
+      restart_services:
+        - "apache2"
+        - "nginx"
+      memory_threshold: 85
+    
+    notifications:
+      - type: "email"
+        severity: "medium"
+
+  - id: "disk_space_low"
+    name: "磁盘空间不足"
+    description: "当磁盘使用率超过90%时清理临时文件和日志"
+    pattern: ".*disk.*space.*low.*|.*DiskSpaceLow.*"
+    severity_threshold: "critical"
+    action: "cleanup_disk"
+    cooldown_seconds: 600
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      metric: "disk_usage"
+      threshold: 90
+    
+    parameters:
+      cleanup_paths:
+        - "/tmp"
+        - "/var/log"
+        - "/var/cache"
+      log_retention_days: 7
+      compress_logs: true
+      docker_cleanup: true
+    
+    notifications:
+      - type: "email"
+        severity: "critical"
+      - type: "slack"
+        severity: "critical"
+
+  # 服务可用性相关规则
+  - id: "service_down"
+    name: "服务不可用"
+    description: "当关键服务停止时自动重启"
+    pattern: ".*service.*down.*|.*ServiceDown.*|.*service.*stopped.*"
+    severity_threshold: "critical"
+    action: "restart_service"
+    cooldown_seconds: 120
+    max_executions: 5
+    enabled: true
+    
+    conditions:
+      metric: "service_status"
+      status: "down"
+    
+    parameters:
+      restart_strategy: "immediate"
+      dependency_check: true
+      health_check_retries: 3
+      health_check_interval: 10
+    
+    notifications:
+      - type: "email"
+        severity: "critical"
+      - type: "slack"
+        severity: "critical"
+
+  - id: "http_service_error"
+    name: "HTTP服务错误率过高"
+    description: "当HTTP 5xx错误率超过5%时重启相关服务"
+    pattern: ".*http.*error.*rate.*high.*|.*HTTPErrorRateHigh.*"
+    severity_threshold: "high"
+    action: "restart_service"
+    cooldown_seconds: 300
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      metric: "http_error_rate"
+      threshold: 5
+    
+    parameters:
+      error_codes: [500, 502, 503, 504]
+      time_window: "5m"
+      restart_strategy: "graceful"
+      drain_connections: true
+    
+    notifications:
+      - type: "email"
+        severity: "high"
+
+  # 网络相关规则
+  - id: "network_connectivity_issue"
+    name: "网络连接问题"
+    description: "当网络连接出现问题时重启网络服务"
+    pattern: ".*network.*connectivity.*|.*NetworkConnectivity.*|.*connection.*timeout.*"
+    severity_threshold: "high"
+    action: "restart_service"
+    cooldown_seconds: 180
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      metric: "network_connectivity"
+      status: "failed"
+    
+    parameters:
+      services_to_restart:
+        - "networking"
+        - "systemd-networkd"
+        - "NetworkManager"
+      ping_test_hosts:
+        - "8.8.8.8"
+        - "1.1.1.1"
+      connectivity_check: true
+    
+    notifications:
+      - type: "email"
+        severity: "high"
+
+  # 数据库相关规则
+  - id: "database_connection_failed"
+    name: "数据库连接失败"
+    description: "当数据库连接失败时重启数据库服务"
+    pattern: ".*database.*connection.*failed.*|.*DatabaseConnectionFailed.*"
+    severity_threshold: "critical"
+    action: "restart_service"
+    cooldown_seconds: 300
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      service: "database"
+      metric: "connection_status"
+    
+    parameters:
+      database_services:
+        - "postgresql"
+        - "mysql"
+        - "mongodb"
+      connection_test: true
+      backup_before_restart: true
+    
+    notifications:
+      - type: "email"
+        severity: "critical"
+      - type: "slack"
+        severity: "critical"
+
+  # 容器相关规则
+  - id: "container_oom_killed"
+    name: "容器内存溢出被杀死"
+    description: "当容器因OOM被杀死时重启容器并增加内存限制"
+    pattern: ".*container.*oom.*killed.*|.*ContainerOOMKilled.*"
+    severity_threshold: "high"
+    action: "restart_service"
+    cooldown_seconds: 120
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      platform: "docker"
+      exit_code: 137
+    
+    parameters:
+      memory_increase_factor: 1.5
+      max_memory_limit: "8g"
+      restart_policy: "always"
+      health_check_enabled: true
+    
+    notifications:
+      - type: "email"
+        severity: "high"
+
+  - id: "container_restart_loop"
+    name: "容器重启循环"
+    description: "当容器频繁重启时停止容器并发送告警"
+    pattern: ".*container.*restart.*loop.*|.*ContainerRestartLoop.*"
+    severity_threshold: "critical"
+    action: "notify_admin"
+    cooldown_seconds: 600
+    max_executions: 1
+    enabled: true
+    
+    conditions:
+      platform: "docker"
+      restart_count: 5
+      time_window: "10m"
+    
+    parameters:
+      stop_container: true
+      collect_logs: true
+      create_incident: true
+      escalation_level: "critical"
+    
+    notifications:
+      - type: "email"
+        severity: "critical"
+      - type: "slack"
+        severity: "critical"
+
+  # 安全相关规则
+  - id: "ssl_certificate_expiring"
+    name: "SSL证书即将过期"
+    description: "当SSL证书在30天内过期时自动续期"
+    pattern: ".*ssl.*certificate.*expiring.*|.*SSLCertificateExpiring.*"
+    severity_threshold: "medium"
+    action: "custom_script"
+    cooldown_seconds: 86400  # 24小时
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      metric: "certificate_expiry"
+      threshold_days: 30
+    
+    parameters:
+      script_path: "/opt/scripts/renew-ssl-cert.sh"
+      certificate_paths:
+        - "/etc/ssl/certs"
+        - "/etc/nginx/ssl"
+      auto_reload_services:
+        - "nginx"
+        - "apache2"
+    
+    notifications:
+      - type: "email"
+        severity: "medium"
+
+  # 日志相关规则
+  - id: "log_error_rate_high"
+    name: "日志错误率过高"
+    description: "当错误日志数量激增时触发调查和清理"
+    pattern: ".*log.*error.*rate.*high.*|.*LogErrorRateHigh.*"
+    severity_threshold: "medium"
+    action: "custom_script"
+    cooldown_seconds: 300
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      metric: "log_error_rate"
+      threshold: 100
+      time_window: "5m"
+    
+    parameters:
+      script_path: "/opt/scripts/investigate-errors.sh"
+      log_paths:
+        - "/var/log/syslog"
+        - "/var/log/application.log"
+      error_patterns:
+        - "ERROR"
+        - "FATAL"
+        - "CRITICAL"
+      generate_report: true
+    
+    notifications:
+      - type: "email"
+        severity: "medium"
+
+  # 监控系统相关规则
+  - id: "prometheus_target_down"
+    name: "Prometheus监控目标离线"
+    description: "当Prometheus监控目标离线时尝试重启目标服务"
+    pattern: ".*prometheus.*target.*down.*|.*PrometheusTargetDown.*"
+    severity_threshold: "high"
+    action: "restart_service"
+    cooldown_seconds: 180
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      service: "prometheus"
+      metric: "target_status"
+    
+    parameters:
+      target_services:
+        - "node_exporter"
+        - "elasticsearch_exporter"
+        - "nginx_exporter"
+      health_check_timeout: 30
+      restart_strategy: "sequential"
+    
+    notifications:
+      - type: "email"
+        severity: "high"
+
+  - id: "grafana_dashboard_error"
+    name: "Grafana仪表板错误"
+    description: "当Grafana仪表板出现错误时重启Grafana服务"
+    pattern: ".*grafana.*dashboard.*error.*|.*GrafanaDashboardError.*"
+    severity_threshold: "medium"
+    action: "restart_service"
+    cooldown_seconds: 300
+    max_executions: 2
+    enabled: true
+    
+    conditions:
+      service: "grafana"
+      metric: "dashboard_status"
+    
+    parameters:
+      service_name: "grafana-server"
+      backup_config: true
+      clear_cache: true
+      restart_strategy: "graceful"
+    
+    notifications:
+      - type: "email"
+        severity: "medium"
+
+  # 自定义应用规则
+  - id: "application_memory_leak"
+    name: "应用程序内存泄漏"
+    description: "当应用程序内存持续增长时重启应用"
+    pattern: ".*application.*memory.*leak.*|.*ApplicationMemoryLeak.*"
+    severity_threshold: "high"
+    action: "restart_service"
+    cooldown_seconds: 600
+    max_executions: 2
+    enabled: true
+    
+    conditions:
+      metric: "memory_growth_rate"
+      threshold: 10  # MB per minute
+      duration: "30m"
+    
+    parameters:
+      memory_dump: true
+      heap_analysis: true
+      restart_strategy: "graceful"
+      drain_timeout: 60
+    
+    notifications:
+      - type: "email"
+        severity: "high"
+      - type: "slack"
+        severity: "high"
+
+  # 负载均衡相关规则
+  - id: "load_balancer_backend_down"
+    name: "负载均衡器后端服务离线"
+    description: "当负载均衡器后端服务离线时尝试重启服务"
+    pattern: ".*load.*balancer.*backend.*down.*|.*LoadBalancerBackendDown.*"
+    severity_threshold: "high"
+    action: "restart_service"
+    cooldown_seconds: 120
+    max_executions: 3
+    enabled: true
+    
+    conditions:
+      service: "load_balancer"
+      metric: "backend_status"
+    
+    parameters:
+      backend_services:
+        - "web-server-1"
+        - "web-server-2"
+        - "api-server-1"
+      health_check_path: "/health"
+      timeout: 10
+      retries: 3
+    
+    notifications:
+      - type: "email"
+        severity: "high"
+
+# 全局规则配置
+global_settings:
+  # 默认冷却时间
+  default_cooldown: 300
+  
+  # 默认最大执行次数
+  default_max_executions: 3
+  
+  # 规则优先级
+  priority_levels:
+    critical: 1
+    high: 2
+    medium: 3
+    low: 4
+    info: 5
+  
+  # 并发执行限制
+  concurrency_limits:
+    restart_service: 2
+    clear_cache: 5
+    cleanup_disk: 1
+    kill_process: 3
+    custom_script: 2
+  
+  # 通知设置
+  notification_settings:
+    rate_limit: 10  # 每分钟最多发送10条通知
+    deduplication_window: 300  # 5分钟内相同告警去重
+    escalation_delay: 1800  # 30分钟后升级告警
+  
+  # 规则验证
+  validation:
+    pattern_syntax: "regex"
+    required_fields:
+      - "id"
+      - "name"
+      - "pattern"
+      - "severity_threshold"
+      - "action"
+    
+    # 动作验证
+    valid_actions:
+      - "restart_service"
+      - "clear_cache"
+      - "cleanup_disk"
+      - "kill_process"
+      - "scale_up"
+      - "scale_down"
+      - "notify_admin"
+      - "custom_script"
+    
+    # 严重程度验证
+    valid_severities:
+      - "critical"
+      - "high"
+      - "medium"
+      - "low"
+      - "info"

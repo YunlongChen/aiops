@@ -1,0 +1,490 @@
+{{/*
+AIOps-Platform Kubernetes RBAC模板
+文件: rbac.yaml
+描述: 定义ServiceAccount、Role、ClusterRole和绑定的RBAC资源
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.serviceAccount.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "aiops.serviceAccountName" . }}
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
+{{- end }}
+
+{{- if .Values.rbac.create }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aiops.fullname" . }}-cluster-reader
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+rules:
+  # 读取集群资源信息（用于监控和发现）
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/metrics
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+      - pods/log
+      - configmaps
+      - secrets
+    verbs: ["get", "list", "watch"]
+  
+  # 读取扩展资源
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs: ["get", "list", "watch"]
+  
+  # 读取网络资源
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: ["get", "list", "watch"]
+  
+  # 读取存储资源
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+      - volumeattachments
+    verbs: ["get", "list", "watch"]
+  
+  # 读取RBAC资源
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterroles
+      - clusterrolebindings
+      - roles
+      - rolebindings
+    verbs: ["get", "list", "watch"]
+  
+  # 读取自定义资源
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources:
+      - customresourcedefinitions
+    verbs: ["get", "list", "watch"]
+  
+  # 读取事件
+  - apiGroups: [""]
+    resources:
+      - events
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+rules:
+  # 自愈操作需要的权限
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - configmaps
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs: ["get", "list", "watch", "update", "patch"]
+  
+  # 扩缩容权限
+  - apiGroups: ["apps"]
+    resources:
+      - deployments/scale
+      - replicasets/scale
+      - statefulsets/scale
+    verbs: ["get", "update", "patch"]
+  
+  # 重启Pod权限
+  - apiGroups: [""]
+    resources:
+      - pods/eviction
+    verbs: ["create"]
+  
+  # 创建事件权限
+  - apiGroups: [""]
+    resources:
+      - events
+    verbs: ["create", "patch"]
+  
+  # HPA权限
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "aiops.fullname" . }}-namespace-admin
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+rules:
+  # 命名空间内的完全控制权限
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["*"]
+  
+  - apiGroups: ["apps"]
+    resources: ["*"]
+    verbs: ["*"]
+  
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  
+  - apiGroups: ["autoscaling"]
+    resources: ["*"]
+    verbs: ["*"]
+  
+  - apiGroups: ["batch"]
+    resources: ["*"]
+    verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aiops.fullname" . }}-cluster-reader
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aiops.fullname" . }}-cluster-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aiops.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aiops.fullname" . }}-self-healing
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aiops.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "aiops.fullname" . }}-namespace-admin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "aiops.fullname" . }}-namespace-admin
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aiops.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.traefik.rbac.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+rules:
+  - apiGroups: [""]
+    resources:
+      - services
+      - endpoints
+      - secrets
+    verbs: ["get", "list", "watch"]
+  
+  - apiGroups: ["extensions", "networking.k8s.io"]
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs: ["get", "list", "watch"]
+  
+  - apiGroups: ["extensions", "networking.k8s.io"]
+    resources:
+      - ingresses/status
+    verbs: ["update"]
+  
+  - apiGroups: ["traefik.containo.us"]
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+      - middlewares
+      - middlewaretcps
+      - tlsoptions
+      - tlsstores
+      - traefikservices
+      - serverstransports
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aiops.fullname" . }}-traefik
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aiops.fullname" . }}-traefik
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.prometheus.rbac.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - nodes/metrics
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  
+  - apiGroups: ["extensions", "networking.k8s.io"]
+    resources:
+      - ingresses
+    verbs: ["get", "list", "watch"]
+  
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aiops.fullname" . }}-prometheus
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aiops.fullname" . }}-prometheus
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.aiEngine.rbac.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "aiops.fullname" . }}-ai-engine
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - secrets
+    verbs: ["get", "list", "watch"]
+  
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+    verbs: ["get", "list", "watch"]
+  
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "aiops.fullname" . }}-ai-engine
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aiops.fullname" . }}-ai-engine
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.selfHealing.rbac.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+automountServiceAccountToken: true
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing-operator
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+rules:
+  # 自愈操作权限
+  - apiGroups: [""]
+    resources:
+      - pods
+      - services
+      - configmaps
+      - secrets
+      - events
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs: ["get", "list", "watch", "update", "patch"]
+  
+  - apiGroups: ["apps"]
+    resources:
+      - deployments/scale
+      - replicasets/scale
+      - statefulsets/scale
+    verbs: ["get", "update", "patch"]
+  
+  - apiGroups: [""]
+    resources:
+      - pods/eviction
+    verbs: ["create"]
+  
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing-operator
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aiops.fullname" . }}-self-healing-operator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aiops.fullname" . }}-self-healing
+    namespace: {{ .Release.Namespace }}
+{{- end }}

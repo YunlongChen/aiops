@@ -1,0 +1,565 @@
+{{/*
+AIOps-Platform Kubernetes StatefulSet模板
+文件: statefulset.yaml
+描述: 定义有状态服务的StatefulSet资源
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if and .Values.elasticsearch.enabled .Values.elasticsearch.statefulSet.enabled }}
+# Elasticsearch StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "aiops.fullname" . }}-elasticsearch
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+spec:
+  serviceName: {{ include "aiops.fullname" . }}-elasticsearch-headless
+  replicas: {{ .Values.elasticsearch.replicaCount | default 3 }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: elasticsearch
+  template:
+    metadata:
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: elasticsearch
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.elasticsearch.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.elasticsearch.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.elasticsearch.podSecurityContext | nindent 8 }}
+      initContainers:
+      - name: configure-sysctl
+        image: busybox:1.35
+        command: ['sh', '-c']
+        args:
+        - |
+          sysctl -w vm.max_map_count=262144
+          echo 'vm.max_map_count=262144' >> /etc/sysctl.conf
+        securityContext:
+          privileged: true
+      - name: fix-permissions
+        image: busybox:1.35
+        command: ['sh', '-c']
+        args:
+        - |
+          chown -R 1000:1000 /usr/share/elasticsearch/data
+          chmod 755 /usr/share/elasticsearch/data
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        securityContext:
+          runAsUser: 0
+      containers:
+      - name: elasticsearch
+        image: "{{ .Values.elasticsearch.image.repository }}:{{ .Values.elasticsearch.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.elasticsearch.image.pullPolicy }}
+        env:
+        - name: cluster.name
+          value: {{ .Values.elasticsearch.clusterName | default "aiops-cluster" }}
+        - name: node.name
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: discovery.seed_hosts
+          value: {{ include "aiops.fullname" . }}-elasticsearch-headless
+        - name: cluster.initial_master_nodes
+          value: {{ include "aiops.fullname" . }}-elasticsearch-0,{{ include "aiops.fullname" . }}-elasticsearch-1,{{ include "aiops.fullname" . }}-elasticsearch-2
+        - name: ES_JAVA_OPTS
+          value: {{ .Values.elasticsearch.javaOpts | default "-Xms1g -Xmx1g" }}
+        - name: node.data
+          value: "true"
+        - name: node.master
+          value: "true"
+        - name: node.ingest
+          value: "true"
+        - name: network.host
+          value: "0.0.0.0"
+        {{- if .Values.elasticsearch.auth.enabled }}
+        - name: xpack.security.enabled
+          value: "true"
+        - name: ELASTIC_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "aiops.fullname" . }}-elasticsearch-auth
+              key: password
+        {{- end }}
+        {{- with .Values.elasticsearch.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        ports:
+        - name: http
+          containerPort: 9200
+          protocol: TCP
+        - name: transport
+          containerPort: 9300
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /_cluster/health
+            port: http
+            {{- if .Values.elasticsearch.auth.enabled }}
+            httpHeaders:
+            - name: Authorization
+              value: Basic {{ printf "elastic:%s" .Values.elasticsearch.auth.password | b64enc }}
+            {{- end }}
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?wait_for_status=yellow&timeout=1s
+            port: http
+            {{- if .Values.elasticsearch.auth.enabled }}
+            httpHeaders:
+            - name: Authorization
+              value: Basic {{ printf "elastic:%s" .Values.elasticsearch.auth.password | b64enc }}
+            {{- end }}
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.elasticsearch.resources | nindent 10 }}
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+        {{- with .Values.elasticsearch.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.elasticsearch.securityContext | nindent 10 }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "aiops.fullname" . }}-elasticsearch-config
+      {{- with .Values.elasticsearch.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.elasticsearch.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.elasticsearch.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.elasticsearch.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        {{- include "aiops.labels" . | nindent 8 }}
+        app.kubernetes.io/component: elasticsearch
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      {{- if .Values.elasticsearch.persistence.storageClass }}
+      storageClassName: {{ .Values.elasticsearch.persistence.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.elasticsearch.persistence.size | default "10Gi" }}
+      {{- with .Values.elasticsearch.persistence.selector }}
+      selector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  updateStrategy:
+    type: {{ .Values.elasticsearch.updateStrategy.type | default "RollingUpdate" }}
+    {{- if eq .Values.elasticsearch.updateStrategy.type "RollingUpdate" }}
+    rollingUpdate:
+      partition: {{ .Values.elasticsearch.updateStrategy.rollingUpdate.partition | default 0 }}
+    {{- end }}
+  podManagementPolicy: {{ .Values.elasticsearch.podManagementPolicy | default "Parallel" }}
+{{- end }}
+
+---
+{{- if and .Values.redis.enabled .Values.redis.statefulSet.enabled }}
+# Redis StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "aiops.fullname" . }}-redis
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  serviceName: {{ include "aiops.fullname" . }}-redis-headless
+  replicas: {{ .Values.redis.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.redis.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.redis.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.redis.podSecurityContext | nindent 8 }}
+      containers:
+      - name: redis
+        image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag | default "7-alpine" }}"
+        imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+        env:
+        {{- if .Values.redis.auth.enabled }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "aiops.fullname" . }}-redis-auth
+              key: password
+        {{- end }}
+        {{- with .Values.redis.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        ports:
+        - name: redis
+          containerPort: 6379
+          protocol: TCP
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.redis.resources | nindent 10 }}
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: config
+          mountPath: /etc/redis
+        {{- with .Values.redis.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.redis.securityContext | nindent 10 }}
+      {{- if .Values.redis.metrics.enabled }}
+      - name: redis-exporter
+        image: "{{ .Values.redis.metrics.image.repository }}:{{ .Values.redis.metrics.image.tag | default "v1.45.0" }}"
+        imagePullPolicy: {{ .Values.redis.metrics.image.pullPolicy }}
+        env:
+        - name: REDIS_ADDR
+          value: "redis://localhost:6379"
+        {{- if .Values.redis.auth.enabled }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "aiops.fullname" . }}-redis-auth
+              key: password
+        {{- end }}
+        ports:
+        - name: metrics
+          containerPort: 9121
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 15
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.redis.metrics.resources | nindent 10 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "aiops.fullname" . }}-redis-config
+      {{- with .Values.redis.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.redis.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.redis.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        {{- include "aiops.labels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      {{- if .Values.redis.persistence.storageClass }}
+      storageClassName: {{ .Values.redis.persistence.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.redis.persistence.size | default "8Gi" }}
+      {{- with .Values.redis.persistence.selector }}
+      selector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  updateStrategy:
+    type: {{ .Values.redis.updateStrategy.type | default "RollingUpdate" }}
+  podManagementPolicy: {{ .Values.redis.podManagementPolicy | default "OrderedReady" }}
+{{- end }}
+
+---
+{{- if and .Values.postgresql.enabled .Values.postgresql.statefulSet.enabled }}
+# PostgreSQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "aiops.fullname" . }}-postgresql
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  serviceName: {{ include "aiops.fullname" . }}-postgresql-headless
+  replicas: {{ .Values.postgresql.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  template:
+    metadata:
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.postgresql.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.postgresql.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.postgresql.podSecurityContext | nindent 8 }}
+      initContainers:
+      - name: init-db
+        image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag | default "15-alpine" }}"
+        command:
+        - sh
+        - -c
+        - |
+          if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+            initdb -D /var/lib/postgresql/data --auth-local=trust --auth-host=md5
+          fi
+        env:
+        - name: POSTGRES_USER
+          value: {{ .Values.postgresql.auth.username | default "postgres" }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresql.auth.database | default "aiops" }}
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "aiops.fullname" . }}-postgresql-auth
+              key: password
+        - name: PGDATA
+          value: /var/lib/postgresql/data
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        securityContext:
+          runAsUser: 999
+          runAsGroup: 999
+      containers:
+      - name: postgresql
+        image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag | default "15-alpine" }}"
+        imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+        env:
+        - name: POSTGRES_USER
+          value: {{ .Values.postgresql.auth.username | default "postgres" }}
+        - name: POSTGRES_DB
+          value: {{ .Values.postgresql.auth.database | default "aiops" }}
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "aiops.fullname" . }}-postgresql-auth
+              key: password
+        - name: PGDATA
+          value: /var/lib/postgresql/data
+        {{- with .Values.postgresql.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        ports:
+        - name: postgresql
+          containerPort: 5432
+          protocol: TCP
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - exec pg_isready -U {{ .Values.postgresql.auth.username | default "postgres" }} -h 127.0.0.1 -p 5432
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - -e
+            - |
+              exec pg_isready -U {{ .Values.postgresql.auth.username | default "postgres" }} -h 127.0.0.1 -p 5432
+              [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 6
+        resources:
+          {{- toYaml .Values.postgresql.resources | nindent 10 }}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        {{- with .Values.postgresql.extraVolumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.postgresql.securityContext | nindent 10 }}
+      {{- if .Values.postgresql.metrics.enabled }}
+      - name: postgres-exporter
+        image: "{{ .Values.postgresql.metrics.image.repository }}:{{ .Values.postgresql.metrics.image.tag | default "v0.11.1" }}"
+        imagePullPolicy: {{ .Values.postgresql.metrics.image.pullPolicy }}
+        env:
+        - name: DATA_SOURCE_NAME
+          value: "postgresql://{{ .Values.postgresql.auth.username | default "postgres" }}:$(POSTGRES_PASSWORD)@127.0.0.1:5432/{{ .Values.postgresql.auth.database | default "aiops" }}?sslmode=disable"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "aiops.fullname" . }}-postgresql-auth
+              key: password
+        ports:
+        - name: metrics
+          containerPort: 9187
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 15
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.postgresql.metrics.resources | nindent 10 }}
+      {{- end }}
+      {{- with .Values.postgresql.extraVolumes }}
+      volumes:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.postgresql.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgresql.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.postgresql.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        {{- include "aiops.labels" . | nindent 8 }}
+        app.kubernetes.io/component: postgresql
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      {{- if .Values.postgresql.persistence.storageClass }}
+      storageClassName: {{ .Values.postgresql.persistence.storageClass }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.postgresql.persistence.size | default "8Gi" }}
+      {{- with .Values.postgresql.persistence.selector }}
+      selector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  updateStrategy:
+    type: {{ .Values.postgresql.updateStrategy.type | default "RollingUpdate" }}
+  podManagementPolicy: {{ .Values.postgresql.podManagementPolicy | default "OrderedReady" }}
+{{- end }}
+
+{{- if .Values.statefulSet.custom }}
+{{- range .Values.statefulSet.custom }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "aiops.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "aiops.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ .name }}
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- toYaml .spec | nindent 2 }}
+{{- end }}
+{{- end }}

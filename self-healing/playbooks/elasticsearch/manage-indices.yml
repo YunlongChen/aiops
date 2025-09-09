@@ -1,0 +1,504 @@
+---
+# Elasticsearch索引管理Playbook
+# 用于管理索引生命周期、清理旧索引和优化存储
+
+- name: "Elasticsearch索引管理"
+  hosts: "{{ target_hosts | default('elasticsearch') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # Elasticsearch配置
+    es_host: "{{ es_host | default('localhost') }}"
+    es_port: "{{ es_port | default(9200) }}"
+    es_protocol: "{{ es_protocol | default('http') }}"
+    es_username: "{{ es_username | default('') }}"
+    es_password: "{{ es_password | default('') }}"
+    
+    # 索引管理配置
+    index_patterns: "{{ index_patterns | default(['logstash-*', 'filebeat-*', 'metricbeat-*']) }}"
+    retention_days: "{{ retention_days | default(30) }}"
+    max_index_size_gb: "{{ max_index_size_gb | default(50) }}"
+    max_indices_count: "{{ max_indices_count | default(100) }}"
+    
+    # 操作配置
+    operation: "{{ operation | default('cleanup') }}"  # cleanup, optimize, reindex, backup
+    force_merge_segments: "{{ force_merge_segments | default(1) }}"
+    
+    # 备份配置
+    backup_repository: "{{ backup_repository | default('backup_repo') }}"
+    backup_location: "{{ backup_location | default('/var/backups/elasticsearch') }}"
+    
+    # 日志配置
+    log_file: "/var/log/self-healing/elasticsearch-index-management.log"
+    
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "/var/log/self-healing"
+        state: directory
+        mode: '0755'
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+    
+    - name: "验证Elasticsearch连接"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_cluster/health"
+        method: GET
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        status_code: [200]
+      register: es_health
+      retries: 3
+      delay: 5
+    
+    - name: "记录操作开始"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ start_time }}] 开始Elasticsearch索引管理操作: {{ operation }}"
+        create: yes
+
+  tasks:
+    # 获取集群和索引信息
+    - name: "获取集群状态"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_cluster/stats"
+        method: GET
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+      register: cluster_stats
+    
+    - name: "获取所有索引信息"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_cat/indices?v&h=index,status,health,pri,rep,docs.count,store.size,creation.date.string&s=creation.date:desc"
+        method: GET
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+      register: all_indices
+    
+    - name: "显示当前索引状态"
+      debug:
+        msg: |
+          === Elasticsearch集群状态 ===
+          集群名称: {{ cluster_stats.json.cluster_name }}
+          节点数量: {{ cluster_stats.json.nodes.count.total }}
+          索引数量: {{ cluster_stats.json.indices.count }}
+          文档数量: {{ cluster_stats.json.indices.docs.count }}
+          存储大小: {{ cluster_stats.json.indices.store.size_in_bytes | human_readable }}
+          
+          === 索引列表 ===
+          {{ all_indices.content }}
+    
+    # 索引清理操作
+    - name: "识别需要清理的旧索引"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_cat/indices?h=index,creation.date&s=creation.date:asc"
+        method: GET
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+      register: indices_with_dates
+      when: operation == 'cleanup'
+    
+    - name: "计算需要删除的索引"
+      set_fact:
+        indices_to_delete: |
+          {%- set cutoff_timestamp = (ansible_date_time.epoch | int - (retention_days | int * 86400)) -%}
+          {%- set indices_list = [] -%}
+          {%- for line in indices_with_dates.content.split('\n') if line.strip() != '' -%}
+            {%- set parts = line.split() -%}
+            {%- if parts | length >= 2 -%}
+              {%- set index_name = parts[0] -%}
+              {%- set creation_timestamp = parts[1] | int / 1000 -%}
+              {%- for pattern in index_patterns -%}
+                {%- if index_name is match(pattern.replace('*', '.*')) and creation_timestamp < cutoff_timestamp -%}
+                  {%- set _ = indices_list.append(index_name) -%}
+                {%- endif -%}
+              {%- endfor -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ indices_list }}
+      when: 
+        - operation == 'cleanup'
+        - indices_with_dates is defined
+    
+    - name: "删除旧索引"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/{{ item }}"
+        method: DELETE
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        status_code: [200, 404]
+      loop: "{{ indices_to_delete }}"
+      when: 
+        - operation == 'cleanup'
+        - indices_to_delete is defined
+        - indices_to_delete | length > 0
+      register: delete_results
+    
+    - name: "记录删除结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 删除索引: {{ item.item }} - 状态: {{ item.status }}"
+      loop: "{{ delete_results.results }}"
+      when: 
+        - operation == 'cleanup'
+        - delete_results is defined
+    
+    # 索引优化操作
+    - name: "获取需要优化的索引"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_cat/indices?h=index,segments.count,store.size&s=segments.count:desc"
+        method: GET
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+      register: indices_segments
+      when: operation == 'optimize'
+    
+    - name: "识别需要强制合并的索引"
+      set_fact:
+        indices_to_optimize: |
+          {%- set indices_list = [] -%}
+          {%- for line in indices_segments.content.split('\n') if line.strip() != '' -%}
+            {%- set parts = line.split() -%}
+            {%- if parts | length >= 3 -%}
+              {%- set index_name = parts[0] -%}
+              {%- set segment_count = parts[1] | int -%}
+              {%- if segment_count > 5 -%}
+                {%- for pattern in index_patterns -%}
+                  {%- if index_name is match(pattern.replace('*', '.*')) -%}
+                    {%- set _ = indices_list.append(index_name) -%}
+                  {%- endif -%}
+                {%- endfor -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ indices_list }}
+      when: 
+        - operation == 'optimize'
+        - indices_segments is defined
+    
+    - name: "执行强制合并"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/{{ item }}/_forcemerge?max_num_segments={{ force_merge_segments }}&wait_for_completion=false"
+        method: POST
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        timeout: 300
+      loop: "{{ indices_to_optimize }}"
+      when: 
+        - operation == 'optimize'
+        - indices_to_optimize is defined
+        - indices_to_optimize | length > 0
+      register: forcemerge_results
+    
+    - name: "记录强制合并结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 强制合并索引: {{ item.item }} - 任务ID: {{ item.json.task if item.json is defined else 'N/A' }}"
+      loop: "{{ forcemerge_results.results }}"
+      when: 
+        - operation == 'optimize'
+        - forcemerge_results is defined
+    
+    # 索引重建操作
+    - name: "创建重建索引映射"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/{{ item }}_new"
+        method: PUT
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        body_format: json
+        body:
+          settings:
+            number_of_shards: 1
+            number_of_replicas: 1
+            refresh_interval: "30s"
+          mappings:
+            properties:
+              "@timestamp":
+                type: date
+              message:
+                type: text
+                analyzer: standard
+      loop: "{{ index_patterns }}"
+      when: operation == 'reindex'
+      ignore_errors: yes
+    
+    - name: "执行重建索引"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_reindex?wait_for_completion=false"
+        method: POST
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        body_format: json
+        body:
+          source:
+            index: "{{ item }}"
+          dest:
+            index: "{{ item }}_new"
+        timeout: 600
+      loop: "{{ index_patterns }}"
+      when: operation == 'reindex'
+      register: reindex_results
+      ignore_errors: yes
+    
+    # 索引备份操作
+    - name: "创建备份仓库"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_snapshot/{{ backup_repository }}"
+        method: PUT
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        body_format: json
+        body:
+          type: fs
+          settings:
+            location: "{{ backup_location }}"
+            compress: true
+      when: operation == 'backup'
+      ignore_errors: yes
+    
+    - name: "创建索引快照"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_snapshot/{{ backup_repository }}/snapshot_{{ ansible_date_time.epoch }}?wait_for_completion=false"
+        method: PUT
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        body_format: json
+        body:
+          indices: "{{ index_patterns | join(',') }}"
+          ignore_unavailable: true
+          include_global_state: false
+          metadata:
+            taken_by: "self-healing-system"
+            taken_because: "automated backup"
+      when: operation == 'backup'
+      register: snapshot_result
+    
+    # 索引模板管理
+    - name: "创建或更新索引模板"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_index_template/self-healing-template"
+        method: PUT
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        body_format: json
+        body:
+          index_patterns: "{{ index_patterns }}"
+          template:
+            settings:
+              number_of_shards: 1
+              number_of_replicas: 1
+              refresh_interval: "30s"
+              index:
+                lifecycle:
+                  name: "self-healing-policy"
+                  rollover_alias: "logs"
+            mappings:
+              properties:
+                "@timestamp":
+                  type: date
+                "@version":
+                  type: keyword
+                host:
+                  properties:
+                    name:
+                      type: keyword
+                message:
+                  type: text
+                  analyzer: standard
+                level:
+                  type: keyword
+                service:
+                  type: keyword
+                tags:
+                  type: keyword
+          priority: 100
+          version: 1
+      when: operation in ['cleanup', 'optimize']
+    
+    # 索引生命周期策略
+    - name: "创建索引生命周期策略"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_ilm/policy/self-healing-policy"
+        method: PUT
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+        body_format: json
+        body:
+          policy:
+            phases:
+              hot:
+                actions:
+                  rollover:
+                    max_size: "{{ max_index_size_gb }}gb"
+                    max_age: "1d"
+                  set_priority:
+                    priority: 100
+              warm:
+                min_age: "7d"
+                actions:
+                  allocate:
+                    number_of_replicas: 0
+                  forcemerge:
+                    max_num_segments: 1
+                  set_priority:
+                    priority: 50
+              cold:
+                min_age: "14d"
+                actions:
+                  allocate:
+                    number_of_replicas: 0
+                  set_priority:
+                    priority: 0
+              delete:
+                min_age: "{{ retention_days }}d"
+      when: operation in ['cleanup', 'optimize']
+    
+    # 监控和报告
+    - name: "获取操作后的集群状态"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_cluster/stats"
+        method: GET
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+      register: final_cluster_stats
+    
+    - name: "获取操作后的索引信息"
+      uri:
+        url: "{{ es_protocol }}://{{ es_host }}:{{ es_port }}/_cat/indices?v&h=index,status,health,pri,rep,docs.count,store.size&s=store.size:desc"
+        method: GET
+        user: "{{ es_username if es_username != '' else omit }}"
+        password: "{{ es_password if es_password != '' else omit }}"
+        force_basic_auth: "{{ true if es_username != '' else false }}"
+      register: final_indices
+    
+    - name: "计算存储空间变化"
+      set_fact:
+        storage_before: "{{ cluster_stats.json.indices.store.size_in_bytes }}"
+        storage_after: "{{ final_cluster_stats.json.indices.store.size_in_bytes }}"
+        indices_before: "{{ cluster_stats.json.indices.count }}"
+        indices_after: "{{ final_cluster_stats.json.indices.count }}"
+        space_saved: "{{ (cluster_stats.json.indices.store.size_in_bytes - final_cluster_stats.json.indices.store.size_in_bytes) }}"
+    
+    - name: "显示操作结果"
+      debug:
+        msg: |
+          === Elasticsearch索引管理结果 ===
+          操作类型: {{ operation }}
+          
+          存储变化:
+          - 操作前: {{ storage_before | human_readable }}
+          - 操作后: {{ storage_after | human_readable }}
+          - 节省空间: {{ space_saved | human_readable }}
+          
+          索引变化:
+          - 操作前: {{ indices_before }} 个索引
+          - 操作后: {{ indices_after }} 个索引
+          - 变化: {{ (indices_after | int - indices_before | int) }} 个索引
+          
+          === 当前索引状态 ===
+          {{ final_indices.content }}
+    
+    - name: "记录操作完成"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 索引管理操作完成 - 类型: {{ operation }}, 节省空间: {{ space_saved | human_readable }}"
+
+  post_tasks:
+    - name: "生成索引管理报告"
+      set_fact:
+        index_management_report:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          host: "{{ inventory_hostname }}"
+          operation: "{{ operation }}"
+          cluster_name: "{{ final_cluster_stats.json.cluster_name }}"
+          results:
+            storage_before_bytes: "{{ storage_before }}"
+            storage_after_bytes: "{{ storage_after }}"
+            space_saved_bytes: "{{ space_saved }}"
+            indices_before: "{{ indices_before }}"
+            indices_after: "{{ indices_after }}"
+            indices_deleted: "{{ indices_to_delete | default([]) | length }}"
+            indices_optimized: "{{ indices_to_optimize | default([]) | length }}"
+          performance:
+            operation_duration: "{{ ((ansible_date_time.epoch | int) - (start_time | to_datetime('%Y-%m-%dT%H:%M:%SZ') | int)) }} seconds"
+          status: "success"
+    
+    - name: "保存管理报告"
+      copy:
+        content: "{{ index_management_report | to_nice_json }}"
+        dest: "/var/log/self-healing/index-management-{{ ansible_date_time.epoch }}.json"
+        mode: '0644'
+    
+    - name: "发送管理报告通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "elasticsearch_index_management"
+          status: "success"
+          host: "{{ inventory_hostname }}"
+          message: "Elasticsearch索引管理完成 - {{ operation }}"
+          details: "{{ index_management_report }}"
+        status_code: [200, 201, 204]
+      when: notification_webhook_url is defined
+      ignore_errors: yes
+    
+    # 设置定期清理任务
+    - name: "设置索引自动清理任务"
+      cron:
+        name: "Elasticsearch索引自动清理"
+        minute: "0"
+        hour: "2"
+        job: "cd {{ playbook_dir }} && ansible-playbook {{ ansible_playbook }} -e 'operation=cleanup target_hosts=elasticsearch' >> /var/log/self-healing/cron-index-cleanup.log 2>&1"
+        user: root
+      when: operation == 'cleanup'
+    
+    - name: "设置索引自动优化任务"
+      cron:
+        name: "Elasticsearch索引自动优化"
+        minute: "0"
+        hour: "3"
+        weekday: "0"
+        job: "cd {{ playbook_dir }} && ansible-playbook {{ ansible_playbook }} -e 'operation=optimize target_hosts=elasticsearch' >> /var/log/self-healing/cron-index-optimize.log 2>&1"
+        user: root
+      when: operation == 'optimize'
+    
+    - name: "设置索引自动备份任务"
+      cron:
+        name: "Elasticsearch索引自动备份"
+        minute: "0"
+        hour: "1"
+        job: "cd {{ playbook_dir }} && ansible-playbook {{ ansible_playbook }} -e 'operation=backup target_hosts=elasticsearch' >> /var/log/self-healing/cron-index-backup.log 2>&1"
+        user: root
+      when: operation == 'backup'
+    
+    - name: "清理旧的管理报告"
+      shell: |
+        # 保留最近30天的报告
+        find /var/log/self-healing -name "index-management-*.json" -mtime +30 -delete
+        
+        # 保留最近1000行日志
+        if [ -f "{{ log_file }}" ]; then
+          tail -1000 "{{ log_file }}" > "{{ log_file }}.tmp"
+          mv "{{ log_file }}.tmp" "{{ log_file }}"
+        fi
+      ignore_errors: yes

@@ -1,0 +1,322 @@
+{{/*
+AIOps-Platform 连接测试
+文件: test-connection.yaml
+描述: Helm Chart部署后的连接测试配置
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.tests.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "aiops.fullname" . }}-test-connection"
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+  - name: connection-test
+    image: {{ .Values.tests.image.repository }}:{{ .Values.tests.image.tag }}
+    imagePullPolicy: {{ .Values.tests.image.pullPolicy }}
+    command:
+    - /bin/sh
+    - -c
+    - |
+      set -e
+      echo "开始AIOps平台连接测试..."
+      
+      # 测试Traefik连接
+      {{- if .Values.traefik.enabled }}
+      echo "测试Traefik连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-traefik:{{ .Values.traefik.service.port }}/ping || {
+        echo "❌ Traefik连接失败"
+        exit 1
+      }
+      echo "✅ Traefik连接成功"
+      {{- end }}
+      
+      # 测试Prometheus连接
+      {{- if .Values.prometheus.enabled }}
+      echo "测试Prometheus连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-prometheus:{{ .Values.prometheus.service.port }}/-/healthy || {
+        echo "❌ Prometheus连接失败"
+        exit 1
+      }
+      echo "✅ Prometheus连接成功"
+      {{- end }}
+      
+      # 测试Grafana连接
+      {{- if .Values.grafana.enabled }}
+      echo "测试Grafana连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-grafana:{{ .Values.grafana.service.port }}/api/health || {
+        echo "❌ Grafana连接失败"
+        exit 1
+      }
+      echo "✅ Grafana连接成功"
+      {{- end }}
+      
+      # 测试Alertmanager连接
+      {{- if .Values.alertmanager.enabled }}
+      echo "测试Alertmanager连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-alertmanager:{{ .Values.alertmanager.service.port }}/-/healthy || {
+        echo "❌ Alertmanager连接失败"
+        exit 1
+      }
+      echo "✅ Alertmanager连接成功"
+      {{- end }}
+      
+      # 测试Elasticsearch连接
+      {{- if .Values.elasticsearch.enabled }}
+      echo "测试Elasticsearch连接..."
+      {{- if .Values.elasticsearch.auth.enabled }}
+      wget --spider --timeout=10 --tries=3 --user=elastic --password="$(cat /etc/secrets/elasticsearch/password)" http://{{ include "aiops.fullname" . }}-elasticsearch:{{ .Values.elasticsearch.service.port }}/_cluster/health || {
+        echo "❌ Elasticsearch连接失败"
+        exit 1
+      }
+      {{- else }}
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-elasticsearch:{{ .Values.elasticsearch.service.port }}/_cluster/health || {
+        echo "❌ Elasticsearch连接失败"
+        exit 1
+      }
+      {{- end }}
+      echo "✅ Elasticsearch连接成功"
+      {{- end }}
+      
+      # 测试Kibana连接
+      {{- if .Values.kibana.enabled }}
+      echo "测试Kibana连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-kibana:{{ .Values.kibana.service.port }}/api/status || {
+        echo "❌ Kibana连接失败"
+        exit 1
+      }
+      echo "✅ Kibana连接成功"
+      {{- end }}
+      
+      # 测试Redis连接
+      {{- if .Values.redis.enabled }}
+      echo "测试Redis连接..."
+      {{- if .Values.redis.auth.enabled }}
+      redis-cli -h {{ include "aiops.fullname" . }}-redis -p {{ .Values.redis.service.port }} -a "$(cat /etc/secrets/redis/password)" ping | grep PONG || {
+        echo "❌ Redis连接失败"
+        exit 1
+      }
+      {{- else }}
+      redis-cli -h {{ include "aiops.fullname" . }}-redis -p {{ .Values.redis.service.port }} ping | grep PONG || {
+        echo "❌ Redis连接失败"
+        exit 1
+      }
+      {{- end }}
+      echo "✅ Redis连接成功"
+      {{- end }}
+      
+      # 测试PostgreSQL连接
+      {{- if .Values.postgresql.enabled }}
+      echo "测试PostgreSQL连接..."
+      PGPASSWORD="$(cat /etc/secrets/postgresql/password)" pg_isready -h {{ include "aiops.fullname" . }}-postgresql -p {{ .Values.postgresql.service.port }} -U {{ .Values.postgresql.auth.username | default "postgres" }} || {
+        echo "❌ PostgreSQL连接失败"
+        exit 1
+      }
+      echo "✅ PostgreSQL连接成功"
+      {{- end }}
+      
+      # 测试AI引擎连接
+      {{- if .Values.aiEngine.enabled }}
+      echo "测试AI引擎连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-ai-engine:{{ .Values.aiEngine.service.port }}/health || {
+        echo "❌ AI引擎连接失败"
+        exit 1
+      }
+      echo "✅ AI引擎连接成功"
+      {{- end }}
+      
+      # 测试API网关连接
+      {{- if .Values.apiGateway.enabled }}
+      echo "测试API网关连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-api-gateway:{{ .Values.apiGateway.service.port }}/health || {
+        echo "❌ API网关连接失败"
+        exit 1
+      }
+      echo "✅ API网关连接成功"
+      {{- end }}
+      
+      # 测试自愈执行器连接
+      {{- if .Values.selfHealing.enabled }}
+      echo "测试自愈执行器连接..."
+      wget --spider --timeout=10 --tries=3 http://{{ include "aiops.fullname" . }}-self-healing:{{ .Values.selfHealing.service.port }}/health || {
+        echo "❌ 自愈执行器连接失败"
+        exit 1
+      }
+      echo "✅ 自愈执行器连接成功"
+      {{- end }}
+      
+      echo "🎉 所有连接测试通过！AIOps平台部署成功！"
+    
+    {{- if or .Values.elasticsearch.auth.enabled .Values.redis.auth.enabled .Values.postgresql.enabled }}
+    volumeMounts:
+    {{- if .Values.elasticsearch.auth.enabled }}
+    - name: elasticsearch-auth
+      mountPath: /etc/secrets/elasticsearch
+      readOnly: true
+    {{- end }}
+    {{- if .Values.redis.auth.enabled }}
+    - name: redis-auth
+      mountPath: /etc/secrets/redis
+      readOnly: true
+    {{- end }}
+    {{- if .Values.postgresql.enabled }}
+    - name: postgresql-auth
+      mountPath: /etc/secrets/postgresql
+      readOnly: true
+    {{- end }}
+    {{- end }}
+    
+    resources:
+      {{- toYaml .Values.tests.resources | nindent 6 }}
+  
+  {{- if or .Values.elasticsearch.auth.enabled .Values.redis.auth.enabled .Values.postgresql.enabled }}
+  volumes:
+  {{- if .Values.elasticsearch.auth.enabled }}
+  - name: elasticsearch-auth
+    secret:
+      secretName: {{ include "aiops.fullname" . }}-elasticsearch-auth
+  {{- end }}
+  {{- if .Values.redis.auth.enabled }}
+  - name: redis-auth
+    secret:
+      secretName: {{ include "aiops.fullname" . }}-redis-auth
+  {{- end }}
+  {{- if .Values.postgresql.enabled }}
+  - name: postgresql-auth
+    secret:
+      secretName: {{ include "aiops.fullname" . }}-postgresql-auth
+  {{- end }}
+  {{- end }}
+  
+  {{- with .Values.tests.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.tests.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.tests.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+---
+# API功能测试
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "aiops.fullname" . }}-test-api"
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "2"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+  - name: api-test
+    image: {{ .Values.tests.image.repository }}:{{ .Values.tests.image.tag }}
+    imagePullPolicy: {{ .Values.tests.image.pullPolicy }}
+    command:
+    - /bin/sh
+    - -c
+    - |
+      set -e
+      echo "开始AIOps平台API功能测试..."
+      
+      {{- if .Values.aiEngine.enabled }}
+      # 测试AI引擎API
+      echo "测试AI引擎API功能..."
+      
+      # 测试健康检查
+      curl -f -s http://{{ include "aiops.fullname" . }}-ai-engine:{{ .Values.aiEngine.service.port }}/health || {
+        echo "❌ AI引擎健康检查失败"
+        exit 1
+      }
+      
+      # 测试异常检测API
+      curl -f -s -X POST \
+        -H "Content-Type: application/json" \
+        -d '{"metrics": [{"timestamp": "2024-01-01T00:00:00Z", "value": 100, "metric_name": "cpu_usage"}]}' \
+        http://{{ include "aiops.fullname" . }}-ai-engine:{{ .Values.aiEngine.service.port }}/api/v1/detect || {
+        echo "❌ AI引擎异常检测API测试失败"
+        exit 1
+      }
+      
+      echo "✅ AI引擎API测试通过"
+      {{- end }}
+      
+      {{- if .Values.apiGateway.enabled }}
+      # 测试API网关
+      echo "测试API网关功能..."
+      
+      # 测试健康检查
+      curl -f -s http://{{ include "aiops.fullname" . }}-api-gateway:{{ .Values.apiGateway.service.port }}/health || {
+        echo "❌ API网关健康检查失败"
+        exit 1
+      }
+      
+      # 测试API文档
+      curl -f -s http://{{ include "aiops.fullname" . }}-api-gateway:{{ .Values.apiGateway.service.port }}/docs || {
+        echo "❌ API网关文档访问失败"
+        exit 1
+      }
+      
+      echo "✅ API网关测试通过"
+      {{- end }}
+      
+      {{- if .Values.selfHealing.enabled }}
+      # 测试自愈执行器
+      echo "测试自愈执行器功能..."
+      
+      # 测试健康检查
+      curl -f -s http://{{ include "aiops.fullname" . }}-self-healing:{{ .Values.selfHealing.service.port }}/health || {
+        echo "❌ 自愈执行器健康检查失败"
+        exit 1
+      }
+      
+      # 测试规则列表API
+      curl -f -s http://{{ include "aiops.fullname" . }}-self-healing:{{ .Values.selfHealing.service.port }}/api/v1/rules || {
+        echo "❌ 自愈执行器规则API测试失败"
+        exit 1
+      }
+      
+      echo "✅ 自愈执行器测试通过"
+      {{- end }}
+      
+      echo "🎉 所有API功能测试通过！"
+    
+    resources:
+      {{- toYaml .Values.tests.resources | nindent 6 }}
+  
+  {{- with .Values.tests.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.tests.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  
+  {{- with .Values.tests.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+{{- end }}

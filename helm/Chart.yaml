@@ -1,0 +1,177 @@
+# Helm Chart for AIOps-Platform
+# AIOps智能运维平台Helm Chart配置
+# 版本: 1.0.0
+
+apiVersion: v2
+name: aiops-platform
+description: |
+  AIOps智能运维平台 - 基于AI的自动化运维解决方案
+  包含监控、日志分析、异常检测和自愈功能的完整运维平台
+
+# Chart类型 - application表示这是一个应用程序Chart
+type: application
+
+# Chart版本 - 每次Chart更改时应该递增
+version: 1.0.0
+
+# 应用程序版本 - 这是被部署的应用程序的版本号
+appVersion: "1.0.0"
+
+# 关键词，用于搜索
+keywords:
+  - aiops
+  - monitoring
+  - logging
+  - ai
+  - automation
+  - devops
+  - observability
+  - alerting
+  - self-healing
+
+# 主页URL
+home: https://github.com/aiops-platform/aiops-platform
+
+# 源代码URL
+sources:
+  - https://github.com/aiops-platform/aiops-platform
+
+# 维护者信息
+maintainers:
+  - name: AIOps Platform Team
+    email: team@aiops-platform.com
+    url: https://aiops-platform.com
+
+# Chart图标URL
+icon: https://aiops-platform.com/assets/logo.png
+
+# 是否已弃用
+deprecated: false
+
+# 注解
+annotations:
+  # 类别
+  category: Infrastructure
+  
+  # 许可证
+  licenses: Apache-2.0
+  
+  # 镜像信息
+  images: |
+    - name: traefik
+      image: traefik:v3.0
+    - name: prometheus
+      image: prom/prometheus:v2.45.0
+    - name: grafana
+      image: grafana/grafana:10.0.0
+    - name: alertmanager
+      image: prom/alertmanager:v0.25.0
+    - name: elasticsearch
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    - name: logstash
+      image: docker.elastic.co/logstash/logstash:8.8.0
+    - name: kibana
+      image: docker.elastic.co/kibana/kibana:8.8.0
+    - name: redis
+      image: redis:7-alpine
+    - name: postgresql
+      image: postgres:15-alpine
+    - name: ai-engine
+      image: aiops/ai-engine:1.0.0
+    - name: api-gateway
+      image: aiops/api-gateway:1.0.0
+    - name: self-healing
+      image: aiops/self-healing:1.0.0
+  
+  # 变更日志
+  artifacthub.io/changes: |
+    - kind: added
+      description: 初始版本发布
+    - kind: added
+      description: 完整的监控堆栈支持
+    - kind: added
+      description: ELK日志处理栈
+    - kind: added
+      description: AI异常检测引擎
+    - kind: added
+      description: 自愈执行器
+    - kind: added
+      description: API网关和RESTful接口
+  
+  # 安全报告
+  artifacthub.io/containsSecurityUpdates: "false"
+  
+  # 预发布
+  artifacthub.io/prerelease: "false"
+  
+  # 推荐
+  artifacthub.io/recommendations: |
+    - url: https://artifacthub.io/packages/helm/prometheus-community/kube-prometheus-stack
+    - url: https://artifacthub.io/packages/helm/elastic/elasticsearch
+    - url: https://artifacthub.io/packages/helm/traefik/traefik
+  
+  # 截图
+  artifacthub.io/screenshots: |
+    - title: AIOps Dashboard
+      url: https://aiops-platform.com/screenshots/dashboard.png
+    - title: Monitoring Overview
+      url: https://aiops-platform.com/screenshots/monitoring.png
+    - title: Log Analysis
+      url: https://aiops-platform.com/screenshots/logs.png
+  
+  # 链接
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://docs.aiops-platform.com
+    - name: Support
+      url: https://support.aiops-platform.com
+    - name: Source Code
+      url: https://github.com/aiops-platform/aiops-platform
+
+# 依赖项
+dependencies:
+  # Prometheus监控堆栈
+  - name: kube-prometheus-stack
+    version: "~48.0.0"
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: prometheus.enabled
+    tags:
+      - monitoring
+    
+  # Elasticsearch
+  - name: elasticsearch
+    version: "~8.5.1"
+    repository: https://helm.elastic.co
+    condition: elasticsearch.enabled
+    tags:
+      - logging
+    
+  # Redis
+  - name: redis
+    version: "~17.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+    tags:
+      - cache
+    
+  # PostgreSQL
+  - name: postgresql
+    version: "~12.0.0"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+    tags:
+      - database
+    
+  # Traefik
+  - name: traefik
+    version: "~24.0.0"
+    repository: https://traefik.github.io/charts
+    condition: traefik.enabled
+    tags:
+      - ingress
+
+# 最小Kubernetes版本
+kubeVersion: ">=1.20.0-0"
+
+# 引擎约束
+engine: gotpl

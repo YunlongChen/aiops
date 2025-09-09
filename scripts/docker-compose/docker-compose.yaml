@@ -1,0 +1,15 @@
+version: '3'
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    command:
+      - "--api.insecure=true"    # 启用 Web UI（仅用于测试环境）
+      - "--providers.docker=true" # 启用 Docker 提供商
+      - "--providers.docker.exposedbydefault=false" # 仅暴露有标签的容器
+    ports:
+      - "808:80"     # HTTP 端口
+      - "8443:443"   # HTTPS 端口
+      - "8080:8080" # Web UI 端口（谨慎暴露）
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # 挂载 Docker 套接字

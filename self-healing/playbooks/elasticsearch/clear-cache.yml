@@ -1,0 +1,332 @@
+---
+# Elasticsearch缓存清理 Playbook
+# 用于清理Elasticsearch各种缓存以释放内存空间
+
+- name: 清理Elasticsearch缓存
+  hosts: elasticsearch_cluster
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    elasticsearch_port: 9200
+    clear_field_data: "{{ clear_field_data | default(true) }}"
+    clear_query_cache: "{{ clear_query_cache | default(true) }}"
+    clear_request_cache: "{{ clear_request_cache | default(true) }}"
+    force_merge: "{{ force_merge | default(false) }}"
+    max_num_segments: "{{ max_num_segments | default(1) }}"
+    indices_pattern: "{{ indices_pattern | default('*') }}"
+    memory_threshold: "{{ memory_threshold | default(85) }}"
+    
+  pre_tasks:
+    - name: 检查Elasticsearch服务状态
+      systemd:
+        name: elasticsearch
+      register: es_service_status
+      failed_when: es_service_status.status.ActiveState != 'active'
+    
+    - name: 检查集群健康状态
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/health"
+        method: GET
+        timeout: 10
+      register: cluster_health
+      failed_when: cluster_health.json.status == 'red'
+    
+    - name: 获取节点统计信息
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_nodes/_local/stats"
+        method: GET
+        timeout: 10
+      register: node_stats_before
+      changed_when: false
+    
+    - name: 计算当前内存使用率
+      set_fact:
+        current_memory_percent: "{{ ((node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].jvm.mem.heap_used_in_bytes | int) / (node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].jvm.mem.heap_max_in_bytes | int) * 100) | round(2) }}"
+    
+    - name: 显示当前内存使用情况
+      debug:
+        msg: |
+          当前节点内存使用情况:
+          - 节点: {{ inventory_hostname }}
+          - 堆内存使用率: {{ current_memory_percent }}%
+          - 已使用堆内存: {{ (node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].jvm.mem.heap_used_in_bytes | int / 1024 / 1024 / 1024) | round(2) }}GB
+          - 最大堆内存: {{ (node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].jvm.mem.heap_max_in_bytes | int / 1024 / 1024 / 1024) | round(2) }}GB
+          - Field Data缓存: {{ (node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].indices.fielddata.memory_size_in_bytes | int / 1024 / 1024) | round(2) }}MB
+          - Query缓存: {{ (node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].indices.query_cache.memory_size_in_bytes | int / 1024 / 1024) | round(2) }}MB
+          - Request缓存: {{ (node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].indices.request_cache.memory_size_in_bytes | int / 1024 / 1024) | round(2) }}MB
+    
+    - name: 检查是否需要清理缓存
+      fail:
+        msg: "当前内存使用率 {{ current_memory_percent }}% 低于阈值 {{ memory_threshold }}%，无需清理缓存"
+      when: current_memory_percent | float < memory_threshold | float and not force_clear | default(false)
+  
+  tasks:
+    - name: 获取索引列表
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cat/indices/{{ indices_pattern }}?format=json"
+        method: GET
+        timeout: 30
+      register: indices_list
+      changed_when: false
+    
+    - name: 显示将要清理的索引
+      debug:
+        msg: "将要清理缓存的索引: {{ indices_list.json | map(attribute='index') | list | join(', ') }}"
+      when: indices_list.json | length > 0
+    
+    - name: 清理Field Data缓存
+      block:
+        - name: 执行Field Data缓存清理
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/{{ indices_pattern }}/_cache/clear?fielddata=true"
+            method: POST
+            timeout: 60
+          register: fielddata_clear_result
+        
+        - name: 显示Field Data清理结果
+          debug:
+            msg: "Field Data缓存清理完成: {{ fielddata_clear_result.json._shards.successful }}/{{ fielddata_clear_result.json._shards.total }} 分片成功"
+      when: clear_field_data | bool
+      rescue:
+        - name: Field Data清理失败处理
+          debug:
+            msg: "Field Data缓存清理失败，继续执行其他清理操作"
+    
+    - name: 清理Query缓存
+      block:
+        - name: 执行Query缓存清理
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/{{ indices_pattern }}/_cache/clear?query=true"
+            method: POST
+            timeout: 60
+          register: query_clear_result
+        
+        - name: 显示Query缓存清理结果
+          debug:
+            msg: "Query缓存清理完成: {{ query_clear_result.json._shards.successful }}/{{ query_clear_result.json._shards.total }} 分片成功"
+      when: clear_query_cache | bool
+      rescue:
+        - name: Query缓存清理失败处理
+          debug:
+            msg: "Query缓存清理失败，继续执行其他清理操作"
+    
+    - name: 清理Request缓存
+      block:
+        - name: 执行Request缓存清理
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/{{ indices_pattern }}/_cache/clear?request=true"
+            method: POST
+            timeout: 60
+          register: request_clear_result
+        
+        - name: 显示Request缓存清理结果
+          debug:
+            msg: "Request缓存清理完成: {{ request_clear_result.json._shards.successful }}/{{ request_clear_result.json._shards.total }} 分片成功"
+      when: clear_request_cache | bool
+      rescue:
+        - name: Request缓存清理失败处理
+          debug:
+            msg: "Request缓存清理失败，继续执行其他清理操作"
+    
+    - name: 执行垃圾回收
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_nodes/_local/_jvm/gc"
+        method: POST
+        timeout: 30
+      register: gc_result
+      failed_when: false
+    
+    - name: 等待垃圾回收完成
+      pause:
+        seconds: 10
+      when: gc_result.status == 200
+    
+    - name: 强制合并索引（可选）
+      block:
+        - name: 检查索引分片数量
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cat/indices/{{ indices_pattern }}?format=json&h=index,segments.count"
+            method: GET
+            timeout: 30
+          register: segments_info
+        
+        - name: 显示分片信息
+          debug:
+            msg: "索引 {{ item.index }} 当前有 {{ item['segments.count'] }} 个分片"
+          loop: "{{ segments_info.json }}"
+          when: item['segments.count'] | int > max_num_segments | int
+        
+        - name: 执行强制合并
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/{{ indices_pattern }}/_forcemerge?max_num_segments={{ max_num_segments }}&wait_for_completion=false"
+            method: POST
+            timeout: 120
+          register: forcemerge_result
+          when: segments_info.json | selectattr('segments.count', 'match', '^[0-9]+$') | selectattr('segments.count', '>', max_num_segments | string) | list | length > 0
+        
+        - name: 显示强制合并结果
+          debug:
+            msg: "强制合并已启动，任务ID: {{ forcemerge_result.json.task if forcemerge_result.json.task is defined else '无' }}"
+          when: forcemerge_result is defined and forcemerge_result.json is defined
+      when: force_merge | bool
+      rescue:
+        - name: 强制合并失败处理
+          debug:
+            msg: "强制合并失败，但缓存清理操作已完成"
+    
+    - name: 等待操作完成
+      pause:
+        seconds: 5
+    
+    - name: 获取清理后的节点统计信息
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_nodes/_local/stats"
+        method: GET
+        timeout: 10
+      register: node_stats_after
+      changed_when: false
+    
+    - name: 计算清理后内存使用率
+      set_fact:
+        after_memory_percent: "{{ ((node_stats_after.json.nodes[node_stats_after.json.nodes.keys()[0]].jvm.mem.heap_used_in_bytes | int) / (node_stats_after.json.nodes[node_stats_after.json.nodes.keys()[0]].jvm.mem.heap_max_in_bytes | int) * 100) | round(2) }}"
+        memory_saved: "{{ ((node_stats_before.json.nodes[node_stats_before.json.nodes.keys()[0]].jvm.mem.heap_used_in_bytes | int) - (node_stats_after.json.nodes[node_stats_after.json.nodes.keys()[0]].jvm.mem.heap_used_in_bytes | int)) / 1024 / 1024 }}"
+    
+    - name: 检查集群健康状态
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cluster/health"
+        method: GET
+        timeout: 10
+      register: final_cluster_health
+      changed_when: false
+  
+  post_tasks:
+    - name: 显示缓存清理结果
+      debug:
+        msg: |
+          Elasticsearch缓存清理完成:
+          - 节点: {{ inventory_hostname }}
+          - 清理前内存使用率: {{ current_memory_percent }}%
+          - 清理后内存使用率: {{ after_memory_percent }}%
+          - 释放内存: {{ memory_saved | round(2) }}MB
+          - 集群状态: {{ final_cluster_health.json.status }}
+          - Field Data缓存: {{ 'cleared' if clear_field_data else 'skipped' }}
+          - Query缓存: {{ 'cleared' if clear_query_cache else 'skipped' }}
+          - Request缓存: {{ 'cleared' if clear_request_cache else 'skipped' }}
+          - 强制合并: {{ 'executed' if force_merge else 'skipped' }}
+    
+    - name: 记录清理日志
+      lineinfile:
+        path: "/var/log/elasticsearch-cache-clear.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ inventory_hostname }} - 缓存清理完成 - 内存使用率从 {{ current_memory_percent }}% 降至 {{ after_memory_percent }}% - 释放 {{ memory_saved | round(2) }}MB"
+        create: yes
+        mode: '0644'
+    
+    - name: 检查清理效果
+      fail:
+        msg: "缓存清理后内存使用率仍然过高 ({{ after_memory_percent }}%)，可能需要其他措施"
+      when: after_memory_percent | float > (memory_threshold | float - 5) and not ignore_threshold | default(false)
+    
+    - name: 发送清理报告
+      mail:
+        to: "{{ notification_email | default('admin@example.com') }}"
+        subject: "Elasticsearch缓存清理完成 - {{ inventory_hostname }}"
+        body: |
+          Elasticsearch缓存清理操作已完成。
+          
+          节点信息:
+          - 主机: {{ inventory_hostname }}
+          - IP地址: {{ ansible_default_ipv4.address }}
+          - 操作时间: {{ ansible_date_time.iso8601 }}
+          
+          清理结果:
+          - 清理前内存使用率: {{ current_memory_percent }}%
+          - 清理后内存使用率: {{ after_memory_percent }}%
+          - 释放内存: {{ memory_saved | round(2) }}MB
+          - 集群状态: {{ final_cluster_health.json.status }}
+          
+          清理操作:
+          - Field Data缓存: {{ 'cleared' if clear_field_data else 'skipped' }}
+          - Query缓存: {{ 'cleared' if clear_query_cache else 'skipped' }}
+          - Request缓存: {{ 'cleared' if clear_request_cache else 'skipped' }}
+          - 强制合并: {{ 'executed' if force_merge else 'skipped' }}
+          
+          {% if after_memory_percent | float > (memory_threshold | float - 5) %}
+          警告: 清理后内存使用率仍然较高，建议进一步检查。
+          {% endif %}
+      when: notification_email is defined
+      failed_when: false
+
+# 紧急内存清理任务
+- name: 紧急内存清理
+  hosts: elasticsearch_cluster
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: 紧急情况处理
+      block:
+        - name: 检查是否为紧急情况
+          uri:
+            url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_nodes/_local/stats"
+            method: GET
+            timeout: 5
+          register: emergency_stats
+        
+        - name: 计算紧急内存使用率
+          set_fact:
+            emergency_memory_percent: "{{ ((emergency_stats.json.nodes[emergency_stats.json.nodes.keys()[0]].jvm.mem.heap_used_in_bytes | int) / (emergency_stats.json.nodes[emergency_stats.json.nodes.keys()[0]].jvm.mem.heap_max_in_bytes | int) * 100) | round(2) }}"
+        
+        - name: 执行紧急清理
+          block:
+            - name: 清理所有缓存
+              uri:
+                url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_cache/clear"
+                method: POST
+                timeout: 30
+              register: emergency_clear
+            
+            - name: 强制垃圾回收
+              uri:
+                url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_nodes/_local/_jvm/gc"
+                method: POST
+                timeout: 10
+              register: emergency_gc
+              failed_when: false
+            
+            - name: 等待清理完成
+              pause:
+                seconds: 15
+            
+            - name: 检查紧急清理效果
+              uri:
+                url: "http://{{ ansible_default_ipv4.address }}:{{ elasticsearch_port }}/_nodes/_local/stats"
+                method: GET
+                timeout: 5
+              register: post_emergency_stats
+            
+            - name: 计算紧急清理后内存使用率
+              set_fact:
+                post_emergency_memory_percent: "{{ ((post_emergency_stats.json.nodes[post_emergency_stats.json.nodes.keys()[0]].jvm.mem.heap_used_in_bytes | int) / (post_emergency_stats.json.nodes[post_emergency_stats.json.nodes.keys()[0]].jvm.mem.heap_max_in_bytes | int) * 100) | round(2) }}"
+            
+            - name: 发送紧急清理通知
+              mail:
+                to: "{{ emergency_contact | default('emergency@example.com') }}"
+                subject: "紧急: Elasticsearch内存清理执行 - {{ inventory_hostname }}"
+                body: |
+                  紧急内存清理已执行。
+                  
+                  节点: {{ inventory_hostname }}
+                  清理前内存使用率: {{ emergency_memory_percent }}%
+                  清理后内存使用率: {{ post_emergency_memory_percent }}%
+                  
+                  {% if post_emergency_memory_percent | float > 90 %}
+                  警告: 清理后内存使用率仍然极高，可能需要重启服务或扩容。
+                  {% endif %}
+              when: emergency_contact is defined
+              failed_when: false
+          when: emergency_memory_percent | float > 95
+      when: emergency_cleanup | default(false)
+      rescue:
+        - name: 紧急清理失败
+          debug:
+            msg: "紧急内存清理失败，建议立即人工干预"

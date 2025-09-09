@@ -1,0 +1,486 @@
+---
+# 网络连接修复Playbook
+# 用于诊断和修复网络连接问题
+
+- name: "网络连接诊断和修复"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # 网络诊断参数
+    target_host: "{{ target_host | default('8.8.8.8') }}"
+    target_port: "{{ target_port | default('53') }}"
+    dns_servers: "{{ dns_servers | default(['8.8.8.8', '1.1.1.1', '114.114.114.114']) }}"
+    test_urls: "{{ test_urls | default(['http://www.baidu.com', 'https://www.google.com']) }}"
+    
+    # 修复选项
+    restart_network: "{{ restart_network | default(true) }}"
+    flush_dns: "{{ flush_dns | default(true) }}"
+    reset_iptables: "{{ reset_iptables | default(false) }}"
+    fix_routing: "{{ fix_routing | default(true) }}"
+    
+    # 超时设置
+    ping_timeout: "{{ ping_timeout | default(10) }}"
+    curl_timeout: "{{ curl_timeout | default(30) }}"
+    
+    # 日志配置
+    log_file: "/var/log/self-healing/network-fix.log"
+    
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "/var/log/self-healing"
+        state: directory
+        mode: '0755'
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+    
+    - name: "记录操作开始"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ start_time }}] 开始网络连接诊断和修复操作"
+        create: yes
+
+  tasks:
+    # 网络连接诊断
+    - name: "检查网络接口状态"
+      shell: |
+        echo "=== 网络接口状态 ==="
+        ip addr show
+        echo ""
+        echo "=== 路由表 ==="
+        ip route show
+        echo ""
+        echo "=== DNS配置 ==="
+        cat /etc/resolv.conf
+      register: network_status
+      changed_when: false
+    
+    - name: "记录网络状态"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 网络状态检查完成"
+    
+    - name: "测试基本网络连通性"
+      shell: |
+        echo "=== Ping测试 ==="
+        {% for host in [target_host] + dns_servers %}
+        echo "测试连接到 {{ host }}:"
+        if ping -c 3 -W {{ ping_timeout }} {{ host }}; then
+          echo "{{ host }}: 连接正常"
+        else
+          echo "{{ host }}: 连接失败"
+        fi
+        echo ""
+        {% endfor %}
+      register: ping_test
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: "测试DNS解析"
+      shell: |
+        echo "=== DNS解析测试 ==="
+        {% for url in test_urls %}
+        domain=$(echo "{{ url }}" | sed 's|https\?://||' | cut -d'/' -f1)
+        echo "解析域名 $domain:"
+        if nslookup $domain; then
+          echo "$domain: 解析成功"
+        else
+          echo "$domain: 解析失败"
+        fi
+        echo ""
+        {% endfor %}
+      register: dns_test
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: "测试HTTP连接"
+      shell: |
+        echo "=== HTTP连接测试 ==="
+        {% for url in test_urls %}
+        echo "测试连接到 {{ url }}:"
+        if curl -s --connect-timeout {{ curl_timeout }} -I "{{ url }}" | head -1; then
+          echo "{{ url }}: 连接成功"
+        else
+          echo "{{ url }}: 连接失败"
+        fi
+        echo ""
+        {% endfor %}
+      register: http_test
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: "检查端口连通性"
+      shell: |
+        echo "=== 端口连通性测试 ==="
+        if command -v nc >/dev/null 2>&1; then
+          echo "测试端口 {{ target_host }}:{{ target_port }}:"
+          if timeout {{ ping_timeout }} nc -z {{ target_host }} {{ target_port }}; then
+            echo "{{ target_host }}:{{ target_port }}: 端口开放"
+          else
+            echo "{{ target_host }}:{{ target_port }}: 端口不可达"
+          fi
+        else
+          echo "nc命令不可用，跳过端口测试"
+        fi
+      register: port_test
+      changed_when: false
+      ignore_errors: yes
+    
+    # 分析网络问题
+    - name: "分析网络问题"
+      set_fact:
+        network_issues:
+          ping_failed: "{{ 'ping: ' in ping_test.stdout and '100% packet loss' in ping_test.stdout }}"
+          dns_failed: "{{ 'NXDOMAIN' in dns_test.stdout or 'connection timed out' in dns_test.stdout }}"
+          http_failed: "{{ 'curl: ' in http_test.stdout and ('Connection refused' in http_test.stdout or 'timeout' in http_test.stdout) }}"
+          port_blocked: "{{ port_test.stdout is defined and 'port not reachable' in port_test.stdout }}"
+    
+    - name: "记录诊断结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 网络诊断完成 - 问题: {{ network_issues }}"
+    
+    # 网络修复操作
+    - name: "刷新DNS缓存"
+      shell: |
+        echo "刷新DNS缓存..."
+        # 不同系统的DNS缓存刷新方法
+        if command -v systemd-resolve >/dev/null 2>&1; then
+          systemd-resolve --flush-caches
+          echo "systemd-resolved DNS缓存已刷新"
+        elif command -v nscd >/dev/null 2>&1; then
+          systemctl restart nscd
+          echo "nscd DNS缓存已刷新"
+        elif [ -f /etc/init.d/dns-clean ]; then
+          /etc/init.d/dns-clean restart
+          echo "DNS缓存已刷新"
+        else
+          echo "未找到DNS缓存服务，跳过刷新"
+        fi
+      register: dns_flush_result
+      when: 
+        - flush_dns
+        - network_issues.dns_failed
+    
+    - name: "修复DNS配置"
+      shell: |
+        echo "检查和修复DNS配置..."
+        
+        # 备份当前DNS配置
+        cp /etc/resolv.conf /etc/resolv.conf.backup.$(date +%Y%m%d_%H%M%S)
+        
+        # 检查DNS服务器配置
+        if ! grep -q "nameserver" /etc/resolv.conf; then
+          echo "DNS配置为空，添加默认DNS服务器"
+          {% for dns in dns_servers %}
+          echo "nameserver {{ dns }}" >> /etc/resolv.conf
+          {% endfor %}
+        else
+          echo "DNS配置存在，检查可用性"
+          # 测试当前DNS服务器
+          while read -r line; do
+            if [[ $line == nameserver* ]]; then
+              dns_server=$(echo $line | awk '{print $2}')
+              if ! ping -c 1 -W 5 $dns_server >/dev/null 2>&1; then
+                echo "DNS服务器 $dns_server 不可达，将其注释"
+                sed -i "s/^nameserver $dns_server/#nameserver $dns_server/" /etc/resolv.conf
+              fi
+            fi
+          done < /etc/resolv.conf
+          
+          # 如果没有可用的DNS服务器，添加备用DNS
+          if ! grep -q "^nameserver" /etc/resolv.conf; then
+            echo "所有DNS服务器不可用，添加备用DNS"
+            {% for dns in dns_servers %}
+            echo "nameserver {{ dns }}" >> /etc/resolv.conf
+            {% endfor %}
+          fi
+        fi
+        
+        echo "DNS配置修复完成"
+        cat /etc/resolv.conf
+      register: dns_fix_result
+      when: network_issues.dns_failed
+    
+    - name: "重启网络服务"
+      shell: |
+        echo "重启网络服务..."
+        
+        # 检测系统类型并重启相应的网络服务
+        if systemctl is-active NetworkManager >/dev/null 2>&1; then
+          echo "重启NetworkManager服务"
+          systemctl restart NetworkManager
+          sleep 5
+          systemctl status NetworkManager --no-pager -l
+        elif systemctl is-active networking >/dev/null 2>&1; then
+          echo "重启networking服务"
+          systemctl restart networking
+          sleep 5
+          systemctl status networking --no-pager -l
+        elif [ -f /etc/init.d/network ]; then
+          echo "重启network服务"
+          /etc/init.d/network restart
+          sleep 5
+        else
+          echo "未找到网络服务，尝试重启网络接口"
+          # 获取主要网络接口
+          main_interface=$(ip route | grep default | awk '{print $5}' | head -1)
+          if [ -n "$main_interface" ]; then
+            echo "重启网络接口: $main_interface"
+            ip link set $main_interface down
+            sleep 2
+            ip link set $main_interface up
+            sleep 5
+          fi
+        fi
+        
+        echo "网络服务重启完成"
+      register: network_restart_result
+      when: 
+        - restart_network
+        - (network_issues.ping_failed or network_issues.http_failed)
+    
+    - name: "修复路由表"
+      shell: |
+        echo "检查和修复路由表..."
+        
+        # 检查默认路由
+        if ! ip route | grep -q "default"; then
+          echo "缺少默认路由，尝试添加"
+          
+          # 获取网关地址
+          gateway=$(ip route | grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+" | head -1 | awk '{print $1}' | cut -d'/' -f1 | sed 's/\.[0-9]*$/.1/')
+          interface=$(ip route | grep -E "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+" | head -1 | awk '{print $3}')
+          
+          if [ -n "$gateway" ] && [ -n "$interface" ]; then
+            echo "添加默认路由: $gateway via $interface"
+            ip route add default via $gateway dev $interface
+          else
+            echo "无法确定网关地址，跳过路由修复"
+          fi
+        else
+          echo "默认路由存在"
+        fi
+        
+        # 显示当前路由表
+        echo "当前路由表:"
+        ip route show
+      register: route_fix_result
+      when: 
+        - fix_routing
+        - network_issues.ping_failed
+    
+    - name: "重置防火墙规则（谨慎操作）"
+      shell: |
+        echo "重置iptables规则..."
+        
+        # 备份当前规则
+        iptables-save > /etc/iptables.backup.$(date +%Y%m%d_%H%M%S)
+        
+        # 重置为默认规则
+        iptables -F
+        iptables -X
+        iptables -t nat -F
+        iptables -t nat -X
+        iptables -t mangle -F
+        iptables -t mangle -X
+        
+        # 设置默认策略
+        iptables -P INPUT ACCEPT
+        iptables -P FORWARD ACCEPT
+        iptables -P OUTPUT ACCEPT
+        
+        # 允许回环接口
+        iptables -A INPUT -i lo -j ACCEPT
+        iptables -A OUTPUT -o lo -j ACCEPT
+        
+        # 允许已建立的连接
+        iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+        
+        echo "iptables规则已重置"
+        iptables -L -n
+      register: iptables_reset_result
+      when: 
+        - reset_iptables
+        - (network_issues.ping_failed or network_issues.port_blocked)
+    
+    - name: "检查网络接口配置"
+      shell: |
+        echo "检查网络接口配置..."
+        
+        # 检查主要网络接口
+        main_interface=$(ip route | grep default | awk '{print $5}' | head -1)
+        
+        if [ -n "$main_interface" ]; then
+          echo "主要网络接口: $main_interface"
+          
+          # 检查接口状态
+          if ip link show $main_interface | grep -q "state UP"; then
+            echo "接口 $main_interface 状态正常"
+          else
+            echo "接口 $main_interface 状态异常，尝试启用"
+            ip link set $main_interface up
+            sleep 3
+          fi
+          
+          # 检查IP地址
+          if ip addr show $main_interface | grep -q "inet "; then
+            ip_addr=$(ip addr show $main_interface | grep "inet " | awk '{print $2}' | head -1)
+            echo "接口 $main_interface IP地址: $ip_addr"
+          else
+            echo "接口 $main_interface 没有IP地址，尝试通过DHCP获取"
+            if command -v dhclient >/dev/null 2>&1; then
+              dhclient $main_interface
+              sleep 5
+            elif command -v dhcpcd >/dev/null 2>&1; then
+              dhcpcd $main_interface
+              sleep 5
+            fi
+          fi
+        else
+          echo "未找到主要网络接口"
+        fi
+      register: interface_check_result
+      when: network_issues.ping_failed
+    
+    # 修复后验证
+    - name: "等待网络稳定"
+      wait_for:
+        timeout: 30
+      when: network_restart_result is defined or route_fix_result is defined
+    
+    - name: "验证网络修复效果"
+      shell: |
+        echo "=== 修复后网络测试 ==="
+        
+        # 重新测试ping
+        echo "Ping测试:"
+        {% for host in [target_host] + dns_servers[:2] %}
+        if ping -c 2 -W {{ ping_timeout }} {{ host }} >/dev/null 2>&1; then
+          echo "{{ host }}: 连接正常 ✓"
+        else
+          echo "{{ host }}: 连接失败 ✗"
+        fi
+        {% endfor %}
+        
+        # 重新测试DNS
+        echo ""
+        echo "DNS解析测试:"
+        {% for url in test_urls[:2] %}
+        domain=$(echo "{{ url }}" | sed 's|https\?://||' | cut -d'/' -f1)
+        if nslookup $domain >/dev/null 2>&1; then
+          echo "$domain: 解析成功 ✓"
+        else
+          echo "$domain: 解析失败 ✗"
+        fi
+        {% endfor %}
+        
+        # 重新测试HTTP
+        echo ""
+        echo "HTTP连接测试:"
+        {% for url in test_urls[:2] %}
+        if curl -s --connect-timeout {{ curl_timeout }} -I "{{ url }}" >/dev/null 2>&1; then
+          echo "{{ url }}: 连接成功 ✓"
+        else
+          echo "{{ url }}: 连接失败 ✗"
+        fi
+        {% endfor %}
+      register: post_fix_test
+      changed_when: false
+    
+    - name: "分析修复结果"
+      set_fact:
+        fix_success:
+          ping_fixed: "{{ '连接正常 ✓' in post_fix_test.stdout }}"
+          dns_fixed: "{{ '解析成功 ✓' in post_fix_test.stdout }}"
+          http_fixed: "{{ '连接成功 ✓' in post_fix_test.stdout }}"
+        overall_success: "{{ ('连接正常 ✓' in post_fix_test.stdout) and ('解析成功 ✓' in post_fix_test.stdout) and ('连接成功 ✓' in post_fix_test.stdout) }}"
+    
+    - name: "记录修复结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 网络修复完成 - 成功: {{ overall_success }}, 详情: {{ fix_success }}"
+
+  post_tasks:
+    - name: "生成网络修复报告"
+      set_fact:
+        network_fix_report:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          host: "{{ inventory_hostname }}"
+          initial_issues: "{{ network_issues }}"
+          actions_taken:
+            dns_flush: "{{ dns_flush_result is defined }}"
+            dns_fix: "{{ dns_fix_result is defined }}"
+            network_restart: "{{ network_restart_result is defined }}"
+            route_fix: "{{ route_fix_result is defined }}"
+            iptables_reset: "{{ iptables_reset_result is defined }}"
+            interface_check: "{{ interface_check_result is defined }}"
+          fix_results: "{{ fix_success }}"
+          overall_success: "{{ overall_success }}"
+          network_status_before: "{{ network_status.stdout_lines[:10] | join('\n') }}"
+          network_status_after: "{{ post_fix_test.stdout }}"
+    
+    - name: "记录操作完成"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 网络修复操作完成 - 报告: {{ network_fix_report | to_json }}"
+    
+    - name: "发送成功通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "network_fix"
+          status: "success"
+          host: "{{ inventory_hostname }}"
+          message: "网络连接修复成功"
+          details: "{{ network_fix_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - overall_success
+      ignore_errors: yes
+    
+    - name: "发送失败通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "network_fix"
+          status: "failed"
+          host: "{{ inventory_hostname }}"
+          message: "网络连接修复失败，需要人工干预"
+          details: "{{ network_fix_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - not overall_success
+      ignore_errors: yes
+
+  handlers:
+    - name: "重启网络管理器"
+      systemd:
+        name: NetworkManager
+        state: restarted
+      listen: "restart network manager"
+    
+    - name: "重启网络服务"
+      systemd:
+        name: networking
+        state: restarted
+      listen: "restart networking"
+    
+    - name: "刷新DNS缓存"
+      shell: |
+        if command -v systemd-resolve >/dev/null 2>&1; then
+          systemd-resolve --flush-caches
+        elif command -v nscd >/dev/null 2>&1; then
+          systemctl restart nscd
+        fi
+      listen: "flush dns cache"

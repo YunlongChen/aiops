@@ -1,0 +1,577 @@
+---
+# SSL证书更新Playbook
+# 用于自动更新即将过期的SSL证书
+
+- name: "SSL证书更新和管理"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # 证书配置
+    cert_path: "{{ cert_path | default('/etc/ssl/certs') }}"
+    key_path: "{{ key_path | default('/etc/ssl/private') }}"
+    cert_name: "{{ cert_name | default('server') }}"
+    domain_name: "{{ domain_name | default('') }}"
+    
+    # Let's Encrypt配置
+    use_letsencrypt: "{{ use_letsencrypt | default(true) }}"
+    letsencrypt_email: "{{ letsencrypt_email | default('') }}"
+    acme_challenge_type: "{{ acme_challenge_type | default('http') }}"  # http, dns
+    webroot_path: "{{ webroot_path | default('/var/www/html') }}"
+    
+    # 自签名证书配置
+    use_selfsigned: "{{ use_selfsigned | default(false) }}"
+    cert_country: "{{ cert_country | default('CN') }}"
+    cert_state: "{{ cert_state | default('Beijing') }}"
+    cert_city: "{{ cert_city | default('Beijing') }}"
+    cert_org: "{{ cert_org | default('Self-Healing System') }}"
+    cert_unit: "{{ cert_unit | default('IT Department') }}"
+    
+    # 证书有效期
+    cert_validity_days: "{{ cert_validity_days | default(365) }}"
+    renewal_threshold_days: "{{ renewal_threshold_days | default(30) }}"
+    
+    # 服务重启配置
+    services_to_restart: "{{ services_to_restart | default(['nginx', 'apache2', 'httpd']) }}"
+    
+    # 日志配置
+    log_file: "/var/log/self-healing/ssl-cert-update.log"
+    
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "/var/log/self-healing"
+        state: directory
+        mode: '0755'
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+    
+    - name: "验证参数"
+      assert:
+        that:
+          - domain_name != '' or use_selfsigned
+          - cert_path != ''
+          - key_path != ''
+        fail_msg: "SSL证书参数验证失败"
+    
+    - name: "记录操作开始"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ start_time }}] 开始SSL证书更新操作 - 域名: {{ domain_name | default('自签名') }}"
+        create: yes
+
+  tasks:
+    # 检查当前证书状态
+    - name: "检查现有证书"
+      shell: |
+        echo "=== 当前证书状态 ==="
+        cert_file="{{ cert_path }}/{{ cert_name }}.crt"
+        key_file="{{ key_path }}/{{ cert_name }}.key"
+        
+        if [ -f "$cert_file" ]; then
+          echo "证书文件存在: $cert_file"
+          
+          # 检查证书有效期
+          expiry_date=$(openssl x509 -in "$cert_file" -noout -enddate | cut -d= -f2)
+          expiry_timestamp=$(date -d "$expiry_date" +%s)
+          current_timestamp=$(date +%s)
+          days_until_expiry=$(( (expiry_timestamp - current_timestamp) / 86400 ))
+          
+          echo "证书过期时间: $expiry_date"
+          echo "距离过期天数: $days_until_expiry"
+          
+          # 检查证书详情
+          echo "证书详情:"
+          openssl x509 -in "$cert_file" -noout -subject -issuer -dates
+          
+          # 检查证书和私钥匹配
+          if [ -f "$key_file" ]; then
+            cert_hash=$(openssl x509 -in "$cert_file" -noout -modulus | openssl md5)
+            key_hash=$(openssl rsa -in "$key_file" -noout -modulus | openssl md5)
+            
+            if [ "$cert_hash" = "$key_hash" ]; then
+              echo "证书和私钥匹配: 是"
+            else
+              echo "证书和私钥匹配: 否"
+            fi
+          else
+            echo "私钥文件不存在: $key_file"
+          fi
+          
+          echo "needs_renewal=$([[ $days_until_expiry -lt {{ renewal_threshold_days }} ]] && echo 'true' || echo 'false')"
+        else
+          echo "证书文件不存在: $cert_file"
+          echo "needs_renewal=true"
+        fi
+      register: cert_status
+      changed_when: false
+    
+    - name: "解析证书状态"
+      set_fact:
+        cert_exists: "{{ '证书文件存在' in cert_status.stdout }}"
+        needs_renewal: "{{ 'needs_renewal=true' in cert_status.stdout }}"
+        days_until_expiry: "{{ cert_status.stdout | regex_search('距离过期天数: ([0-9-]+)', '\\1') | first | default('0') | int }}"
+    
+    - name: "记录证书状态"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 证书状态检查 - 存在: {{ cert_exists }}, 需要更新: {{ needs_renewal }}, 剩余天数: {{ days_until_expiry }}"
+    
+    # 安装必要的工具
+    - name: "安装OpenSSL"
+      package:
+        name: openssl
+        state: present
+    
+    - name: "安装Certbot（Let's Encrypt客户端）"
+      package:
+        name: "{{ 'certbot' if ansible_os_family == 'Debian' else 'certbot' }}"
+        state: present
+      when: 
+        - use_letsencrypt
+        - needs_renewal
+      ignore_errors: yes
+    
+    - name: "安装Certbot Nginx插件"
+      package:
+        name: "{{ 'python3-certbot-nginx' if ansible_os_family == 'Debian' else 'python3-certbot-nginx' }}"
+        state: present
+      when: 
+        - use_letsencrypt
+        - needs_renewal
+        - "'nginx' in services_to_restart"
+      ignore_errors: yes
+    
+    - name: "安装Certbot Apache插件"
+      package:
+        name: "{{ 'python3-certbot-apache' if ansible_os_family == 'Debian' else 'python3-certbot-apache' }}"
+        state: present
+      when: 
+        - use_letsencrypt
+        - needs_renewal
+        - "('apache2' in services_to_restart) or ('httpd' in services_to_restart)"
+      ignore_errors: yes
+    
+    # 创建证书目录
+    - name: "创建证书目录"
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ cert_path }}"
+        - "{{ key_path }}"
+      when: needs_renewal
+    
+    # 备份现有证书
+    - name: "备份现有证书"
+      shell: |
+        backup_dir="/etc/ssl/backup/$(date +%Y%m%d_%H%M%S)"
+        mkdir -p "$backup_dir"
+        
+        cert_file="{{ cert_path }}/{{ cert_name }}.crt"
+        key_file="{{ key_path }}/{{ cert_name }}.key"
+        
+        if [ -f "$cert_file" ]; then
+          cp "$cert_file" "$backup_dir/"
+          echo "证书已备份到: $backup_dir/$(basename $cert_file)"
+        fi
+        
+        if [ -f "$key_file" ]; then
+          cp "$key_file" "$backup_dir/"
+          echo "私钥已备份到: $backup_dir/$(basename $key_file)"
+        fi
+        
+        echo "backup_dir=$backup_dir"
+      register: cert_backup
+      when: 
+        - cert_exists
+        - needs_renewal
+    
+    # Let's Encrypt证书申请
+    - name: "申请Let's Encrypt证书（HTTP验证）"
+      shell: |
+        echo "使用HTTP验证申请Let's Encrypt证书..."
+        
+        # 确保webroot目录存在
+        mkdir -p "{{ webroot_path }}/.well-known/acme-challenge"
+        
+        # 申请证书
+        certbot certonly \
+          --webroot \
+          --webroot-path "{{ webroot_path }}" \
+          --email "{{ letsencrypt_email }}" \
+          --agree-tos \
+          --non-interactive \
+          --domains "{{ domain_name }}" \
+          --cert-name "{{ cert_name }}"
+        
+        if [ $? -eq 0 ]; then
+          echo "Let's Encrypt证书申请成功"
+          
+          # 复制证书到指定位置
+          cp "/etc/letsencrypt/live/{{ cert_name }}/fullchain.pem" "{{ cert_path }}/{{ cert_name }}.crt"
+          cp "/etc/letsencrypt/live/{{ cert_name }}/privkey.pem" "{{ key_path }}/{{ cert_name }}.key"
+          
+          # 设置权限
+          chmod 644 "{{ cert_path }}/{{ cert_name }}.crt"
+          chmod 600 "{{ key_path }}/{{ cert_name }}.key"
+          
+          echo "证书已复制到指定位置"
+        else
+          echo "Let's Encrypt证书申请失败"
+          exit 1
+        fi
+      register: letsencrypt_result
+      when: 
+        - use_letsencrypt
+        - needs_renewal
+        - acme_challenge_type == 'http'
+        - letsencrypt_email != ''
+        - domain_name != ''
+    
+    - name: "申请Let's Encrypt证书（DNS验证）"
+      shell: |
+        echo "使用DNS验证申请Let's Encrypt证书..."
+        echo "注意: DNS验证需要手动配置DNS记录或使用DNS插件"
+        
+        # 这里需要根据具体的DNS提供商配置相应的插件
+        # 示例使用手动DNS验证
+        certbot certonly \
+          --manual \
+          --preferred-challenges dns \
+          --email "{{ letsencrypt_email }}" \
+          --agree-tos \
+          --non-interactive \
+          --domains "{{ domain_name }}" \
+          --cert-name "{{ cert_name }}"
+        
+        if [ $? -eq 0 ]; then
+          echo "Let's Encrypt证书申请成功"
+          
+          # 复制证书到指定位置
+          cp "/etc/letsencrypt/live/{{ cert_name }}/fullchain.pem" "{{ cert_path }}/{{ cert_name }}.crt"
+          cp "/etc/letsencrypt/live/{{ cert_name }}/privkey.pem" "{{ key_path }}/{{ cert_name }}.key"
+          
+          # 设置权限
+          chmod 644 "{{ cert_path }}/{{ cert_name }}.crt"
+          chmod 600 "{{ key_path }}/{{ cert_name }}.key"
+          
+          echo "证书已复制到指定位置"
+        else
+          echo "Let's Encrypt证书申请失败"
+          exit 1
+        fi
+      register: letsencrypt_dns_result
+      when: 
+        - use_letsencrypt
+        - needs_renewal
+        - acme_challenge_type == 'dns'
+        - letsencrypt_email != ''
+        - domain_name != ''
+    
+    # 生成自签名证书
+    - name: "生成自签名证书私钥"
+      shell: |
+        echo "生成自签名证书私钥..."
+        openssl genrsa -out "{{ key_path }}/{{ cert_name }}.key" 2048
+        chmod 600 "{{ key_path }}/{{ cert_name }}.key"
+        echo "私钥生成完成"
+      register: selfsigned_key_result
+      when: 
+        - use_selfsigned
+        - needs_renewal
+    
+    - name: "生成自签名证书"
+      shell: |
+        echo "生成自签名证书..."
+        
+        # 创建证书配置文件
+        cat > /tmp/cert.conf << EOF
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = {{ cert_country }}
+ST = {{ cert_state }}
+L = {{ cert_city }}
+O = {{ cert_org }}
+OU = {{ cert_unit }}
+CN = {{ domain_name | default(ansible_fqdn) }}
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = {{ domain_name | default(ansible_fqdn) }}
+DNS.2 = localhost
+IP.1 = 127.0.0.1
+{% if ansible_default_ipv4.address is defined %}
+IP.2 = {{ ansible_default_ipv4.address }}
+{% endif %}
+EOF
+        
+        # 生成证书
+        openssl req -new -x509 \
+          -key "{{ key_path }}/{{ cert_name }}.key" \
+          -out "{{ cert_path }}/{{ cert_name }}.crt" \
+          -days {{ cert_validity_days }} \
+          -config /tmp/cert.conf \
+          -extensions v3_req
+        
+        # 设置权限
+        chmod 644 "{{ cert_path }}/{{ cert_name }}.crt"
+        
+        # 清理临时文件
+        rm -f /tmp/cert.conf
+        
+        echo "自签名证书生成完成"
+        
+        # 显示证书信息
+        openssl x509 -in "{{ cert_path }}/{{ cert_name }}.crt" -noout -subject -dates
+      register: selfsigned_cert_result
+      when: 
+        - use_selfsigned
+        - needs_renewal
+        - selfsigned_key_result is succeeded
+    
+    # 验证新证书
+    - name: "验证新证书"
+      shell: |
+        echo "=== 验证新证书 ==="
+        cert_file="{{ cert_path }}/{{ cert_name }}.crt"
+        key_file="{{ key_path }}/{{ cert_name }}.key"
+        
+        if [ -f "$cert_file" ] && [ -f "$key_file" ]; then
+          # 检查证书有效性
+          if openssl x509 -in "$cert_file" -noout -checkend 0; then
+            echo "证书有效性: 有效 ✓"
+          else
+            echo "证书有效性: 无效 ✗"
+          fi
+          
+          # 检查证书和私钥匹配
+          cert_hash=$(openssl x509 -in "$cert_file" -noout -modulus | openssl md5)
+          key_hash=$(openssl rsa -in "$key_file" -noout -modulus | openssl md5)
+          
+          if [ "$cert_hash" = "$key_hash" ]; then
+            echo "证书私钥匹配: 匹配 ✓"
+          else
+            echo "证书私钥匹配: 不匹配 ✗"
+          fi
+          
+          # 显示证书信息
+          echo "证书信息:"
+          openssl x509 -in "$cert_file" -noout -subject -issuer -dates
+          
+          # 检查证书链
+          echo "证书链验证:"
+          if openssl verify "$cert_file" 2>/dev/null; then
+            echo "证书链: 有效 ✓"
+          else
+            echo "证书链: 无效（自签名证书正常） ⚠"
+          fi
+        else
+          echo "证书或私钥文件不存在"
+          exit 1
+        fi
+      register: cert_validation
+      when: needs_renewal
+      changed_when: false
+    
+    # 更新证书权限
+    - name: "设置证书文件权限"
+      file:
+        path: "{{ item.path }}"
+        mode: "{{ item.mode }}"
+        owner: root
+        group: "{{ item.group | default('root') }}"
+      loop:
+        - { path: "{{ cert_path }}/{{ cert_name }}.crt", mode: '0644' }
+        - { path: "{{ key_path }}/{{ cert_name }}.key", mode: '0600', group: 'ssl-cert' }
+      when: needs_renewal
+      ignore_errors: yes
+    
+    # 重启相关服务
+    - name: "检查服务状态"
+      shell: |
+        echo "=== 检查需要重启的服务 ==="
+        services_to_restart=()
+        
+        {% for service in services_to_restart %}
+        if systemctl is-active {{ service }} >/dev/null 2>&1; then
+          echo "服务 {{ service }} 正在运行，需要重启"
+          services_to_restart+=("{{ service }}")
+        elif systemctl is-enabled {{ service }} >/dev/null 2>&1; then
+          echo "服务 {{ service }} 已启用但未运行"
+        else
+          echo "服务 {{ service }} 不存在或未启用"
+        fi
+        {% endfor %}
+        
+        echo "需要重启的服务: ${services_to_restart[@]}"
+        echo "restart_services=${services_to_restart[@]}"
+      register: service_check
+      when: needs_renewal
+      changed_when: false
+    
+    - name: "重启Web服务"
+      systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop: "{{ services_to_restart }}"
+      when: 
+        - needs_renewal
+        - service_check is defined
+        - item in service_check.stdout
+      ignore_errors: yes
+      register: service_restart_results
+    
+    # 验证服务重启
+    - name: "验证服务重启状态"
+      shell: |
+        echo "=== 验证服务重启状态 ==="
+        {% for service in services_to_restart %}
+        if systemctl is-active {{ service }} >/dev/null 2>&1; then
+          echo "服务 {{ service }}: 运行正常 ✓"
+        else
+          echo "服务 {{ service }}: 未运行 ✗"
+        fi
+        {% endfor %}
+      register: service_status_check
+      when: needs_renewal
+      changed_when: false
+    
+    # 测试HTTPS连接
+    - name: "测试HTTPS连接"
+      shell: |
+        echo "=== 测试HTTPS连接 ==="
+        
+        if [ -n "{{ domain_name }}" ]; then
+          # 测试HTTPS连接
+          if curl -k -s --connect-timeout 10 "https://{{ domain_name }}" >/dev/null 2>&1; then
+            echo "HTTPS连接测试: 成功 ✓"
+          else
+            echo "HTTPS连接测试: 失败 ✗"
+          fi
+          
+          # 检查证书信息
+          echo "证书信息验证:"
+          echo | openssl s_client -connect {{ domain_name }}:443 -servername {{ domain_name }} 2>/dev/null | openssl x509 -noout -dates 2>/dev/null || echo "无法获取远程证书信息"
+        else
+          echo "未指定域名，跳过HTTPS连接测试"
+        fi
+      register: https_test
+      when: 
+        - needs_renewal
+        - domain_name != ''
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: "分析更新结果"
+      set_fact:
+        cert_update_success: >
+          {%- if use_letsencrypt -%}
+            {{ (letsencrypt_result is defined and letsencrypt_result.rc == 0) or (letsencrypt_dns_result is defined and letsencrypt_dns_result.rc == 0) }}
+          {%- elif use_selfsigned -%}
+            {{ selfsigned_cert_result is defined and selfsigned_cert_result.rc == 0 }}
+          {%- else -%}
+            false
+          {%- endif -%}
+        cert_validation_success: "{{ cert_validation is defined and '有效 ✓' in cert_validation.stdout and '匹配 ✓' in cert_validation.stdout }}"
+        services_restarted: "{{ service_restart_results is defined and service_restart_results.results | selectattr('failed', 'undefined') | list | length > 0 }}"
+    
+    - name: "记录更新结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] SSL证书更新完成 - 成功: {{ cert_update_success and cert_validation_success }}"
+
+  post_tasks:
+    - name: "生成SSL证书更新报告"
+      set_fact:
+        ssl_update_report:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          host: "{{ inventory_hostname }}"
+          domain: "{{ domain_name | default('自签名') }}"
+          cert_type: "{{ 'Let\'s Encrypt' if use_letsencrypt else '自签名' }}"
+          initial_status:
+            cert_existed: "{{ cert_exists }}"
+            days_until_expiry: "{{ days_until_expiry }}"
+            needed_renewal: "{{ needs_renewal }}"
+          update_results:
+            cert_generated: "{{ cert_update_success }}"
+            cert_validated: "{{ cert_validation_success }}"
+            services_restarted: "{{ services_restarted }}"
+          final_status:
+            cert_path: "{{ cert_path }}/{{ cert_name }}.crt"
+            key_path: "{{ key_path }}/{{ cert_name }}.key"
+            backup_location: "{{ cert_backup.stdout | regex_search('backup_dir=(.+)', '\\1') | first if cert_backup is defined else '' }}"
+          overall_success: "{{ cert_update_success and cert_validation_success }}"
+    
+    - name: "记录操作完成"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] SSL证书更新操作完成 - 报告: {{ ssl_update_report | to_json }}"
+    
+    - name: "发送成功通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "ssl_cert_update"
+          status: "success"
+          host: "{{ inventory_hostname }}"
+          message: "SSL证书更新成功 - {{ domain_name | default('自签名证书') }}"
+          details: "{{ ssl_update_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - ssl_update_report.overall_success
+      ignore_errors: yes
+    
+    - name: "发送失败通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "ssl_cert_update"
+          status: "failed"
+          host: "{{ inventory_hostname }}"
+          message: "SSL证书更新失败，需要人工干预 - {{ domain_name | default('自签名证书') }}"
+          details: "{{ ssl_update_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - not ssl_update_report.overall_success
+      ignore_errors: yes
+    
+    # 设置自动续期任务
+    - name: "设置Let's Encrypt自动续期"
+      cron:
+        name: "Let's Encrypt证书自动续期"
+        minute: "0"
+        hour: "2"
+        day: "1"
+        job: "certbot renew --quiet && systemctl reload nginx"
+        user: root
+      when: 
+        - use_letsencrypt
+        - ssl_update_report.overall_success
+    
+    - name: "设置证书过期检查任务"
+      cron:
+        name: "SSL证书过期检查"
+        minute: "0"
+        hour: "8"
+        job: "openssl x509 -in {{ cert_path }}/{{ cert_name }}.crt -noout -checkend {{ (renewal_threshold_days | int * 86400) }} || echo 'SSL证书即将过期' | mail -s 'SSL证书过期警告' admin@example.com"
+        user: root
+      when: ssl_update_report.overall_success

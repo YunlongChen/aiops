@@ -1,0 +1,491 @@
+---
+# 服务扩缩容Playbook
+# 用于自动扩展或缩减服务实例以应对负载变化
+
+- name: "服务扩缩容管理"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # 扩缩容参数
+    scale_action: "{{ scale_action | default('scale_up') }}"  # scale_up, scale_down, auto_scale
+    service_type: "{{ service_type | default('docker') }}"    # docker, systemd, kubernetes
+    service_name: "{{ service_name | default('') }}"
+    target_replicas: "{{ target_replicas | default(3) }}"
+    min_replicas: "{{ min_replicas | default(1) }}"
+    max_replicas: "{{ max_replicas | default(10) }}"
+    
+    # 负载阈值
+    cpu_scale_up_threshold: "{{ cpu_scale_up_threshold | default(70) }}"
+    cpu_scale_down_threshold: "{{ cpu_scale_down_threshold | default(30) }}"
+    memory_scale_up_threshold: "{{ memory_scale_up_threshold | default(80) }}"
+    memory_scale_down_threshold: "{{ memory_scale_down_threshold | default(40) }}"
+    
+    # 健康检查
+    health_check_enabled: "{{ health_check_enabled | default(true) }}"
+    health_check_url: "{{ health_check_url | default('') }}"
+    health_check_timeout: "{{ health_check_timeout | default(30) }}"
+    health_check_retries: "{{ health_check_retries | default(3) }}"
+    
+    # 日志配置
+    log_file: "/var/log/self-healing/service-scaling.log"
+    
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "/var/log/self-healing"
+        state: directory
+        mode: '0755'
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+    
+    - name: "验证参数"
+      assert:
+        that:
+          - scale_action in ['scale_up', 'scale_down', 'auto_scale']
+          - service_type in ['docker', 'systemd', 'kubernetes']
+          - service_name != ''
+          - target_replicas | int >= min_replicas | int
+          - target_replicas | int <= max_replicas | int
+        fail_msg: "参数验证失败，请检查输入参数"
+    
+    - name: "记录操作开始"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ start_time }}] 开始服务扩缩容操作 - 服务: {{ service_name }}, 动作: {{ scale_action }}"
+        create: yes
+
+  tasks:
+    # 获取当前服务状态
+    - name: "获取Docker服务当前状态"
+      shell: |
+        if docker service ls --format "table {{.Name}}\t{{.Replicas}}" | grep -q "{{ service_name }}"; then
+          replicas=$(docker service ls --format "table {{.Name}}\t{{.Replicas}}" | grep "{{ service_name }}" | awk '{print $2}')
+          echo "current_replicas=${replicas}"
+          echo "service_exists=true"
+        else
+          echo "current_replicas=0"
+          echo "service_exists=false"
+        fi
+      register: docker_service_status
+      when: service_type == 'docker'
+      changed_when: false
+    
+    - name: "获取Kubernetes服务当前状态"
+      shell: |
+        if kubectl get deployment {{ service_name }} -o jsonpath='{.spec.replicas}' 2>/dev/null; then
+          current=$(kubectl get deployment {{ service_name }} -o jsonpath='{.spec.replicas}')
+          ready=$(kubectl get deployment {{ service_name }} -o jsonpath='{.status.readyReplicas}')
+          echo "current_replicas=${current}"
+          echo "ready_replicas=${ready:-0}"
+          echo "service_exists=true"
+        else
+          echo "current_replicas=0"
+          echo "ready_replicas=0"
+          echo "service_exists=false"
+        fi
+      register: k8s_service_status
+      when: service_type == 'kubernetes'
+      changed_when: false
+    
+    - name: "获取Systemd服务当前状态"
+      shell: |
+        if systemctl is-active {{ service_name }} >/dev/null 2>&1; then
+          echo "current_replicas=1"
+          echo "service_exists=true"
+          echo "service_active=true"
+        elif systemctl is-enabled {{ service_name }} >/dev/null 2>&1; then
+          echo "current_replicas=0"
+          echo "service_exists=true"
+          echo "service_active=false"
+        else
+          echo "current_replicas=0"
+          echo "service_exists=false"
+          echo "service_active=false"
+        fi
+      register: systemd_service_status
+      when: service_type == 'systemd'
+      changed_when: false
+    
+    # 解析服务状态
+    - name: "解析Docker服务状态"
+      set_fact:
+        current_replicas: "{{ docker_service_status.stdout | regex_search('current_replicas=([0-9/]+)', '\\1') | first | regex_replace('/.*', '') | int }}"
+        service_exists: "{{ 'service_exists=true' in docker_service_status.stdout }}"
+      when: service_type == 'docker'
+    
+    - name: "解析Kubernetes服务状态"
+      set_fact:
+        current_replicas: "{{ k8s_service_status.stdout | regex_search('current_replicas=([0-9]+)', '\\1') | first | int }}"
+        ready_replicas: "{{ k8s_service_status.stdout | regex_search('ready_replicas=([0-9]+)', '\\1') | first | int }}"
+        service_exists: "{{ 'service_exists=true' in k8s_service_status.stdout }}"
+      when: service_type == 'kubernetes'
+    
+    - name: "解析Systemd服务状态"
+      set_fact:
+        current_replicas: "{{ systemd_service_status.stdout | regex_search('current_replicas=([0-9]+)', '\\1') | first | int }}"
+        service_exists: "{{ 'service_exists=true' in systemd_service_status.stdout }}"
+        service_active: "{{ 'service_active=true' in systemd_service_status.stdout }}"
+      when: service_type == 'systemd'
+    
+    - name: "记录当前服务状态"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 当前服务状态 - 副本数: {{ current_replicas }}, 服务存在: {{ service_exists }}"
+    
+    # 获取系统负载指标
+    - name: "获取系统负载指标"
+      shell: |
+        # CPU使用率
+        cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+        
+        # 内存使用率
+        memory_usage=$(free | grep Mem | awk '{printf "%.2f", $3/$2 * 100.0}')
+        
+        # 负载平均值
+        load_avg=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | tr -d ',')
+        
+        echo "cpu_usage=${cpu_usage}"
+        echo "memory_usage=${memory_usage}"
+        echo "load_avg=${load_avg}"
+      register: system_metrics
+      when: scale_action == 'auto_scale'
+      changed_when: false
+    
+    - name: "解析系统指标"
+      set_fact:
+        cpu_usage: "{{ system_metrics.stdout | regex_search('cpu_usage=([0-9.]+)', '\\1') | first | float }}"
+        memory_usage: "{{ system_metrics.stdout | regex_search('memory_usage=([0-9.]+)', '\\1') | first | float }}"
+        load_avg: "{{ system_metrics.stdout | regex_search('load_avg=([0-9.]+)', '\\1') | first | float }}"
+      when: scale_action == 'auto_scale'
+    
+    # 决定扩缩容动作
+    - name: "决定自动扩缩容动作"
+      set_fact:
+        auto_scale_decision: >
+          {%- if cpu_usage > cpu_scale_up_threshold or memory_usage > memory_scale_up_threshold -%}
+            scale_up
+          {%- elif cpu_usage < cpu_scale_down_threshold and memory_usage < memory_scale_down_threshold -%}
+            scale_down
+          {%- else -%}
+            no_action
+          {%- endif -%}
+        recommended_replicas: >
+          {%- if cpu_usage > cpu_scale_up_threshold or memory_usage > memory_scale_up_threshold -%}
+            {{ [current_replicas + 1, max_replicas] | min }}
+          {%- elif cpu_usage < cpu_scale_down_threshold and memory_usage < memory_scale_down_threshold -%}
+            {{ [current_replicas - 1, min_replicas] | max }}
+          {%- else -%}
+            {{ current_replicas }}
+          {%- endif -%}
+      when: scale_action == 'auto_scale'
+    
+    - name: "设置目标副本数"
+      set_fact:
+        final_target_replicas: >
+          {%- if scale_action == 'auto_scale' -%}
+            {{ recommended_replicas | int }}
+          {%- elif scale_action == 'scale_up' -%}
+            {{ [target_replicas | int, max_replicas | int] | min }}
+          {%- elif scale_action == 'scale_down' -%}
+            {{ [target_replicas | int, min_replicas | int] | max }}
+          {%- else -%}
+            {{ current_replicas }}
+          {%- endif -%}
+    
+    - name: "记录扩缩容决策"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 扩缩容决策 - 当前: {{ current_replicas }}, 目标: {{ final_target_replicas }}, 动作: {{ auto_scale_decision | default(scale_action) }}"
+    
+    # 执行Docker服务扩缩容
+    - name: "执行Docker服务扩缩容"
+      shell: |
+        if [ "{{ final_target_replicas }}" != "{{ current_replicas }}" ]; then
+          echo "扩缩容Docker服务 {{ service_name }} 从 {{ current_replicas }} 到 {{ final_target_replicas }} 个副本"
+          docker service scale {{ service_name }}={{ final_target_replicas }}
+          
+          # 等待扩缩容完成
+          timeout=120
+          while [ $timeout -gt 0 ]; do
+            current=$(docker service ls --format "table {{.Name}}\t{{.Replicas}}" | grep "{{ service_name }}" | awk '{print $2}' | cut -d'/' -f2)
+            ready=$(docker service ls --format "table {{.Name}}\t{{.Replicas}}" | grep "{{ service_name }}" | awk '{print $2}' | cut -d'/' -f1)
+            
+            if [ "$ready" = "{{ final_target_replicas }}" ]; then
+              echo "扩缩容完成: $ready/{{ final_target_replicas }}"
+              break
+            fi
+            
+            echo "等待扩缩容完成: $ready/{{ final_target_replicas }}"
+            sleep 5
+            timeout=$((timeout - 5))
+          done
+          
+          if [ $timeout -le 0 ]; then
+            echo "扩缩容超时"
+            exit 1
+          fi
+        else
+          echo "副本数已经是目标值，无需扩缩容"
+        fi
+      register: docker_scale_result
+      when: 
+        - service_type == 'docker'
+        - service_exists
+        - final_target_replicas | int != current_replicas | int
+    
+    # 执行Kubernetes服务扩缩容
+    - name: "执行Kubernetes服务扩缩容"
+      shell: |
+        if [ "{{ final_target_replicas }}" != "{{ current_replicas }}" ]; then
+          echo "扩缩容Kubernetes部署 {{ service_name }} 从 {{ current_replicas }} 到 {{ final_target_replicas }} 个副本"
+          kubectl scale deployment {{ service_name }} --replicas={{ final_target_replicas }}
+          
+          # 等待扩缩容完成
+          kubectl rollout status deployment/{{ service_name }} --timeout=300s
+          
+          # 验证副本数
+          ready_replicas=$(kubectl get deployment {{ service_name }} -o jsonpath='{.status.readyReplicas}')
+          if [ "$ready_replicas" = "{{ final_target_replicas }}" ]; then
+            echo "扩缩容完成: $ready_replicas/{{ final_target_replicas }}"
+          else
+            echo "扩缩容未完全完成: $ready_replicas/{{ final_target_replicas }}"
+            exit 1
+          fi
+        else
+          echo "副本数已经是目标值，无需扩缩容"
+        fi
+      register: k8s_scale_result
+      when: 
+        - service_type == 'kubernetes'
+        - service_exists
+        - final_target_replicas | int != current_replicas | int
+    
+    # Systemd服务扩缩容（启动/停止）
+    - name: "启动Systemd服务"
+      systemd:
+        name: "{{ service_name }}"
+        state: started
+        enabled: yes
+      register: systemd_start_result
+      when: 
+        - service_type == 'systemd'
+        - service_exists
+        - final_target_replicas | int > 0
+        - current_replicas | int == 0
+    
+    - name: "停止Systemd服务"
+      systemd:
+        name: "{{ service_name }}"
+        state: stopped
+      register: systemd_stop_result
+      when: 
+        - service_type == 'systemd'
+        - service_exists
+        - final_target_replicas | int == 0
+        - current_replicas | int > 0
+    
+    # 健康检查
+    - name: "等待服务启动"
+      wait_for:
+        timeout: 30
+      when: 
+        - final_target_replicas | int > current_replicas | int
+        - health_check_enabled
+    
+    - name: "执行健康检查"
+      uri:
+        url: "{{ health_check_url }}"
+        method: GET
+        timeout: "{{ health_check_timeout }}"
+        status_code: [200, 201, 204]
+      register: health_check_result
+      retries: "{{ health_check_retries }}"
+      delay: 10
+      when: 
+        - health_check_enabled
+        - health_check_url != ''
+        - final_target_replicas | int > 0
+      ignore_errors: yes
+    
+    - name: "验证服务健康状态"
+      fail:
+        msg: "服务健康检查失败"
+      when: 
+        - health_check_enabled
+        - health_check_url != ''
+        - health_check_result is defined
+        - health_check_result.status != 200
+    
+    # 获取扩缩容后的状态
+    - name: "获取扩缩容后的Docker服务状态"
+      shell: |
+        docker service ls --format "table {{.Name}}\t{{.Replicas}}" | grep "{{ service_name }}" | awk '{print $2}'
+      register: post_scale_docker_status
+      when: service_type == 'docker'
+      changed_when: false
+    
+    - name: "获取扩缩容后的Kubernetes服务状态"
+      shell: |
+        kubectl get deployment {{ service_name }} -o jsonpath='{.status.replicas}/{.status.readyReplicas}'
+      register: post_scale_k8s_status
+      when: service_type == 'kubernetes'
+      changed_when: false
+    
+    - name: "获取扩缩容后的Systemd服务状态"
+      shell: |
+        if systemctl is-active {{ service_name }} >/dev/null 2>&1; then
+          echo "1/1"
+        else
+          echo "0/0"
+        fi
+      register: post_scale_systemd_status
+      when: service_type == 'systemd'
+      changed_when: false
+    
+    - name: "记录扩缩容结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 扩缩容完成 - 最终状态: {{ post_scale_docker_status.stdout | default(post_scale_k8s_status.stdout) | default(post_scale_systemd_status.stdout) }}"
+
+  post_tasks:
+    - name: "生成扩缩容报告"
+      set_fact:
+        scaling_report:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          host: "{{ inventory_hostname }}"
+          service_name: "{{ service_name }}"
+          service_type: "{{ service_type }}"
+          scale_action: "{{ scale_action }}"
+          initial_replicas: "{{ current_replicas }}"
+          target_replicas: "{{ final_target_replicas }}"
+          final_replicas: "{{ post_scale_docker_status.stdout | default(post_scale_k8s_status.stdout) | default(post_scale_systemd_status.stdout) | regex_replace('/.*', '') }}"
+          success: "{{ (post_scale_docker_status.stdout | default(post_scale_k8s_status.stdout) | default(post_scale_systemd_status.stdout) | regex_replace('/.*', '') | int) == (final_target_replicas | int) }}"
+          health_check_passed: "{{ health_check_result.status == 200 if health_check_result is defined else true }}"
+          system_metrics:
+            cpu_usage: "{{ cpu_usage | default(0) }}"
+            memory_usage: "{{ memory_usage | default(0) }}"
+            load_avg: "{{ load_avg | default(0) }}"
+    
+    - name: "记录操作完成"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 服务扩缩容操作完成 - 报告: {{ scaling_report | to_json }}"
+    
+    - name: "发送成功通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "service_scaling"
+          status: "success"
+          host: "{{ inventory_hostname }}"
+          message: "服务 {{ service_name }} 扩缩容成功: {{ current_replicas }} -> {{ final_target_replicas }}"
+          details: "{{ scaling_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - scaling_report.success
+      ignore_errors: yes
+    
+    - name: "发送失败通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "service_scaling"
+          status: "failed"
+          host: "{{ inventory_hostname }}"
+          message: "服务 {{ service_name }} 扩缩容失败"
+          details: "{{ scaling_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - not scaling_report.success
+      ignore_errors: yes
+
+# 自动扩缩容监控任务
+- name: "自动扩缩容监控"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    monitor_interval: "{{ monitor_interval | default(60) }}"  # 监控间隔（秒）
+    monitor_duration: "{{ monitor_duration | default(3600) }}" # 监控持续时间（秒）
+    services_to_monitor: "{{ services_to_monitor | default([]) }}"
+    log_file: "/var/log/self-healing/auto-scaling-monitor.log"
+  
+  tasks:
+    - name: "启动自动扩缩容监控"
+      shell: |
+        end_time=$(($(date +%s) + {{ monitor_duration }}))
+        
+        while [ $(date +%s) -lt $end_time ]; do
+          timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+          echo "[$timestamp] === 自动扩缩容监控检查 ===" >> {{ log_file }}
+          
+          # 获取系统指标
+          cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+          memory_usage=$(free | grep Mem | awk '{printf "%.2f", $3/$2 * 100.0}')
+          load_avg=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | tr -d ',')
+          
+          echo "[$timestamp] 系统指标 - CPU: ${cpu_usage}%, 内存: ${memory_usage}%, 负载: ${load_avg}" >> {{ log_file }}
+          
+          # 检查每个服务
+          {% for service in services_to_monitor %}
+          echo "[$timestamp] 检查服务: {{ service.name }}" >> {{ log_file }}
+          
+          # 根据服务类型获取当前副本数
+          {% if service.type == 'docker' %}
+          current_replicas=$(docker service ls --format "table {{.Name}}\t{{.Replicas}}" | grep "{{ service.name }}" | awk '{print $2}' | cut -d'/' -f1)
+          {% elif service.type == 'kubernetes' %}
+          current_replicas=$(kubectl get deployment {{ service.name }} -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+          {% endif %}
+          
+          echo "[$timestamp] 服务 {{ service.name }} 当前副本数: ${current_replicas}" >> {{ log_file }}
+          
+          # 检查是否需要扩缩容
+          cpu_threshold_up={{ service.cpu_scale_up_threshold | default(70) }}
+          cpu_threshold_down={{ service.cpu_scale_down_threshold | default(30) }}
+          memory_threshold_up={{ service.memory_scale_up_threshold | default(80) }}
+          memory_threshold_down={{ service.memory_scale_down_threshold | default(40) }}
+          
+          if (( $(echo "$cpu_usage > $cpu_threshold_up" | bc -l) )) || (( $(echo "$memory_usage > $memory_threshold_up" | bc -l) )); then
+            if [ "$current_replicas" -lt "{{ service.max_replicas | default(10) }}" ]; then
+              echo "[$timestamp] 触发扩容条件，准备扩容服务 {{ service.name }}" >> {{ log_file }}
+              # 这里可以触发扩容操作
+            fi
+          elif (( $(echo "$cpu_usage < $cpu_threshold_down" | bc -l) )) && (( $(echo "$memory_usage < $memory_threshold_down" | bc -l) )); then
+            if [ "$current_replicas" -gt "{{ service.min_replicas | default(1) }}" ]; then
+              echo "[$timestamp] 触发缩容条件，准备缩容服务 {{ service.name }}" >> {{ log_file }}
+              # 这里可以触发缩容操作
+            fi
+          fi
+          {% endfor %}
+          
+          echo "" >> {{ log_file }}
+          sleep {{ monitor_interval }}
+        done
+      async: "{{ monitor_duration | int + 60 }}"
+      poll: 0
+      register: monitor_job
+      when: 
+        - monitor_duration | int > 0
+        - services_to_monitor | length > 0
+    
+    - name: "等待监控完成"
+      async_status:
+        jid: "{{ monitor_job.ansible_job_id }}"
+      register: monitor_result
+      until: monitor_result.finished
+      retries: "{{ (monitor_duration | int / monitor_interval | int) + 10 }}"
+      delay: "{{ monitor_interval }}"
+      when: 
+        - monitor_duration | int > 0
+        - services_to_monitor | length > 0

@@ -1,0 +1,25 @@
+﻿# AIOps平台 - development 环境配置
+# 自动生成于: 2025-09-09 22:01:01
+
+version: '3.8'
+
+services:
+  # 环境特定配置
+  traefik:
+    environment:
+      - TRAEFIK_LOG_LEVEL=DEBUG
+      - TRAEFIK_API_DASHBOARD=true
+  
+  prometheus:
+    environment:
+      - PROMETHEUS_RETENTION=30d
+  
+  grafana:
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=true
+  
+  elasticsearch:
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"

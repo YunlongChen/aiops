@@ -1,0 +1,538 @@
+# 监控堆栈Docker Compose配置
+# 包含Prometheus、Grafana、Alertmanager等监控服务
+# 作者: AI Assistant
+# 创建时间: 2024
+
+version: '3.8'
+
+# ===========================================
+# 网络配置
+# ===========================================
+networks:
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  aiops:
+    external: true
+
+# ===========================================
+# 卷配置
+# ===========================================
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+  jaeger_data:
+    driver: local
+
+# ===========================================
+# 服务配置
+# ===========================================
+services:
+  # Prometheus监控服务
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: aiops-prometheus
+    hostname: prometheus
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "9090:9090"
+    
+    # 环境变量
+    environment:
+      - PROMETHEUS_RETENTION_TIME=30d
+      - PROMETHEUS_RETENTION_SIZE=50GB
+    
+    # 命令参数
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.external-url=http://prometheus.localhost'
+      - '--web.route-prefix=/'
+      - '--log.level=info'
+      - '--log.format=logfmt'
+    
+    # 卷挂载
+    volumes:
+      - ../configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../configs/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ../configs/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    
+    # 网络配置
+    networks:
+      - monitoring
+      - aiops
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)"
+      - "traefik.http.routers.prometheus.entrypoints=web"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      - "traefik.docker.network=aiops"
+
+  # Grafana可视化服务
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: aiops-grafana
+    hostname: grafana
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "3000:3000"
+    
+    # 环境变量
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_ALLOW_ORG_CREATE=false
+      - GF_USERS_AUTO_ASSIGN_ORG=true
+      - GF_USERS_AUTO_ASSIGN_ORG_ROLE=Viewer
+      - GF_SERVER_ROOT_URL=http://grafana.localhost
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_INSTALL_PLUGINS=redis-datasource,grafana-piechart-panel,grafana-worldmap-panel
+      - GF_FEATURE_TOGGLES_ENABLE=ngalert
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_ALERTING_ENABLED=false
+    
+    # 卷挂载
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../configs/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ../configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../configs/grafana/dashboards:/etc/grafana/dashboards:ro
+    
+    # 网络配置
+    networks:
+      - monitoring
+      - aiops
+    
+    # 依赖关系
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.docker.network=aiops"
+
+  # Alertmanager告警管理服务
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: aiops-alertmanager
+    hostname: alertmanager
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "9093:9093"
+    
+    # 命令参数
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://alertmanager.localhost'
+      - '--web.route-prefix=/'
+      - '--cluster.listen-address=0.0.0.0:9094'
+      - '--log.level=info'
+      - '--log.format=logfmt'
+    
+    # 卷挂载
+    volumes:
+      - ../configs/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ../configs/alertmanager/templates:/etc/alertmanager/templates:ro
+      - alertmanager_data:/alertmanager
+    
+    # 网络配置
+    networks:
+      - monitoring
+      - aiops
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`alertmanager.localhost`)"
+      - "traefik.http.routers.alertmanager.entrypoints=web"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+      - "traefik.docker.network=aiops"
+
+  # Node Exporter系统指标收集器
+  node-exporter:
+    image: prom/node-exporter:v1.6.0
+    container_name: aiops-node-exporter
+    hostname: node-exporter
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "9100:9100"
+    
+    # 命令参数
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.systemd'
+      - '--collector.processes'
+      - '--web.listen-address=0.0.0.0:9100'
+    
+    # 卷挂载
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    
+    # 网络配置
+    networks:
+      - monitoring
+    
+    # 特权模式
+    pid: host
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # cAdvisor容器指标收集器
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0
+    container_name: aiops-cadvisor
+    hostname: cadvisor
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "8080:8080"
+    
+    # 命令参数
+    command:
+      - '--housekeeping_interval=30s'
+      - '--max_housekeeping_interval=35s'
+      - '--event_storage_event_limit=default=0'
+      - '--event_storage_age_limit=default=0'
+      - '--disable_metrics=percpu,sched,tcp,udp,disk,diskIO,accelerator,hugetlb,referenced_memory,cpu_topology,resctrl'
+      - '--docker_only=false'
+      - '--store_container_labels=false'
+      - '--whitelisted_container_labels=io.kubernetes.container.name,io.kubernetes.pod.name,io.kubernetes.pod.namespace'
+    
+    # 卷挂载
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    
+    # 网络配置
+    networks:
+      - monitoring
+    
+    # 特权模式
+    privileged: true
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Loki日志聚合服务
+  loki:
+    image: grafana/loki:2.8.0
+    container_name: aiops-loki
+    hostname: loki
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "3100:3100"
+    
+    # 命令参数
+    command:
+      - '-config.file=/etc/loki/local-config.yaml'
+      - '-target=all'
+    
+    # 卷挂载
+    volumes:
+      - ../configs/loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    
+    # 网络配置
+    networks:
+      - monitoring
+      - aiops
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.loki.rule=Host(`loki.localhost`)"
+      - "traefik.http.routers.loki.entrypoints=web"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
+      - "traefik.docker.network=aiops"
+
+  # Promtail日志收集器
+  promtail:
+    image: grafana/promtail:2.8.0
+    container_name: aiops-promtail
+    hostname: promtail
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "9080:9080"
+    
+    # 命令参数
+    command:
+      - '-config.file=/etc/promtail/config.yml'
+    
+    # 卷挂载
+    volumes:
+      - ../configs/promtail/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    
+    # 网络配置
+    networks:
+      - monitoring
+    
+    # 依赖关系
+    depends_on:
+      loki:
+        condition: service_healthy
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9080/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # Jaeger链路追踪服务
+  jaeger:
+    image: jaegertracing/all-in-one:1.46
+    container_name: aiops-jaeger
+    hostname: jaeger
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+      - "14250:14250"  # gRPC collector
+      - "6831:6831/udp"  # UDP agent
+      - "6832:6832/udp"  # UDP agent
+    
+    # 环境变量
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=badger
+      - BADGER_EPHEMERAL=false
+      - BADGER_DIRECTORY_VALUE=/badger/data
+      - BADGER_DIRECTORY_KEY=/badger/key
+    
+    # 卷挂载
+    volumes:
+      - jaeger_data:/badger
+    
+    # 网络配置
+    networks:
+      - monitoring
+      - aiops
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:16686/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    
+    # 标签
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jaeger.rule=Host(`jaeger.localhost`)"
+      - "traefik.http.routers.jaeger.entrypoints=web"
+      - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
+      - "traefik.docker.network=aiops"
+
+  # Blackbox Exporter外部监控
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    container_name: aiops-blackbox-exporter
+    hostname: blackbox-exporter
+    restart: unless-stopped
+    
+    # 端口映射
+    ports:
+      - "9115:9115"
+    
+    # 卷挂载
+    volumes:
+      - ../configs/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    
+    # 网络配置
+    networks:
+      - monitoring
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9115/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'

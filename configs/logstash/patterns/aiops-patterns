@@ -1,0 +1,105 @@
+# AIOps系统自定义Grok模式配置文件
+# 用于解析各种日志格式
+
+# 基础模式
+TIMESTAMP_ISO8601_TZ %{YEAR}-%{MONTHNUM}-%{MONTHDAY}[T ]%{HOUR}:?%{MINUTE}(?::?%{SECOND})?%{ISO8601_TIMEZONE}?
+LOGLEVEL (TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|CRITICAL)
+JAVA_CLASS (?:[a-zA-Z$_][a-zA-Z$_0-9]*\.)*[a-zA-Z$_][a-zA-Z$_0-9]*
+THREAD_NAME [\w\-\._]+
+REQUEST_ID [a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}
+IP_ADDRESS %{IPV4}|%{IPV6}
+HTTP_STATUS_CODE [1-5][0-9]{2}
+RESPONSE_TIME [0-9]+(?:\.[0-9]+)?
+MEMORY_SIZE [0-9]+(?:\.[0-9]+)?[KMGT]?B?
+CPU_PERCENT [0-9]+(?:\.[0-9]+)?%?
+
+# Docker容器日志模式
+DOCKER_CONTAINER_ID [a-fA-F0-9]{12}
+DOCKER_IMAGE_NAME [\w\-\._/]+(?::[\w\-\._]+)?
+DOCKER_LOG %{TIMESTAMP_ISO8601:timestamp} %{DOCKER_CONTAINER_ID:container_id} %{GREEDYDATA:message}
+
+# Spring Boot应用日志模式
+SPRING_BOOT_LOG %{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+%{POSINT:pid}\s+---\s+\[\s*%{THREAD_NAME:thread}\]\s+%{JAVA_CLASS:class}\s*:\s+%{GREEDYDATA:message}
+
+# Nginx访问日志模式
+NGINX_ACCESS %{IP_ADDRESS:client_ip} - %{USER:remote_user} \[%{HTTPDATE:timestamp}\] \"%{WORD:method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version}\" %{HTTP_STATUS_CODE:status} %{NUMBER:bytes_sent} \"%{DATA:referrer}\" \"%{DATA:user_agent}\" \"%{DATA:x_forwarded_for}\" %{RESPONSE_TIME:response_time}
+
+# Nginx错误日志模式
+NGINX_ERROR %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] %{POSINT:pid}#%{POSINT:tid}: (\*%{POSINT:connection_id} )?%{GREEDYDATA:message}
+
+# Apache访问日志模式
+APACHE_ACCESS %{IP_ADDRESS:client_ip} %{USER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] \"%{WORD:method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version}\" %{HTTP_STATUS_CODE:status} (?:%{NUMBER:bytes_sent}|-) \"%{DATA:referrer}\" \"%{DATA:user_agent}\"
+
+# MySQL慢查询日志模式
+MYSQL_SLOW_QUERY # Time: %{TIMESTAMP_ISO8601:timestamp}\n# User@Host: %{USER:user}\[%{USER:user_host}\] @ %{HOSTNAME:host} \[%{IP_ADDRESS:ip}\]\n# Query_time: %{RESPONSE_TIME:query_time}\s+Lock_time: %{RESPONSE_TIME:lock_time}\s+Rows_sent: %{POSINT:rows_sent}\s+Rows_examined: %{POSINT:rows_examined}\n%{GREEDYDATA:query}
+
+# PostgreSQL日志模式
+POSTGRESQL_LOG %{TIMESTAMP_ISO8601:timestamp} %{WORD:timezone} \[%{POSINT:pid}\] %{LOGLEVEL:level}:\s+%{GREEDYDATA:message}
+
+# Redis日志模式
+REDIS_LOG %{POSINT:pid}:%{CHAR:role} %{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} %{GREEDYDATA:message}
+
+# Elasticsearch日志模式
+ELASTICSEARCH_LOG \[%{TIMESTAMP_ISO8601:timestamp}\]\[%{LOGLEVEL:level}\s*\]\[%{DATA:component}\s*\] (?:\[%{DATA:node_name}\] )?%{GREEDYDATA:message}
+
+# Logstash日志模式
+LOGSTASH_LOG \[%{TIMESTAMP_ISO8601:timestamp}\]\[%{LOGLEVEL:level}\s*\]\[%{DATA:component}\s*\] %{GREEDYDATA:message}
+
+# Kibana日志模式
+KIBANA_LOG %{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+\[%{DATA:component}\] %{GREEDYDATA:message}
+
+# Prometheus日志模式
+PROMETHEUS_LOG level=%{LOGLEVEL:level} ts=%{TIMESTAMP_ISO8601:timestamp} caller=%{DATA:caller} msg="%{DATA:message}"
+
+# Grafana日志模式
+GRAFANA_LOG t=%{TIMESTAMP_ISO8601:timestamp} lvl=%{LOGLEVEL:level} msg="%{DATA:message}" logger=%{DATA:logger}
+
+# Traefik访问日志模式
+TRAEFIK_ACCESS %{IP_ADDRESS:client_ip} - %{USER:remote_user} \[%{HTTPDATE:timestamp}\] \"%{WORD:method} %{URIPATHPARAM:request} HTTP/%{NUMBER:http_version}\" %{HTTP_STATUS_CODE:status} %{NUMBER:bytes_sent} \"%{DATA:referrer}\" \"%{DATA:user_agent}\" %{RESPONSE_TIME:response_time} \"%{DATA:service_name}\" \"%{DATA:request_addr}\" %{RESPONSE_TIME:duration}
+
+# Kubernetes Pod日志模式
+K8S_POD_LOG %{TIMESTAMP_ISO8601:timestamp} %{WORD:stream} %{CHAR:log_type} %{GREEDYDATA:message}
+
+# Java异常堆栈模式
+JAVA_EXCEPTION %{JAVA_CLASS:exception_class}(: %{GREEDYDATA:exception_message})?
+JAVA_STACK_TRACE \s+at %{JAVA_CLASS:class}\.%{WORD:method}\(%{DATA:file}:%{POSINT:line}\)
+
+# Python异常模式
+PYTHON_EXCEPTION %{DATA:exception_type}: %{GREEDYDATA:exception_message}
+PYTHON_STACK_TRACE \s+File \"%{DATA:file}\", line %{POSINT:line}, in %{WORD:function}
+
+# 系统日志模式
+SYSLOG_MESSAGE %{TIMESTAMP_ISO8601:timestamp} %{HOSTNAME:hostname} %{PROG:program}(?:\[%{POSINT:pid}\])?: %{GREEDYDATA:message}
+
+# 自定义应用日志模式
+AIOPS_APP_LOG %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] \[%{THREAD_NAME:thread}\] %{JAVA_CLASS:class} - (?:\[%{REQUEST_ID:request_id}\] )?%{GREEDYDATA:message}
+
+# API网关日志模式
+API_GATEWAY_LOG %{TIMESTAMP_ISO8601:timestamp} %{IP_ADDRESS:client_ip} %{WORD:method} %{URIPATHPARAM:path} %{HTTP_STATUS_CODE:status} %{RESPONSE_TIME:response_time}ms %{NUMBER:bytes_sent}bytes (?:\[%{REQUEST_ID:request_id}\] )?%{GREEDYDATA:message}
+
+# 监控告警日志模式
+ALERT_LOG %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] ALERT: %{DATA:alert_name} - %{DATA:severity} - %{GREEDYDATA:description}
+
+# 性能指标日志模式
+METRIC_LOG %{TIMESTAMP_ISO8601:timestamp} METRIC: %{DATA:metric_name}=%{NUMBER:metric_value} %{DATA:metric_unit} (?:tags=%{DATA:tags} )?%{GREEDYDATA:additional_info}
+
+# 审计日志模式
+AUDIT_LOG %{TIMESTAMP_ISO8601:timestamp} \[AUDIT\] user=%{USER:user} action=%{DATA:action} resource=%{DATA:resource} result=%{DATA:result} (?:ip=%{IP_ADDRESS:client_ip} )?%{GREEDYDATA:details}
+
+# 安全事件日志模式
+SECURITY_LOG %{TIMESTAMP_ISO8601:timestamp} \[SECURITY\] event=%{DATA:event_type} severity=%{DATA:severity} source=%{IP_ADDRESS:source_ip} (?:target=%{IP_ADDRESS:target_ip} )?%{GREEDYDATA:description}
+
+# 数据库连接池日志模式
+DB_POOL_LOG %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] \[%{DATA:pool_name}\] active=%{POSINT:active_connections} idle=%{POSINT:idle_connections} total=%{POSINT:total_connections} %{GREEDYDATA:message}
+
+# 缓存操作日志模式
+CACHE_LOG %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] \[CACHE\] operation=%{DATA:operation} key=%{DATA:cache_key} (?:hit=%{DATA:cache_hit} )?(?:ttl=%{POSINT:ttl}s )?%{GREEDYDATA:message}
+
+# 消息队列日志模式
+MQ_LOG %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] \[%{DATA:queue_name}\] operation=%{DATA:operation} (?:message_id=%{DATA:message_id} )?(?:consumer=%{DATA:consumer} )?%{GREEDYDATA:message}
+
+# 文件系统操作日志模式
+FS_LOG %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] \[FS\] operation=%{DATA:operation} path=%{DATA:file_path} (?:size=%{MEMORY_SIZE:file_size} )?(?:permissions=%{DATA:permissions} )?%{GREEDYDATA:message}
+
+# 网络连接日志模式
+NETWORK_LOG %{TIMESTAMP_ISO8601:timestamp} \[%{LOGLEVEL:level}\] \[NETWORK\] %{DATA:connection_type} %{IP_ADDRESS:local_ip}:%{POSINT:local_port} <-> %{IP_ADDRESS:remote_ip}:%{POSINT:remote_port} state=%{DATA:connection_state} %{GREEDYDATA:message}

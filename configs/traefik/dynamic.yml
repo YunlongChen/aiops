@@ -1,0 +1,451 @@
+# Traefik Dynamic Configuration
+# AIOps-Platform 动态路由配置
+# 版本: 1.0.0
+
+# ===========================================
+# HTTP路由配置
+# ===========================================
+http:
+  routers:
+    # 主控制台路由
+    dashboard:
+      rule: "Host(`localhost`) || Host(`aiops.localhost`)"
+      service: "api-gateway"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "security-headers"
+        - "compression"
+        - "rate-limit"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # Traefik仪表板路由
+    traefik-dashboard:
+      rule: "Host(`traefik.localhost`)"
+      service: "api@internal"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "auth"
+        - "security-headers"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # Grafana路由
+    grafana:
+      rule: "Host(`grafana.localhost`) || PathPrefix(`/grafana`)"
+      service: "grafana"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "security-headers"
+        - "compression"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # Kibana路由
+    kibana:
+      rule: "Host(`kibana.localhost`) || PathPrefix(`/kibana`)"
+      service: "kibana"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "security-headers"
+        - "compression"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # Prometheus路由
+    prometheus:
+      rule: "Host(`prometheus.localhost`) || PathPrefix(`/prometheus`)"
+      service: "prometheus"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "auth"
+        - "security-headers"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # Alertmanager路由
+    alertmanager:
+      rule: "Host(`alertmanager.localhost`) || PathPrefix(`/alertmanager`)"
+      service: "alertmanager"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "auth"
+        - "security-headers"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # AI引擎路由
+    ai-engine:
+      rule: "Host(`ai.localhost`) || PathPrefix(`/api/v1/ai`)"
+      service: "ai-engine"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "security-headers"
+        - "rate-limit"
+        - "cors"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # 自愈系统路由
+    self-healing:
+      rule: "Host(`healing.localhost`) || PathPrefix(`/api/v1/healing`)"
+      service: "self-healing"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "security-headers"
+        - "rate-limit"
+        - "cors"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # API网关路由
+    api-gateway:
+      rule: "Host(`api.localhost`) || PathPrefix(`/api`)"
+      service: "api-gateway"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "security-headers"
+        - "rate-limit"
+        - "cors"
+        - "retry"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # Elasticsearch路由（仅内部访问）
+    elasticsearch:
+      rule: "Host(`elasticsearch.localhost`) && ClientIP(`172.21.0.0/24`, `172.22.0.0/24`)"
+      service: "elasticsearch"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "auth"
+        - "security-headers"
+      tls:
+        certResolver: "letsencrypt"
+    
+    # 健康检查路由
+    health:
+      rule: "PathPrefix(`/health`) || PathPrefix(`/ping`)"
+      service: "api-gateway"
+      entryPoints:
+        - "web"
+        - "websecure"
+      middlewares:
+        - "security-headers"
+    
+    # 指标路由
+    metrics:
+      rule: "PathPrefix(`/metrics`)"
+      service: "prometheus"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "auth"
+        - "security-headers"
+      tls:
+        certResolver: "letsencrypt"
+
+  # ===========================================
+  # 服务配置
+  # ===========================================
+  services:
+    # API网关服务
+    api-gateway:
+      loadBalancer:
+        servers:
+          - url: "http://172.20.0.10:8080"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "10s"
+        sticky:
+          cookie:
+            name: "aiops-session"
+            secure: true
+            httpOnly: true
+    
+    # Grafana服务
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://172.20.0.11:3000"
+        healthCheck:
+          path: "/api/health"
+          interval: "30s"
+          timeout: "10s"
+    
+    # Kibana服务
+    kibana:
+      loadBalancer:
+        servers:
+          - url: "http://172.20.0.12:5601"
+        healthCheck:
+          path: "/api/status"
+          interval: "30s"
+          timeout: "10s"
+    
+    # Prometheus服务
+    prometheus:
+      loadBalancer:
+        servers:
+          - url: "http://172.21.0.10:9090"
+        healthCheck:
+          path: "/-/healthy"
+          interval: "30s"
+          timeout: "10s"
+    
+    # Alertmanager服务
+    alertmanager:
+      loadBalancer:
+        servers:
+          - url: "http://172.21.0.11:9093"
+        healthCheck:
+          path: "/-/healthy"
+          interval: "30s"
+          timeout: "10s"
+    
+    # AI引擎服务
+    ai-engine:
+      loadBalancer:
+        servers:
+          - url: "http://172.22.0.10:8000"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "10s"
+    
+    # 自愈系统服务
+    self-healing:
+      loadBalancer:
+        servers:
+          - url: "http://172.22.0.11:8001"
+        healthCheck:
+          path: "/health"
+          interval: "30s"
+          timeout: "10s"
+    
+    # Elasticsearch服务
+    elasticsearch:
+      loadBalancer:
+        servers:
+          - url: "http://172.21.0.12:9200"
+        healthCheck:
+          path: "/_cluster/health"
+          interval: "30s"
+          timeout: "10s"
+
+  # ===========================================
+  # 中间件配置
+  # ===========================================
+  middlewares:
+    # 安全头中间件
+    security-headers:
+      headers:
+        accessControlAllowMethods:
+          - "GET"
+          - "OPTIONS"
+          - "PUT"
+          - "POST"
+          - "DELETE"
+          - "PATCH"
+        accessControlAllowOriginList:
+          - "https://localhost"
+          - "https://*.localhost"
+        accessControlAllowCredentials: true
+        accessControlAllowHeaders:
+          - "*"
+        accessControlMaxAge: 100
+        hostsProxyHeaders:
+          - "X-Forwarded-Host"
+        referrerPolicy: "same-origin"
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+          X-Real-IP: ""
+        customResponseHeaders:
+          X-Custom-Response-Header: "AIOps-Platform"
+          X-Frame-Options: "DENY"
+          X-Content-Type-Options: "nosniff"
+          X-XSS-Protection: "1; mode=block"
+          Strict-Transport-Security: "max-age=31536000; includeSubDomains; preload"
+        sslRedirect: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+    
+    # 限流中间件
+    rate-limit:
+      rateLimit:
+        average: 100
+        period: "1m"
+        burst: 200
+        sourceCriterion:
+          ipStrategy:
+            depth: 2
+    
+    # API限流中间件
+    api-rate-limit:
+      rateLimit:
+        average: 1000
+        period: "1h"
+        burst: 100
+        sourceCriterion:
+          requestHeaderName: "X-API-Key"
+    
+    # 重试中间件
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: "100ms"
+    
+    # 压缩中间件
+    compression:
+      compress:
+        excludedContentTypes:
+          - "text/event-stream"
+          - "application/grpc"
+    
+    # 认证中间件
+    auth:
+      basicAuth:
+        users:
+          - "admin:$2y$10$2b2cu/b9/QXE.VksN/qgAOyG.7fxb7piSj.bS8YUiMKQf2PQFN1jC"  # admin:admin123
+        realm: "AIOps-Platform"
+        removeHeader: true
+    
+    # JWT认证中间件
+    jwt-auth:
+      forwardAuth:
+        address: "http://api-gateway:8080/auth/verify"
+        authResponseHeaders:
+          - "X-User-ID"
+          - "X-User-Role"
+    
+    # CORS中间件
+    cors:
+      headers:
+        accessControlAllowCredentials: true
+        accessControlAllowHeaders:
+          - "Accept"
+          - "Authorization"
+          - "Content-Type"
+          - "X-CSRF-Token"
+          - "X-API-Key"
+        accessControlAllowMethods:
+          - "GET"
+          - "POST"
+          - "PUT"
+          - "DELETE"
+          - "OPTIONS"
+          - "PATCH"
+        accessControlAllowOriginList:
+          - "https://localhost"
+          - "https://*.localhost"
+        accessControlExposeHeaders:
+          - "Link"
+          - "X-Total-Count"
+        accessControlMaxAge: 100
+        addVaryHeader: true
+    
+    # 路径重写中间件
+    strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/v1"
+    
+    # 重定向中间件
+    redirect-to-https:
+      redirectScheme:
+        scheme: "https"
+        permanent: true
+    
+    # IP白名单中间件
+    ip-whitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "172.20.0.0/24"
+          - "172.21.0.0/24"
+          - "172.22.0.0/24"
+          - "10.0.0.0/8"
+          - "192.168.0.0/16"
+    
+    # 错误页面中间件
+    error-pages:
+      errors:
+        status:
+          - "400-599"
+        service: "error-service"
+        query: "/{status}.html"
+    
+    # 断路器中间件
+    circuit-breaker:
+      circuitBreaker:
+        expression: "NetworkErrorRatio() > 0.30"
+        checkPeriod: "3s"
+        fallbackDuration: "10s"
+        recoveryDuration: "10s"
+
+# ===========================================
+# TCP路由配置
+# ===========================================
+tcp:
+  routers:
+    # PostgreSQL路由
+    postgres:
+      rule: "HostSNI(`*`)"
+      service: "postgres"
+      entryPoints:
+        - "postgres"
+    
+    # Redis路由
+    redis:
+      rule: "HostSNI(`*`)"
+      service: "redis"
+      entryPoints:
+        - "redis"
+  
+  services:
+    # PostgreSQL服务
+    postgres:
+      loadBalancer:
+        servers:
+          - address: "172.21.0.20:5432"
+    
+    # Redis服务
+    redis:
+      loadBalancer:
+        servers:
+          - address: "172.21.0.21:6379"
+
+# ===========================================
+# TLS配置
+# ===========================================
+tls:
+  certificates:
+    - certFile: "/certificates/localhost.crt"
+      keyFile: "/certificates/localhost.key"
+      stores:
+        - default
+    - certFile: "/certificates/wildcard.localhost.crt"
+      keyFile: "/certificates/wildcard.localhost.key"
+      stores:
+        - default
+  
+  stores:
+    default:
+      defaultCertificate:
+        certFile: "/certificates/default.crt"
+        keyFile: "/certificates/default.key"

@@ -1,0 +1,31 @@
+# Alertmanager Configuration - 基础版本
+global:
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alerts@localhost'
+  resolve_timeout: 5m
+
+route:
+  receiver: 'web.hook'
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  routes:
+  - match:
+      alertname: Watchdog
+    receiver: 'null'
+
+receivers:
+- name: 'web.hook'
+  webhook_configs:
+  - url: 'http://127.0.0.1:5001/'
+    send_resolved: true
+
+- name: 'null'
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'dev', 'instance']

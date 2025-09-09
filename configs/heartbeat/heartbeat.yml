@@ -1,0 +1,630 @@
+#=========================== Heartbeat Configuration ===========================
+
+#================================ Heartbeat ===================================
+
+# 心跳监控配置
+heartbeat.config.monitors:
+  # 监控配置目录
+  path: ${path.config}/monitors.d/*.yml
+  # 重新加载监控配置
+  reload.enabled: true
+  reload.period: 5s
+
+# 调度器配置
+heartbeat.scheduler:
+  # 限制并发监控数量
+  limit: 0
+  # 位置配置
+  location: ""
+
+#================================ Monitors ====================================
+
+# 监控配置
+heartbeat.monitors:
+
+# HTTP监控 - AIOps主应用
+- type: http
+  id: aiops-main-app
+  name: "AIOps Main Application"
+  urls: ["http://localhost:8080/health"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+    headers:
+      'User-Agent': 'Heartbeat'
+      'Accept': 'application/json'
+  check.response:
+    status: [200, 201]
+    headers:
+      content-type: 'application/json'
+    body:
+      - 'status.*ok'
+      - 'health.*up'
+  processors:
+    - add_tags:
+        tags: ["aiops", "main-app", "http"]
+
+# HTTP监控 - Prometheus
+- type: http
+  id: prometheus-api
+  name: "Prometheus API"
+  urls: ["http://prometheus:9090/-/healthy"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+  check.response:
+    status: [200]
+    body: 'Prometheus is Healthy.'
+  processors:
+    - add_tags:
+        tags: ["prometheus", "monitoring", "http"]
+
+# HTTP监控 - Grafana
+- type: http
+  id: grafana-api
+  name: "Grafana API"
+  urls: ["http://grafana:3000/api/health"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+    headers:
+      'Authorization': 'Bearer eyJrIjoiVGVzdCIsIm4iOiJUZXN0IiwiaWQiOjF9'
+  check.response:
+    status: [200]
+    headers:
+      content-type: 'application/json'
+    json:
+      - description: "database: ok"
+  processors:
+    - add_tags:
+        tags: ["grafana", "monitoring", "http"]
+
+# HTTP监控 - Elasticsearch
+- type: http
+  id: elasticsearch-cluster
+  name: "Elasticsearch Cluster"
+  urls: ["http://elasticsearch:9200/_cluster/health"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+  check.response:
+    status: [200]
+    headers:
+      content-type: 'application/json'
+    json:
+      - description: "status: green"
+      - description: "status: yellow"
+  processors:
+    - add_tags:
+        tags: ["elasticsearch", "logging", "http"]
+
+# HTTP监控 - Kibana
+- type: http
+  id: kibana-status
+  name: "Kibana Status"
+  urls: ["http://kibana:5601/api/status"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+  check.response:
+    status: [200]
+    headers:
+      content-type: 'application/json'
+    json:
+      - description: "status.overall.state: green"
+  processors:
+    - add_tags:
+        tags: ["kibana", "logging", "http"]
+
+# HTTP监控 - Logstash
+- type: http
+  id: logstash-api
+  name: "Logstash API"
+  urls: ["http://logstash:9600"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+  check.response:
+    status: [200]
+    headers:
+      content-type: 'application/json'
+  processors:
+    - add_tags:
+        tags: ["logstash", "logging", "http"]
+
+# HTTP监控 - Traefik Dashboard
+- type: http
+  id: traefik-dashboard
+  name: "Traefik Dashboard"
+  urls: ["http://traefik:8080/dashboard/"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+  check.response:
+    status: [200]
+  processors:
+    - add_tags:
+        tags: ["traefik", "proxy", "http"]
+
+# HTTP监控 - Jaeger UI
+- type: http
+  id: jaeger-ui
+  name: "Jaeger UI"
+  urls: ["http://jaeger:16686"]
+  schedule: '@every 30s'
+  timeout: 10s
+  check.request:
+    method: GET
+  check.response:
+    status: [200]
+  processors:
+    - add_tags:
+        tags: ["jaeger", "tracing", "http"]
+
+# TCP监控 - PostgreSQL
+- type: tcp
+  id: postgresql-tcp
+  name: "PostgreSQL TCP"
+  hosts: ["postgresql:5432"]
+  schedule: '@every 30s'
+  timeout: 10s
+  processors:
+    - add_tags:
+        tags: ["postgresql", "database", "tcp"]
+
+# TCP监控 - Redis
+- type: tcp
+  id: redis-tcp
+  name: "Redis TCP"
+  hosts: ["redis:6379"]
+  schedule: '@every 30s'
+  timeout: 10s
+  processors:
+    - add_tags:
+        tags: ["redis", "cache", "tcp"]
+
+# TCP监控 - Elasticsearch TCP
+- type: tcp
+  id: elasticsearch-tcp
+  name: "Elasticsearch TCP"
+  hosts: ["elasticsearch:9200"]
+  schedule: '@every 30s'
+  timeout: 10s
+  processors:
+    - add_tags:
+        tags: ["elasticsearch", "logging", "tcp"]
+
+# ICMP监控 - 网络连通性
+- type: icmp
+  id: network-connectivity
+  name: "Network Connectivity"
+  hosts: ["8.8.8.8", "1.1.1.1"]
+  schedule: '@every 60s'
+  timeout: 10s
+  processors:
+    - add_tags:
+        tags: ["network", "connectivity", "icmp"]
+
+# Browser监控 - 关键用户流程
+- type: browser
+  id: user-login-flow
+  name: "User Login Flow"
+  schedule: '@every 5m'
+  source:
+    inline:
+      script: |
+        step("Navigate to login page", async () => {
+          await page.goto('http://localhost:8080/login');
+        });
+        
+        step("Fill login form", async () => {
+          await page.fill('input[name="username"]', 'testuser');
+          await page.fill('input[name="password"]', 'testpass');
+        });
+        
+        step("Submit login", async () => {
+          await page.click('button[type="submit"]');
+          await page.waitForNavigation();
+        });
+        
+        step("Verify dashboard", async () => {
+          await page.waitForSelector('.dashboard');
+          expect(await page.textContent('h1')).toBe('Dashboard');
+        });
+  processors:
+    - add_tags:
+        tags: ["browser", "user-flow", "login"]
+
+# Browser监控 - 性能测试
+- type: browser
+  id: performance-test
+  name: "Performance Test"
+  schedule: '@every 10m'
+  source:
+    inline:
+      script: |
+        journey("Performance Test", ({ page, params }) => {
+          step("Load main page", async () => {
+            const response = await page.goto('http://localhost:8080');
+            expect(response.status()).toBe(200);
+          });
+          
+          step("Check page load time", async () => {
+            const performanceMetrics = await page.evaluate(() => {
+              const navigation = performance.getEntriesByType('navigation')[0];
+              return {
+                loadTime: navigation.loadEventEnd - navigation.loadEventStart,
+                domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
+                firstPaint: performance.getEntriesByType('paint')[0]?.startTime || 0
+              };
+            });
+            
+            expect(performanceMetrics.loadTime).toBeLessThan(3000); // 3秒内加载完成
+          });
+        });
+  processors:
+    - add_tags:
+        tags: ["browser", "performance", "load-time"]
+
+#================================ General =====================================
+
+# 实例名称
+name: "heartbeat-${HOSTNAME}"
+
+# 标签
+tags: ["heartbeat", "uptime", "${ENV:production}"]
+
+# 字段
+fields:
+  env: "${ENV:production}"
+  datacenter: "${DATACENTER:dc1}"
+  logtype: uptime
+fields_under_root: false
+
+# 最大启动延迟
+max_start_delay: 10s
+
+# 关闭超时
+shutdown_timeout: 5s
+
+#============================== Dashboards =====================================
+
+# Kibana仪表板设置
+setup.dashboards.enabled: true
+setup.dashboards.url: "https://artifacts.elastic.co/downloads/beats/heartbeat"
+setup.dashboards.directory: ${path.home}/kibana
+setup.dashboards.index: "heartbeat-*"
+
+#============================== Kibana =====================================
+
+# Kibana配置
+setup.kibana:
+  host: "kibana:5601"
+  protocol: "http"
+  username: "elastic"
+  password: "changeme"
+  path: "/kibana"
+  space.id: "default"
+
+#============================== Template ===================================
+
+# 索引模板设置
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+  index.codec: best_compression
+  index.refresh_interval: 5s
+  index.query.default_field: "message"
+
+#================================ Outputs ====================================
+
+# Logstash输出配置
+output.logstash:
+  hosts: ["logstash:5044"]
+  worker: 2
+  compression_level: 3
+  bulk_max_size: 2048
+  template.name: "heartbeat"
+  template.pattern: "heartbeat-*"
+  template.settings:
+    index.number_of_shards: 1
+    index.number_of_replicas: 0
+
+# Elasticsearch输出配置（备用）
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   protocol: "http"
+#   username: "elastic"
+#   password: "changeme"
+#   index: "heartbeat-%{+yyyy.MM.dd}"
+#   template.name: "heartbeat"
+#   template.pattern: "heartbeat-*"
+#   template.settings:
+#     index.number_of_shards: 1
+#     index.number_of_replicas: 0
+
+#================================ Processors =================================
+
+# 处理器配置
+processors:
+  # 添加主机元数据
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+      cache.ttl: 5m
+      geo:
+        name: nyc-dc1-rack1
+        location: 40.7128, -74.0060
+        continent_name: North America
+        country_iso_code: US
+        region_name: New York
+        region_iso_code: NY
+        city_name: New York
+  
+  # 添加Docker元数据
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+      match_fields: ["system.process.cgroup.id"]
+      match_pids: ["process.pid", "process.ppid"]
+      match_source: true
+      match_source_index: 4
+      match_short_id: false
+      cleanup_timeout: 60s
+      labels.dedot: false
+  
+  # 添加Kubernetes元数据
+  - add_kubernetes_metadata:
+      host: ${NODE_NAME}
+      kube_config: ${HOME}/.kube/config
+      default_indexers.enabled: true
+      default_matchers.enabled: true
+      include_labels: ["app", "version", "environment"]
+      include_annotations: ["kubernetes.io/change-cause"]
+  
+  # 删除不需要的字段
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "agent.hostname", "agent.id", "agent.type", "agent.version"]
+      ignore_missing: true
+  
+  # 重命名字段
+  - rename:
+      fields:
+        - from: "host.name"
+          to: "hostname"
+        - from: "agent.name"
+          to: "beat.name"
+      ignore_missing: true
+  
+  # 添加标签
+  - add_tags:
+      tags: ["heartbeat", "uptime"]
+      target: "tags"
+  
+  # 条件处理器 - 标记失败的监控
+  - add_tags:
+      tags: ["service-down"]
+      when:
+        equals:
+          monitor.status: "down"
+  
+  # 条件处理器 - 标记慢响应
+  - add_tags:
+      tags: ["slow-response"]
+      when:
+        range:
+          monitor.duration.us:
+            gt: 5000000  # 5秒
+  
+  # 脚本处理器 - 计算可用性
+  - script:
+      lang: javascript
+      id: availability_calculator
+      source: >
+        function process(event) {
+            var status = event.Get("monitor.status");
+            var duration = event.Get("monitor.duration.us");
+            
+            // 计算可用性百分比
+            if (status === "up") {
+                event.Put("monitor.availability", 100);
+            } else {
+                event.Put("monitor.availability", 0);
+            }
+            
+            // 响应时间分类
+            if (duration) {
+                var durationMs = duration / 1000;
+                var category;
+                
+                if (durationMs < 100) {
+                    category = "excellent";
+                } else if (durationMs < 500) {
+                    category = "good";
+                } else if (durationMs < 1000) {
+                    category = "fair";
+                } else if (durationMs < 5000) {
+                    category = "poor";
+                } else {
+                    category = "critical";
+                }
+                
+                event.Put("monitor.response_category", category);
+                event.Put("monitor.duration.ms", durationMs);
+            }
+            
+            // 添加时间戳
+            event.Put("custom.processed_at", new Date().toISOString());
+        }
+
+#================================ Logging ====================================
+
+# 日志配置
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/heartbeat
+  name: heartbeat
+  keepfiles: 7
+  permissions: 0644
+  rotateeverybytes: 10485760
+  interval: 24h
+
+# 日志输出到标准输出
+logging.to_stderr: false
+
+# 指标日志
+logging.metrics.enabled: true
+logging.metrics.period: 30s
+
+# JSON日志格式
+logging.json: false
+
+#============================== X-Pack Monitoring ===============================
+
+# X-Pack监控
+monitoring.enabled: true
+monitoring.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  username: "elastic"
+  password: "changeme"
+  protocol: "http"
+  path: "/elasticsearch"
+
+#============================== Instrumentation ===============================
+
+# APM性能监控
+instrumentation:
+  enabled: true
+  environment: "production"
+  hosts:
+    - "apm-server:8200"
+  secret_token: ""
+  capture_body: "off"
+  transaction_sample_rate: 0.1
+
+#============================== HTTP endpoint ==============================
+
+# HTTP端点配置
+http.enabled: true
+http.host: "0.0.0.0"
+http.port: 5068
+http.pprof.enabled: false
+
+#============================== Process Security ============================
+
+# 安全配置
+seccomp:
+  default_action: allow
+  syscalls:
+    - action: allow
+      names:
+        - rseq
+
+#============================== Queue Settings ==============================
+
+# 内存队列配置
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 1s
+
+#============================== Path Settings ===============================
+
+# 路径配置
+path:
+  home: /usr/share/heartbeat
+  config: /usr/share/heartbeat
+  data: /usr/share/heartbeat/data
+  logs: /var/log/heartbeat
+
+#============================== Migration ===================================
+
+# 迁移配置
+migration.6_to_7.enabled: true
+
+#============================== Shipper ==================================
+
+# 发送器配置
+shipper:
+  name: "heartbeat-shipper"
+  tags: ["heartbeat", "shipper"]
+
+#============================== Browser Settings ============================
+
+# 浏览器监控设置
+heartbeat.run_from:
+  id: "aiops-monitoring"
+  name: "AIOps Monitoring Location"
+  geo:
+    name: "New York"
+    location: "40.7128, -74.0060"
+
+# 浏览器配置
+browser:
+  # Chromium可执行文件路径
+  executable_path: "/usr/bin/chromium-browser"
+  
+  # 浏览器参数
+  args:
+    - "--no-sandbox"
+    - "--disable-dev-shm-usage"
+    - "--disable-gpu"
+    - "--headless"
+    - "--disable-web-security"
+    - "--ignore-certificate-errors"
+  
+  # 视口设置
+  viewport:
+    width: 1280
+    height: 720
+  
+  # 超时设置
+  timeout: 30s
+  
+  # 截图设置
+  screenshot:
+    enabled: true
+    mode: "on-failure"
+    directory: "/tmp/heartbeat-screenshots"
+  
+  # 网络设置
+  network:
+    # 禁用图片加载以提高性能
+    disable_images: true
+    # 禁用JavaScript（如果不需要）
+    disable_javascript: false
+  
+  # 用户代理
+  user_agent: "Heartbeat Synthetic Monitor"
+
+#============================== Alerting Rules ===========================
+
+# 告警规则（通过处理器实现）
+processors:
+  # 服务下线告警
+  - add_tags:
+      tags: ["alert", "critical"]
+      when:
+        and:
+          - equals:
+              monitor.status: "down"
+          - range:
+              "@timestamp":
+                gte: "now-5m"
+  
+  # 响应时间告警
+  - add_tags:
+      tags: ["alert", "warning"]
+      when:
+        and:
+          - equals:
+              monitor.status: "up"
+          - range:
+              monitor.duration.us:
+                gt: 3000000  # 3秒

@@ -1,0 +1,427 @@
+---
+# 系统服务重启 Playbook
+# 用于重启各种系统服务并验证服务状态
+
+- name: 重启系统服务
+  hosts: "{{ target_hosts | default('all') }}"
+  become: yes
+  gather_facts: yes
+  serial: "{{ serial_execution | default('100%') }}"
+  
+  vars:
+    service_name: "{{ service_name | mandatory }}"
+    wait_for_service: "{{ wait_for_service | default(true) }}"
+    health_check_timeout: "{{ health_check_timeout | default(60) }}"
+    backup_config: "{{ backup_config | default(true) }}"
+    pre_restart_commands: "{{ pre_restart_commands | default([]) }}"
+    post_restart_commands: "{{ post_restart_commands | default([]) }}"
+    service_port: "{{ service_port | default(omit) }}"
+    health_check_url: "{{ health_check_url | default(omit) }}"
+    max_restart_attempts: "{{ max_restart_attempts | default(3) }}"
+    restart_delay: "{{ restart_delay | default(5) }}"
+    
+  pre_tasks:
+    - name: 验证必需参数
+      fail:
+        msg: "service_name 参数是必需的"
+      when: service_name is not defined or service_name == ''
+    
+    - name: 检查当前用户权限
+      command: whoami
+      register: current_user
+      changed_when: false
+    
+    - name: 显示执行信息
+      debug:
+        msg: |
+          开始重启服务:
+          - 主机: {{ inventory_hostname }}
+          - 服务: {{ service_name }}
+          - 执行用户: {{ current_user.stdout }}
+          - 最大重试次数: {{ max_restart_attempts }}
+    
+    - name: 检查服务是否存在
+      systemd:
+        name: "{{ service_name }}"
+      register: service_exists
+      failed_when: false
+    
+    - name: 服务不存在时退出
+      fail:
+        msg: "服务 {{ service_name }} 不存在于系统中"
+      when: service_exists.status is not defined
+    
+    - name: 显示当前服务状态
+      debug:
+        msg: |
+          当前服务状态:
+          - 服务名: {{ service_name }}
+          - 状态: {{ service_exists.status.ActiveState | default('unknown') }}
+          - 子状态: {{ service_exists.status.SubState | default('unknown') }}
+          - 启用状态: {{ service_exists.status.UnitFileState | default('unknown') }}
+          - 主进程ID: {{ service_exists.status.MainPID | default('none') }}
+  
+  tasks:
+    - name: 备份服务配置文件
+      block:
+        - name: 创建备份目录
+          file:
+            path: "/backup/services/{{ service_name }}/{{ ansible_date_time.date }}"
+            state: directory
+            mode: '0755'
+        
+        - name: 查找服务配置文件
+          find:
+            paths:
+              - "/etc/systemd/system"
+              - "/lib/systemd/system"
+              - "/usr/lib/systemd/system"
+            patterns: "{{ service_name }}.*"
+          register: service_config_files
+        
+        - name: 备份服务配置文件
+          copy:
+            src: "{{ item.path }}"
+            dest: "/backup/services/{{ service_name }}/{{ ansible_date_time.date }}/{{ item.path | basename }}.{{ ansible_date_time.time }}"
+            remote_src: yes
+            backup: yes
+          loop: "{{ service_config_files.files }}"
+          when: service_config_files.files | length > 0
+        
+        - name: 查找应用配置文件
+          find:
+            paths:
+              - "/etc/{{ service_name }}"
+              - "/opt/{{ service_name }}/conf"
+              - "/usr/local/{{ service_name }}/conf"
+            patterns: "*.conf,*.yaml,*.yml,*.json,*.properties"
+            recurse: yes
+          register: app_config_files
+          failed_when: false
+        
+        - name: 备份应用配置文件
+          copy:
+            src: "{{ item.path }}"
+            dest: "/backup/services/{{ service_name }}/{{ ansible_date_time.date }}/{{ item.path | basename }}.{{ ansible_date_time.time }}"
+            remote_src: yes
+            backup: yes
+          loop: "{{ app_config_files.files }}"
+          when: app_config_files.files is defined and app_config_files.files | length > 0
+      when: backup_config | bool
+      rescue:
+        - name: 备份失败警告
+          debug:
+            msg: "警告: 配置文件备份失败，继续执行重启操作"
+    
+    - name: 执行预重启命令
+      shell: "{{ item }}"
+      loop: "{{ pre_restart_commands }}"
+      register: pre_restart_results
+      failed_when: false
+      when: pre_restart_commands | length > 0
+    
+    - name: 显示预重启命令结果
+      debug:
+        msg: "预重启命令 '{{ item.item }}' 执行结果: {{ item.rc }} - {{ item.stdout | default('') }}"
+      loop: "{{ pre_restart_results.results }}"
+      when: pre_restart_results is defined and pre_restart_results.results is defined
+    
+    - name: 重启服务（带重试机制）
+      block:
+        - name: 停止服务
+          systemd:
+            name: "{{ service_name }}"
+            state: stopped
+          register: stop_result
+        
+        - name: 等待服务完全停止
+          wait_for:
+            port: "{{ service_port }}"
+            host: "{{ ansible_default_ipv4.address }}"
+            state: stopped
+            timeout: 30
+          when: service_port is defined and wait_for_service | bool
+          failed_when: false
+        
+        - name: 清理服务相关进程
+          shell: |
+            # 查找并终止相关进程
+            pids=$(pgrep -f "{{ service_name }}" || true)
+            if [ -n "$pids" ]; then
+              echo "发现残留进程: $pids"
+              kill $pids || true
+              sleep 2
+              # 强制终止仍在运行的进程
+              pids=$(pgrep -f "{{ service_name }}" || true)
+              if [ -n "$pids" ]; then
+                echo "强制终止进程: $pids"
+                kill -9 $pids || true
+              fi
+            fi
+          register: cleanup_processes
+          changed_when: cleanup_processes.stdout != ''
+        
+        - name: 清理临时文件和锁文件
+          block:
+            - name: 清理PID文件
+              find:
+                paths:
+                  - "/var/run"
+                  - "/tmp"
+                patterns: "{{ service_name }}*.pid"
+              register: pid_files
+            
+            - name: 删除PID文件
+              file:
+                path: "{{ item.path }}"
+                state: absent
+              loop: "{{ pid_files.files }}"
+            
+            - name: 清理锁文件
+              find:
+                paths:
+                  - "/var/lock"
+                  - "/tmp"
+                patterns: "{{ service_name }}*.lock"
+              register: lock_files
+            
+            - name: 删除锁文件
+              file:
+                path: "{{ item.path }}"
+                state: absent
+              loop: "{{ lock_files.files }}"
+          rescue:
+            - name: 清理失败警告
+              debug:
+                msg: "警告: 临时文件清理失败，继续执行启动操作"
+        
+        - name: 重新加载systemd配置
+          systemd:
+            daemon_reload: yes
+        
+        - name: 启动服务
+          systemd:
+            name: "{{ service_name }}"
+            state: started
+            enabled: yes
+          register: start_result
+        
+        - name: 等待服务启动
+          wait_for:
+            port: "{{ service_port }}"
+            host: "{{ ansible_default_ipv4.address }}"
+            timeout: "{{ health_check_timeout }}"
+          when: service_port is defined and wait_for_service | bool
+        
+        - name: 检查服务健康状态
+          uri:
+            url: "{{ health_check_url }}"
+            method: GET
+            timeout: 10
+            status_code: [200, 201, 202]
+          register: health_check_result
+          retries: 5
+          delay: 5
+          until: health_check_result.status in [200, 201, 202]
+          when: health_check_url is defined
+          failed_when: false
+        
+        - name: 验证服务状态
+          systemd:
+            name: "{{ service_name }}"
+          register: final_service_status
+          failed_when: final_service_status.status.ActiveState != 'active'
+      rescue:
+        - name: 重启失败，尝试重试
+          block:
+            - name: 等待重试间隔
+              pause:
+                seconds: "{{ restart_delay }}"
+            
+            - name: 重试启动服务
+              systemd:
+                name: "{{ service_name }}"
+                state: restarted
+                enabled: yes
+              register: retry_start_result
+            
+            - name: 验证重试结果
+              systemd:
+                name: "{{ service_name }}"
+              register: retry_service_status
+              failed_when: retry_service_status.status.ActiveState != 'active'
+          rescue:
+            - name: 最终重启失败
+              fail:
+                msg: "服务 {{ service_name }} 重启失败，已尝试 {{ max_restart_attempts }} 次"
+      retries: "{{ max_restart_attempts }}"
+      delay: "{{ restart_delay }}"
+    
+    - name: 执行后重启命令
+      shell: "{{ item }}"
+      loop: "{{ post_restart_commands }}"
+      register: post_restart_results
+      failed_when: false
+      when: post_restart_commands | length > 0
+    
+    - name: 显示后重启命令结果
+      debug:
+        msg: "后重启命令 '{{ item.item }}' 执行结果: {{ item.rc }} - {{ item.stdout | default('') }}"
+      loop: "{{ post_restart_results.results }}"
+      when: post_restart_results is defined and post_restart_results.results is defined
+    
+    - name: 获取最终服务状态
+      systemd:
+        name: "{{ service_name }}"
+      register: final_status
+      changed_when: false
+    
+    - name: 获取服务日志
+      shell: "journalctl -u {{ service_name }} --no-pager -n 20"
+      register: service_logs
+      changed_when: false
+      failed_when: false
+  
+  post_tasks:
+    - name: 显示重启结果
+      debug:
+        msg: |
+          服务重启完成:
+          - 主机: {{ inventory_hostname }}
+          - 服务: {{ service_name }}
+          - 状态: {{ final_status.status.ActiveState }}
+          - 子状态: {{ final_status.status.SubState }}
+          - 主进程ID: {{ final_status.status.MainPID | default('none') }}
+          - 启动时间: {{ final_status.status.ActiveEnterTimestamp | default('unknown') }}
+          - 内存使用: {{ final_status.status.MemoryCurrent | default('unknown') }}
+          {% if health_check_result is defined and health_check_result.status is defined %}
+          - 健康检查: {{ 'passed' if health_check_result.status in [200, 201, 202] else 'failed' }}
+          {% endif %}
+    
+    - name: 显示服务日志
+      debug:
+        msg: |
+          最近的服务日志:
+          {{ service_logs.stdout }}
+      when: service_logs.stdout is defined and show_logs | default(false)
+    
+    - name: 记录重启日志
+      lineinfile:
+        path: "/var/log/service-restart.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ inventory_hostname }} - {{ service_name }} - 重启完成 - 状态: {{ final_status.status.ActiveState }}"
+        create: yes
+        mode: '0644'
+    
+    - name: 发送重启通知
+      mail:
+        to: "{{ notification_email | default('admin@example.com') }}"
+        subject: "服务重启完成 - {{ service_name }} @ {{ inventory_hostname }}"
+        body: |
+          服务重启操作已完成。
+          
+          服务信息:
+          - 主机: {{ inventory_hostname }}
+          - 服务名: {{ service_name }}
+          - 操作时间: {{ ansible_date_time.iso8601 }}
+          
+          重启结果:
+          - 状态: {{ final_status.status.ActiveState }}
+          - 子状态: {{ final_status.status.SubState }}
+          - 主进程ID: {{ final_status.status.MainPID | default('none') }}
+          - 启动时间: {{ final_status.status.ActiveEnterTimestamp | default('unknown') }}
+          
+          {% if health_check_result is defined and health_check_result.status is defined %}
+          健康检查: {{ 'passed' if health_check_result.status in [200, 201, 202] else 'failed' }}
+          {% endif %}
+          
+          {% if final_status.status.ActiveState != 'active' %}
+          警告: 服务状态异常，请及时检查。
+          {% endif %}
+          
+          最近日志:
+          {{ service_logs.stdout | default('无法获取日志') }}
+      when: notification_email is defined
+      failed_when: false
+  
+  handlers:
+    - name: 服务重启失败处理
+      block:
+        - name: 尝试恢复服务
+          systemd:
+            name: "{{ service_name }}"
+            state: started
+          register: recovery_attempt
+          failed_when: false
+        
+        - name: 发送失败通知
+          mail:
+            to: "{{ emergency_contact | default('emergency@example.com') }}"
+            subject: "紧急: 服务重启失败 - {{ service_name }} @ {{ inventory_hostname }}"
+            body: |
+              紧急通知: 服务重启失败，需要立即人工干预。
+              
+              服务信息:
+              - 主机: {{ inventory_hostname }}
+              - 服务名: {{ service_name }}
+              - 失败时间: {{ ansible_date_time.iso8601 }}
+              
+              错误信息:
+              {{ ansible_failed_result.msg | default('未知错误') }}
+              
+              请立即检查该服务状态并采取必要措施。
+            when: emergency_contact is defined
+            failed_when: false
+      listen: "restart_failed"
+
+# 批量服务重启任务
+- name: 批量服务重启
+  hosts: "{{ target_hosts | default('all') }}"
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: 批量重启多个服务
+      include_tasks: restart-service.yml
+      vars:
+        service_name: "{{ item }}"
+      loop: "{{ services_list }}"
+      when: services_list is defined and services_list | length > 0
+
+# 服务依赖重启任务
+- name: 依赖服务重启
+  hosts: "{{ target_hosts | default('all') }}"
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: 按依赖顺序重启服务
+      block:
+        - name: 停止所有依赖服务
+          systemd:
+            name: "{{ item }}"
+            state: stopped
+          loop: "{{ dependent_services | reverse | list }}"
+          when: dependent_services is defined
+        
+        - name: 重启主服务
+          systemd:
+            name: "{{ main_service }}"
+            state: restarted
+          when: main_service is defined
+        
+        - name: 启动依赖服务
+          systemd:
+            name: "{{ item }}"
+            state: started
+          loop: "{{ dependent_services }}"
+          when: dependent_services is defined
+        
+        - name: 验证所有服务状态
+          systemd:
+            name: "{{ item }}"
+          register: all_services_status
+          loop: "{{ [main_service] + dependent_services }}"
+          when: main_service is defined and dependent_services is defined
+          failed_when: all_services_status.status.ActiveState != 'active'
+      rescue:
+        - name: 依赖重启失败处理
+          debug:
+            msg: "依赖服务重启失败，请检查服务配置和依赖关系"

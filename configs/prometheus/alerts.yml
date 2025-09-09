@@ -1,0 +1,455 @@
+# Prometheus Alert Rules
+# AIOps-Platform 告警规则配置
+# 版本: 1.0.0
+
+groups:
+  # ===========================================
+  # 系统资源告警
+  # ===========================================
+  - name: system.rules
+    interval: 30s
+    rules:
+      # CPU使用率过高
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+          category: system
+          component: cpu
+        annotations:
+          summary: "High CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage is above 80% for more than 2 minutes. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/high-cpu"
+
+      # CPU使用率极高
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+          component: cpu
+        annotations:
+          summary: "Critical CPU usage detected on {{ $labels.instance }}"
+          description: "CPU usage is above 95% for more than 1 minute. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/critical-cpu"
+
+      # 内存使用率过高
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+          category: system
+          component: memory
+        annotations:
+          summary: "High memory usage detected on {{ $labels.instance }}"
+          description: "Memory usage is above 85% for more than 2 minutes. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/high-memory"
+
+      # 内存使用率极高
+      - alert: CriticalMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+          component: memory
+        annotations:
+          summary: "Critical memory usage detected on {{ $labels.instance }}"
+          description: "Memory usage is above 95% for more than 1 minute. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/critical-memory"
+
+      # 磁盘空间不足
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+          component: disk
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk usage is above 80% on {{ $labels.mountpoint }}. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/disk-space"
+
+      # 磁盘空间严重不足
+      - alert: DiskSpaceCritical
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          category: system
+          component: disk
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "Disk usage is above 95% on {{ $labels.mountpoint }}. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/critical-disk"
+
+      # 磁盘I/O过高
+      - alert: HighDiskIO
+        expr: rate(node_disk_io_time_seconds_total[5m]) * 100 > 80
+        for: 3m
+        labels:
+          severity: warning
+          category: system
+          component: disk
+        annotations:
+          summary: "High disk I/O on {{ $labels.instance }}"
+          description: "Disk I/O utilization is above 80%. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/high-disk-io"
+
+      # 网络流量异常
+      - alert: HighNetworkTraffic
+        expr: rate(node_network_receive_bytes_total[5m]) + rate(node_network_transmit_bytes_total[5m]) > 100 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+          component: network
+        annotations:
+          summary: "High network traffic on {{ $labels.instance }}"
+          description: "Network traffic is above 100MB/s. Current value: {{ $value | humanize }}B/s"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/high-network"
+
+  # ===========================================
+  # 容器和服务告警
+  # ===========================================
+  - name: container.rules
+    interval: 30s
+    rules:
+      # 容器停止运行
+      - alert: ContainerDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: container
+          component: service
+        annotations:
+          summary: "Container {{ $labels.job }} is down"
+          description: "Container {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/container-down"
+
+      # 容器重启频繁
+      - alert: ContainerHighRestartRate
+        expr: rate(container_start_time_seconds[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          category: container
+          component: service
+        annotations:
+          summary: "Container {{ $labels.name }} restarting frequently"
+          description: "Container {{ $labels.name }} is restarting more than 0.1 times per second"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/container-restart"
+
+      # 容器CPU使用率过高
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 80
+        for: 3m
+        labels:
+          severity: warning
+          category: container
+          component: cpu
+        annotations:
+          summary: "Container {{ $labels.name }} high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is above 80%. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/container-cpu"
+
+      # 容器内存使用率过高
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 85
+        for: 3m
+        labels:
+          severity: warning
+          category: container
+          component: memory
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container {{ $labels.name }} memory usage is above 85%. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/container-memory"
+
+  # ===========================================
+  # 应用服务告警
+  # ===========================================
+  - name: application.rules
+    interval: 30s
+    rules:
+      # Traefik服务异常
+      - alert: TraefikDown
+        expr: up{job="traefik"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: application
+          component: traefik
+        annotations:
+          summary: "Traefik is down"
+          description: "Traefik load balancer has been down for more than 1 minute"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/traefik-down"
+
+      # Grafana服务异常
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: application
+          component: grafana
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana monitoring dashboard has been down for more than 2 minutes"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/grafana-down"
+
+      # Elasticsearch集群异常
+      - alert: ElasticsearchDown
+        expr: up{job="elasticsearch"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: application
+          component: elasticsearch
+        annotations:
+          summary: "Elasticsearch is down"
+          description: "Elasticsearch cluster has been down for more than 1 minute"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/elasticsearch-down"
+
+      # Elasticsearch集群健康状态
+      - alert: ElasticsearchClusterUnhealthy
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+          component: elasticsearch
+        annotations:
+          summary: "Elasticsearch cluster is unhealthy"
+          description: "Elasticsearch cluster health status is RED"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/elasticsearch-health"
+
+      # AI引擎服务异常
+      - alert: AIEngineDown
+        expr: up{job="ai-engine"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+          component: ai-engine
+        annotations:
+          summary: "AI Engine is down"
+          description: "AI Engine service has been down for more than 2 minutes"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/ai-engine-down"
+
+      # 自愈系统异常
+      - alert: SelfHealingDown
+        expr: up{job="self-healing"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: application
+          component: self-healing
+        annotations:
+          summary: "Self-healing system is down"
+          description: "Self-healing system has been down for more than 2 minutes"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/self-healing-down"
+
+  # ===========================================
+  # 数据库告警
+  # ===========================================
+  - name: database.rules
+    interval: 30s
+    rules:
+      # PostgreSQL连接数过多
+      - alert: PostgreSQLTooManyConnections
+        expr: pg_stat_database_numbackends / pg_settings_max_connections * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+          component: postgresql
+        annotations:
+          summary: "PostgreSQL too many connections"
+          description: "PostgreSQL connection usage is above 80%. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/postgres-connections"
+
+      # Redis内存使用过高
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 85
+        for: 3m
+        labels:
+          severity: warning
+          category: database
+          component: redis
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis memory usage is above 85%. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/redis-memory"
+
+      # Redis连接数过多
+      - alert: RedisTooManyConnections
+        expr: redis_connected_clients > 100
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+          component: redis
+        annotations:
+          summary: "Redis too many connections"
+          description: "Redis has too many client connections. Current value: {{ $value }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/redis-connections"
+
+  # ===========================================
+  # 网络和安全告警
+  # ===========================================
+  - name: network.rules
+    interval: 30s
+    rules:
+      # HTTP错误率过高
+      - alert: HighHTTPErrorRate
+        expr: rate(traefik_service_requests_total{code=~"5.."}[5m]) / rate(traefik_service_requests_total[5m]) * 100 > 5
+        for: 3m
+        labels:
+          severity: warning
+          category: network
+          component: http
+        annotations:
+          summary: "High HTTP error rate"
+          description: "HTTP 5xx error rate is above 5%. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/http-errors"
+
+      # HTTP响应时间过长
+      - alert: HighHTTPLatency
+        expr: histogram_quantile(0.95, rate(traefik_service_request_duration_seconds_bucket[5m])) > 1
+        for: 3m
+        labels:
+          severity: warning
+          category: network
+          component: http
+        annotations:
+          summary: "High HTTP latency"
+          description: "95th percentile HTTP response time is above 1 second. Current value: {{ $value }}s"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/http-latency"
+
+      # SSL证书即将过期
+      - alert: SSLCertificateExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 7
+        for: 1h
+        labels:
+          severity: warning
+          category: security
+          component: ssl
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "SSL certificate for {{ $labels.instance }} will expire in less than 7 days"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/ssl-expiry"
+
+  # ===========================================
+  # AI和机器学习告警
+  # ===========================================
+  - name: ai.rules
+    interval: 60s
+    rules:
+      # AI模型预测准确率下降
+      - alert: AIModelAccuracyDrop
+        expr: ai_model_accuracy < 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: ai
+          component: model
+        annotations:
+          summary: "AI model accuracy dropped"
+          description: "AI model accuracy is below 85%. Current value: {{ $value }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/ai-accuracy"
+
+      # 异常检测触发频率过高
+      - alert: HighAnomalyDetectionRate
+        expr: rate(ai_anomaly_detected_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: ai
+          component: anomaly-detection
+        annotations:
+          summary: "High anomaly detection rate"
+          description: "Anomaly detection rate is above 0.1 per second. Current value: {{ $value }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/high-anomaly"
+
+      # AI引擎处理延迟过高
+      - alert: AIEngineHighLatency
+        expr: histogram_quantile(0.95, rate(ai_engine_processing_duration_seconds_bucket[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          category: ai
+          component: processing
+        annotations:
+          summary: "AI engine high processing latency"
+          description: "95th percentile AI processing time is above 5 seconds. Current value: {{ $value }}s"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/ai-latency"
+
+  # ===========================================
+  # 自愈系统告警
+  # ===========================================
+  - name: self-healing.rules
+    interval: 60s
+    rules:
+      # 自愈操作失败率过高
+      - alert: HighSelfHealingFailureRate
+        expr: rate(self_healing_operations_failed_total[10m]) / rate(self_healing_operations_total[10m]) * 100 > 20
+        for: 5m
+        labels:
+          severity: warning
+          category: self-healing
+          component: operations
+        annotations:
+          summary: "High self-healing failure rate"
+          description: "Self-healing operation failure rate is above 20%. Current value: {{ $value }}%"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/self-healing-failures"
+
+      # 自愈操作执行时间过长
+      - alert: SelfHealingOperationTimeout
+        expr: histogram_quantile(0.95, rate(self_healing_operation_duration_seconds_bucket[5m])) > 300
+        for: 2m
+        labels:
+          severity: warning
+          category: self-healing
+          component: operations
+        annotations:
+          summary: "Self-healing operation timeout"
+          description: "95th percentile self-healing operation time is above 5 minutes. Current value: {{ $value }}s"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/self-healing-timeout"
+
+  # ===========================================
+  # 业务指标告警
+  # ===========================================
+  - name: business.rules
+    interval: 60s
+    rules:
+      # API请求量异常下降
+      - alert: APIRequestRateDrop
+        expr: rate(http_requests_total[5m]) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+          component: api
+        annotations:
+          summary: "API request rate dropped significantly"
+          description: "API request rate is below 0.1 requests per second. Current value: {{ $value }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/api-rate-drop"
+
+      # 用户会话异常
+      - alert: UserSessionAnomalies
+        expr: rate(user_sessions_created_total[5m]) / rate(user_sessions_destroyed_total[5m]) > 10
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+          component: sessions
+        annotations:
+          summary: "User session creation/destruction ratio anomaly"
+          description: "Session creation rate is much higher than destruction rate. Ratio: {{ $value }}"
+          runbook_url: "https://docs.aiops-platform.com/runbooks/session-anomaly"

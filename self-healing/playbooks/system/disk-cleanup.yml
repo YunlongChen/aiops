@@ -1,0 +1,568 @@
+---
+# 磁盘清理 Playbook
+# 用于自动清理磁盘空间，释放存储资源
+
+- name: 磁盘空间清理
+  hosts: "{{ target_hosts | default('all') }}"
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    cleanup_paths:
+      - "/tmp"
+      - "/var/tmp"
+      - "/var/log"
+      - "/var/cache"
+    log_retention_days: "{{ log_retention_days | default(7) }}"
+    temp_file_age_days: "{{ temp_file_age_days | default(3) }}"
+    cache_cleanup: "{{ cache_cleanup | default(true) }}"
+    log_cleanup: "{{ log_cleanup | default(true) }}"
+    package_cache_cleanup: "{{ package_cache_cleanup | default(true) }}"
+    docker_cleanup: "{{ docker_cleanup | default(false) }}"
+    elasticsearch_cleanup: "{{ elasticsearch_cleanup | default(false) }}"
+    min_free_space_gb: "{{ min_free_space_gb | default(5) }}"
+    backup_before_cleanup: "{{ backup_before_cleanup | default(false) }}"
+    
+  pre_tasks:
+    - name: 检查磁盘使用情况
+      shell: "df -h"
+      register: disk_usage_before
+      changed_when: false
+    
+    - name: 显示清理前磁盘使用情况
+      debug:
+        msg: |
+          清理前磁盘使用情况:
+          {{ disk_usage_before.stdout }}
+    
+    - name: 获取根分区使用率
+      shell: "df / | tail -1 | awk '{print $5}' | sed 's/%//'"
+      register: root_usage_percent
+      changed_when: false
+    
+    - name: 获取根分区可用空间
+      shell: "df -BG / | tail -1 | awk '{print $4}' | sed 's/G//'"
+      register: root_available_gb
+      changed_when: false
+    
+    - name: 检查是否需要清理
+      debug:
+        msg: |
+          磁盘空间检查:
+          - 根分区使用率: {{ root_usage_percent.stdout }}%
+          - 可用空间: {{ root_available_gb.stdout }}GB
+          - 最小要求: {{ min_free_space_gb }}GB
+    
+    - name: 创建清理日志目录
+      file:
+        path: "/var/log/disk-cleanup"
+        state: directory
+        mode: '0755'
+  
+  tasks:
+    - name: 备份重要日志文件
+      block:
+        - name: 创建备份目录
+          file:
+            path: "/backup/logs/{{ ansible_date_time.date }}"
+            state: directory
+            mode: '0755'
+        
+        - name: 备份系统日志
+          archive:
+            path:
+              - "/var/log/syslog*"
+              - "/var/log/messages*"
+              - "/var/log/auth.log*"
+            dest: "/backup/logs/{{ ansible_date_time.date }}/system-logs-{{ ansible_date_time.time }}.tar.gz"
+            format: gz
+          failed_when: false
+        
+        - name: 备份应用日志
+          archive:
+            path: "/var/log/{{ item }}/*"
+            dest: "/backup/logs/{{ ansible_date_time.date }}/{{ item }}-logs-{{ ansible_date_time.time }}.tar.gz"
+            format: gz
+          loop:
+            - elasticsearch
+            - kibana
+            - logstash
+            - nginx
+            - apache2
+          failed_when: false
+      when: backup_before_cleanup | bool
+      rescue:
+        - name: 备份失败警告
+          debug:
+            msg: "警告: 日志备份失败，继续执行清理操作"
+    
+    - name: 清理临时文件
+      block:
+        - name: 查找临时文件
+          find:
+            paths: "{{ cleanup_paths }}"
+            age: "{{ temp_file_age_days }}d"
+            file_type: file
+            recurse: yes
+          register: temp_files
+        
+        - name: 显示将要删除的临时文件数量
+          debug:
+            msg: "发现 {{ temp_files.files | length }} 个临时文件将被删除"
+        
+        - name: 计算临时文件总大小
+          shell: |
+            total_size=0
+            {% for file in temp_files.files %}
+            if [ -f "{{ file.path }}" ]; then
+              size=$(stat -c%s "{{ file.path }}" 2>/dev/null || echo 0)
+              total_size=$((total_size + size))
+            fi
+            {% endfor %}
+            echo $((total_size / 1024 / 1024))
+          register: temp_files_size_mb
+          changed_when: false
+        
+        - name: 删除临时文件
+          file:
+            path: "{{ item.path }}"
+            state: absent
+          loop: "{{ temp_files.files }}"
+          register: temp_cleanup_result
+        
+        - name: 记录临时文件清理结果
+          debug:
+            msg: "临时文件清理完成: 删除了 {{ temp_files.files | length }} 个文件，释放 {{ temp_files_size_mb.stdout }}MB 空间"
+      rescue:
+        - name: 临时文件清理失败
+          debug:
+            msg: "临时文件清理失败，继续其他清理操作"
+    
+    - name: 清理日志文件
+      block:
+        - name: 查找过期日志文件
+          find:
+            paths:
+              - "/var/log"
+            patterns:
+              - "*.log.*"
+              - "*.log.gz"
+              - "*.log.bz2"
+              - "*.log.xz"
+            age: "{{ log_retention_days }}d"
+            recurse: yes
+          register: old_log_files
+        
+        - name: 计算日志文件总大小
+          shell: |
+            total_size=0
+            {% for file in old_log_files.files %}
+            if [ -f "{{ file.path }}" ]; then
+              size=$(stat -c%s "{{ file.path }}" 2>/dev/null || echo 0)
+              total_size=$((total_size + size))
+            fi
+            {% endfor %}
+            echo $((total_size / 1024 / 1024))
+          register: log_files_size_mb
+          changed_when: false
+        
+        - name: 删除过期日志文件
+          file:
+            path: "{{ item.path }}"
+            state: absent
+          loop: "{{ old_log_files.files }}"
+          when: item.path is not search('audit|secure|auth')
+        
+        - name: 清理systemd日志
+          shell: "journalctl --vacuum-time={{ log_retention_days }}d"
+          register: journalctl_cleanup
+        
+        - name: 清理大型日志文件
+          shell: |
+            # 清理超过100MB的日志文件，保留最后1000行
+            find /var/log -name "*.log" -size +100M -exec sh -c '
+              echo "清理大型日志文件: $1"
+              tail -n 1000 "$1" > "$1.tmp" && mv "$1.tmp" "$1"
+            ' _ {} \;
+          register: large_log_cleanup
+        
+        - name: 记录日志清理结果
+          debug:
+            msg: |
+              日志文件清理完成:
+              - 删除过期日志: {{ old_log_files.files | length }} 个文件
+              - 释放空间: {{ log_files_size_mb.stdout }}MB
+              - systemd日志清理: {{ journalctl_cleanup.stdout }}
+      when: log_cleanup | bool
+      rescue:
+        - name: 日志清理失败
+          debug:
+            msg: "日志清理失败，继续其他清理操作"
+    
+    - name: 清理包管理器缓存
+      block:
+        - name: 清理APT缓存 (Ubuntu/Debian)
+          block:
+            - name: 清理APT包缓存
+              apt:
+                autoclean: yes
+                autoremove: yes
+              register: apt_cleanup
+            
+            - name: 清理APT归档
+              shell: "apt-get clean"
+              register: apt_clean
+            
+            - name: 显示APT清理结果
+              debug:
+                msg: "APT缓存清理完成"
+          when: ansible_os_family == "Debian"
+        
+        - name: 清理YUM/DNF缓存 (RedHat/CentOS)
+          block:
+            - name: 清理YUM缓存
+              shell: "yum clean all"
+              register: yum_cleanup
+              when: ansible_pkg_mgr == "yum"
+            
+            - name: 清理DNF缓存
+              shell: "dnf clean all"
+              register: dnf_cleanup
+              when: ansible_pkg_mgr == "dnf"
+            
+            - name: 显示YUM/DNF清理结果
+              debug:
+                msg: "YUM/DNF缓存清理完成"
+          when: ansible_os_family == "RedHat"
+      when: package_cache_cleanup | bool
+      rescue:
+        - name: 包缓存清理失败
+          debug:
+            msg: "包管理器缓存清理失败，继续其他清理操作"
+    
+    - name: 清理Docker资源
+      block:
+        - name: 检查Docker是否安装
+          command: "docker --version"
+          register: docker_check
+          failed_when: false
+          changed_when: false
+        
+        - name: Docker资源清理
+          block:
+            - name: 清理未使用的Docker镜像
+              shell: "docker image prune -af"
+              register: docker_image_prune
+            
+            - name: 清理未使用的Docker容器
+              shell: "docker container prune -f"
+              register: docker_container_prune
+            
+            - name: 清理未使用的Docker网络
+              shell: "docker network prune -f"
+              register: docker_network_prune
+            
+            - name: 清理未使用的Docker卷
+              shell: "docker volume prune -f"
+              register: docker_volume_prune
+            
+            - name: 清理Docker构建缓存
+              shell: "docker builder prune -af"
+              register: docker_builder_prune
+              failed_when: false
+            
+            - name: 显示Docker清理结果
+              debug:
+                msg: |
+                  Docker资源清理完成:
+                  - 镜像清理: {{ docker_image_prune.stdout }}
+                  - 容器清理: {{ docker_container_prune.stdout }}
+                  - 网络清理: {{ docker_network_prune.stdout }}
+                  - 卷清理: {{ docker_volume_prune.stdout }}
+          when: docker_check.rc == 0
+      when: docker_cleanup | bool
+      rescue:
+        - name: Docker清理失败
+          debug:
+            msg: "Docker资源清理失败，继续其他清理操作"
+    
+    - name: 清理Elasticsearch数据
+      block:
+        - name: 检查Elasticsearch服务
+          uri:
+            url: "http://localhost:9200/_cluster/health"
+            method: GET
+            timeout: 5
+          register: es_health_check
+          failed_when: false
+        
+        - name: Elasticsearch数据清理
+          block:
+            - name: 获取索引列表
+              uri:
+                url: "http://localhost:9200/_cat/indices?format=json"
+                method: GET
+              register: es_indices
+            
+            - name: 删除过期索引
+              uri:
+                url: "http://localhost:9200/{{ item.index }}"
+                method: DELETE
+              loop: "{{ es_indices.json }}"
+              when: 
+                - item.index is match('^.*-\d{4}\.\d{2}\.\d{2}$')
+                - (ansible_date_time.epoch | int) - (item.index | regex_replace('.*-(\d{4})\.(\d{2})\.(\d{2})$', '\1-\2-\3') | to_datetime('%Y-%m-%d')).timestamp() > (log_retention_days | int * 86400)
+              register: es_index_cleanup
+            
+            - name: 强制合并剩余索引
+              uri:
+                url: "http://localhost:9200/_forcemerge?max_num_segments=1&wait_for_completion=false"
+                method: POST
+              register: es_forcemerge
+            
+            - name: 显示Elasticsearch清理结果
+              debug:
+                msg: "Elasticsearch数据清理完成，删除了 {{ es_index_cleanup.results | selectattr('status', 'equalto', 200) | list | length }} 个过期索引"
+          when: es_health_check.status == 200
+      when: elasticsearch_cleanup | bool
+      rescue:
+        - name: Elasticsearch清理失败
+          debug:
+            msg: "Elasticsearch数据清理失败，继续其他清理操作"
+    
+    - name: 清理系统缓存
+      block:
+        - name: 清理页面缓存
+          shell: "sync && echo 1 > /proc/sys/vm/drop_caches"
+          register: page_cache_clear
+        
+        - name: 清理目录项和inode缓存
+          shell: "sync && echo 2 > /proc/sys/vm/drop_caches"
+          register: dentry_cache_clear
+        
+        - name: 清理所有缓存
+          shell: "sync && echo 3 > /proc/sys/vm/drop_caches"
+          register: all_cache_clear
+        
+        - name: 显示缓存清理结果
+          debug:
+            msg: "系统缓存清理完成"
+      when: cache_cleanup | bool
+      rescue:
+        - name: 系统缓存清理失败
+          debug:
+            msg: "系统缓存清理失败，继续其他清理操作"
+    
+    - name: 清理用户缓存目录
+      block:
+        - name: 查找用户缓存目录
+          find:
+            paths:
+              - "/home"
+              - "/root"
+            patterns:
+              - ".cache"
+              - ".tmp"
+            file_type: directory
+            recurse: yes
+            depth: 2
+          register: user_cache_dirs
+        
+        - name: 清理用户缓存文件
+          find:
+            paths: "{{ item.path }}"
+            age: "{{ temp_file_age_days }}d"
+            recurse: yes
+          register: user_cache_files
+          loop: "{{ user_cache_dirs.files }}"
+        
+        - name: 删除用户缓存文件
+          file:
+            path: "{{ item.1.path }}"
+            state: absent
+          loop: "{{ user_cache_files.results | subelements('files') }}"
+          when: user_cache_files.results is defined
+      rescue:
+        - name: 用户缓存清理失败
+          debug:
+            msg: "用户缓存清理失败，继续其他清理操作"
+    
+    - name: 清理核心转储文件
+      block:
+        - name: 查找核心转储文件
+          find:
+            paths:
+              - "/"
+              - "/tmp"
+              - "/var/tmp"
+              - "/home"
+            patterns:
+              - "core.*"
+              - "*.core"
+            size: "+10M"
+            recurse: yes
+          register: core_dump_files
+        
+        - name: 删除核心转储文件
+          file:
+            path: "{{ item.path }}"
+            state: absent
+          loop: "{{ core_dump_files.files }}"
+        
+        - name: 显示核心转储清理结果
+          debug:
+            msg: "清理了 {{ core_dump_files.files | length }} 个核心转储文件"
+      rescue:
+        - name: 核心转储清理失败
+          debug:
+            msg: "核心转储文件清理失败"
+    
+    - name: 检查清理后磁盘使用情况
+      shell: "df -h"
+      register: disk_usage_after
+      changed_when: false
+    
+    - name: 获取清理后根分区使用率
+      shell: "df / | tail -1 | awk '{print $5}' | sed 's/%//'"
+      register: root_usage_after
+      changed_when: false
+    
+    - name: 获取清理后根分区可用空间
+      shell: "df -BG / | tail -1 | awk '{print $4}' | sed 's/G//'"
+      register: root_available_after
+      changed_when: false
+    
+    - name: 计算释放的空间
+      set_fact:
+        space_freed_gb: "{{ (root_available_after.stdout | int) - (root_available_gb.stdout | int) }}"
+        usage_reduced: "{{ (root_usage_percent.stdout | int) - (root_usage_after.stdout | int) }}"
+  
+  post_tasks:
+    - name: 显示清理结果
+      debug:
+        msg: |
+          磁盘清理完成:
+          - 主机: {{ inventory_hostname }}
+          - 清理前使用率: {{ root_usage_percent.stdout }}%
+          - 清理后使用率: {{ root_usage_after.stdout }}%
+          - 使用率降低: {{ usage_reduced }}%
+          - 释放空间: {{ space_freed_gb }}GB
+          - 当前可用空间: {{ root_available_after.stdout }}GB
+    
+    - name: 显示清理后磁盘使用情况
+      debug:
+        msg: |
+          清理后磁盘使用情况:
+          {{ disk_usage_after.stdout }}
+    
+    - name: 记录清理日志
+      lineinfile:
+        path: "/var/log/disk-cleanup/cleanup.log"
+        line: "{{ ansible_date_time.iso8601 }} - {{ inventory_hostname }} - 磁盘清理完成 - 使用率从 {{ root_usage_percent.stdout }}% 降至 {{ root_usage_after.stdout }}% - 释放 {{ space_freed_gb }}GB"
+        create: yes
+        mode: '0644'
+    
+    - name: 检查清理效果
+      block:
+        - name: 验证可用空间
+          fail:
+            msg: "清理后可用空间仍然不足 ({{ root_available_after.stdout }}GB < {{ min_free_space_gb }}GB)"
+          when: root_available_after.stdout | int < min_free_space_gb | int
+        
+        - name: 清理成功通知
+          debug:
+            msg: "磁盘清理成功，当前可用空间充足"
+      rescue:
+        - name: 清理效果不佳警告
+          debug:
+            msg: "警告: 磁盘清理后空间仍然不足，可能需要额外措施"
+    
+    - name: 发送清理报告
+      mail:
+        to: "{{ notification_email | default('admin@example.com') }}"
+        subject: "磁盘清理完成 - {{ inventory_hostname }}"
+        body: |
+          磁盘清理操作已完成。
+          
+          主机信息:
+          - 主机: {{ inventory_hostname }}
+          - IP地址: {{ ansible_default_ipv4.address }}
+          - 操作时间: {{ ansible_date_time.iso8601 }}
+          
+          清理结果:
+          - 清理前使用率: {{ root_usage_percent.stdout }}%
+          - 清理后使用率: {{ root_usage_after.stdout }}%
+          - 使用率降低: {{ usage_reduced }}%
+          - 释放空间: {{ space_freed_gb }}GB
+          - 当前可用空间: {{ root_available_after.stdout }}GB
+          
+          清理操作:
+          - 临时文件清理: {{ 'completed' if temp_cleanup_result is defined else 'skipped' }}
+          - 日志文件清理: {{ 'completed' if log_cleanup else 'skipped' }}
+          - 包缓存清理: {{ 'completed' if package_cache_cleanup else 'skipped' }}
+          - Docker清理: {{ 'completed' if docker_cleanup else 'skipped' }}
+          - Elasticsearch清理: {{ 'completed' if elasticsearch_cleanup else 'skipped' }}
+          
+          {% if root_available_after.stdout | int < min_free_space_gb | int %}
+          警告: 清理后可用空间仍然不足，建议进一步检查或扩容。
+          {% endif %}
+      when: notification_email is defined
+      failed_when: false
+
+# 紧急磁盘清理任务
+- name: 紧急磁盘清理
+  hosts: "{{ target_hosts | default('all') }}"
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: 紧急情况处理
+      block:
+        - name: 检查磁盘使用率
+          shell: "df / | tail -1 | awk '{print $5}' | sed 's/%//'"
+          register: emergency_usage
+        
+        - name: 紧急清理操作
+          block:
+            - name: 立即清理所有临时文件
+              shell: |
+                find /tmp /var/tmp -type f -delete 2>/dev/null || true
+                find /var/log -name "*.log.*" -delete 2>/dev/null || true
+                journalctl --vacuum-size=100M
+              register: emergency_cleanup
+            
+            - name: 强制清理系统缓存
+              shell: "sync && echo 3 > /proc/sys/vm/drop_caches"
+            
+            - name: 清理Docker资源（如果存在）
+              shell: |
+                if command -v docker >/dev/null 2>&1; then
+                  docker system prune -af --volumes 2>/dev/null || true
+                fi
+              register: emergency_docker_cleanup
+            
+            - name: 检查紧急清理效果
+              shell: "df / | tail -1 | awk '{print $5}' | sed 's/%//'"
+              register: post_emergency_usage
+            
+            - name: 发送紧急清理通知
+              mail:
+                to: "{{ emergency_contact | default('emergency@example.com') }}"
+                subject: "紧急: 磁盘空间清理执行 - {{ inventory_hostname }}"
+                body: |
+                  紧急磁盘清理已执行。
+                  
+                  主机: {{ inventory_hostname }}
+                  清理前使用率: {{ emergency_usage.stdout }}%
+                  清理后使用率: {{ post_emergency_usage.stdout }}%
+                  
+                  {% if post_emergency_usage.stdout | int > 90 %}
+                  警告: 清理后磁盘使用率仍然极高，可能需要立即扩容或删除大文件。
+                  {% endif %}
+              when: emergency_contact is defined
+              failed_when: false
+          when: emergency_usage.stdout | int > 95
+      when: emergency_cleanup | default(false)
+      rescue:
+        - name: 紧急清理失败
+          debug:
+            msg: "紧急磁盘清理失败，建议立即人工干预"

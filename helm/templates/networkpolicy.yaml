@@ -1,0 +1,788 @@
+{{/*
+AIOps-Platform Kubernetes NetworkPolicy模板
+文件: networkpolicy.yaml
+描述: 定义网络安全策略，控制Pod间通信
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.networkPolicy.enabled }}
+# 默认拒绝所有入站流量的网络策略
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-default-deny
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  egress:
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # 允许访问Kubernetes API
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443
+
+---
+# Traefik网络策略
+{{- if .Values.traefik.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: traefik
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自外部的HTTP/HTTPS流量
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+  # 允许来自同命名空间的管理端口访问
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # 允许访问所有后端服务
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 3000  # Grafana
+    - protocol: TCP
+      port: 9090  # Prometheus
+    - protocol: TCP
+      port: 9093  # Alertmanager
+    - protocol: TCP
+      port: 5601  # Kibana
+    - protocol: TCP
+      port: 8000  # AI Engine
+    - protocol: TCP
+      port: 8080  # API Gateway
+  # 允许DNS和外部访问
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+    - protocol: TCP
+      port: 443
+{{- end }}
+
+---
+# Prometheus网络策略
+{{- if .Values.prometheus.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prometheus
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Traefik的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: traefik
+    ports:
+    - protocol: TCP
+      port: 9090
+  # 允许来自Grafana的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: grafana
+    ports:
+    - protocol: TCP
+      port: 9090
+  # 允许来自AI引擎的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: ai-engine
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  # 允许抓取指标
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 9100  # Node Exporter
+    - protocol: TCP
+      port: 8080  # 应用指标
+    - protocol: TCP
+      port: 9200  # Elasticsearch
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# Grafana网络策略
+{{- if .Values.grafana.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: grafana
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Traefik的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: traefik
+    ports:
+    - protocol: TCP
+      port: 3000
+  egress:
+  # 允许访问Prometheus
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  # 允许访问Elasticsearch
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# Alertmanager网络策略
+{{- if .Values.alertmanager.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-alertmanager
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: alertmanager
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Prometheus的告警
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: prometheus
+    ports:
+    - protocol: TCP
+      port: 9093
+  # 允许来自Traefik的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: traefik
+    ports:
+    - protocol: TCP
+      port: 9093
+  egress:
+  # 允许发送通知到外部服务
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 25   # SMTP
+    - protocol: TCP
+      port: 587  # SMTP TLS
+    - protocol: TCP
+      port: 465  # SMTP SSL
+    - protocol: TCP
+      port: 443  # HTTPS (Slack, etc.)
+  # 允许访问自愈执行器
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: self-healing
+    ports:
+    - protocol: TCP
+      port: 8080
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# Elasticsearch网络策略
+{{- if .Values.elasticsearch.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-elasticsearch
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: elasticsearch
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: elasticsearch
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Logstash的数据写入
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: logstash
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 允许来自Kibana的查询
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: kibana
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 允许来自Grafana的查询
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: grafana
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 允许来自AI引擎的查询
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: ai-engine
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 集群内部通信
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9300
+  egress:
+  # 集群内部通信
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9300
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# Logstash网络策略
+{{- if .Values.logstash.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-logstash
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: logstash
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: logstash
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许接收日志数据
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 5044  # Beats
+    - protocol: TCP
+      port: 5000  # TCP input
+    - protocol: UDP
+      port: 5000  # UDP input
+    - protocol: TCP
+      port: 9600  # HTTP input
+  egress:
+  # 允许写入Elasticsearch
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 允许访问Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# Kibana网络策略
+{{- if .Values.kibana.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-kibana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kibana
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: kibana
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Traefik的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: traefik
+    ports:
+    - protocol: TCP
+      port: 5601
+  egress:
+  # 允许访问Elasticsearch
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# AI引擎网络策略
+{{- if .Values.aiEngine.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai-engine
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自API网关的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8000
+  # 允许来自Traefik的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: traefik
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  # 允许访问Prometheus获取指标
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: prometheus
+    ports:
+    - protocol: TCP
+      port: 9090
+  # 允许访问Elasticsearch获取日志
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+  # 允许访问Redis缓存
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # 允许访问PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  # 允许DNS查询和外部API访问
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+    - protocol: TCP
+      port: 443
+{{- end }}
+
+---
+# API网关网络策略
+{{- if .Values.apiGateway.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-api-gateway
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api-gateway
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Traefik的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: traefik
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # 允许访问AI引擎
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: ai-engine
+    ports:
+    - protocol: TCP
+      port: 8000
+  # 允许访问自愈执行器
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: self-healing
+    ports:
+    - protocol: TCP
+      port: 8080
+  # 允许访问Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # 允许访问PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# 自愈执行器网络策略
+{{- if .Values.selfHealing.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: self-healing
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # 允许来自Alertmanager的触发
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: alertmanager
+    ports:
+    - protocol: TCP
+      port: 8080
+  # 允许来自API网关的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: api-gateway
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  # 允许访问Kubernetes API执行操作
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443
+  # 允许访问Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # 允许访问PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+          app.kubernetes.io/component: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  # 允许SSH访问目标服务器（如果需要）
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 22
+  # 允许DNS查询
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+{{- end }}
+
+---
+# Redis网络策略
+{{- if .Values.redis.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-redis
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  policyTypes:
+  - Ingress
+  ingress:
+  # 允许来自应用组件的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: 6379
+{{- end }}
+
+---
+# PostgreSQL网络策略
+{{- if .Values.postgresql.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" . }}-postgresql
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgresql
+  policyTypes:
+  - Ingress
+  ingress:
+  # 允许来自应用组件的访问
+  - from:
+    - podSelector:
+        matchLabels:
+          {{- include "aiops.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: 5432
+{{- end }}
+
+{{- if .Values.networkPolicy.customPolicies }}
+{{- range .Values.networkPolicy.customPolicies }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "aiops.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "aiops.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: custom-policy
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- toYaml .spec | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

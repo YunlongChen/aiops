@@ -1,0 +1,591 @@
+---
+# 数据库连接修复Playbook
+# 用于诊断和修复数据库连接问题
+
+- name: "数据库连接诊断和修复"
+  hosts: "{{ target_hosts | default('all') }}"
+  gather_facts: yes
+  become: yes
+  
+  vars:
+    # 数据库配置
+    db_type: "{{ db_type | default('mysql') }}"  # mysql, postgresql, mongodb, redis
+    db_host: "{{ db_host | default('localhost') }}"
+    db_port: "{{ db_port | default('3306') }}"
+    db_name: "{{ db_name | default('') }}"
+    db_user: "{{ db_user | default('') }}"
+    db_password: "{{ db_password | default('') }}"
+    
+    # 修复选项
+    restart_service: "{{ restart_service | default(true) }}"
+    check_config: "{{ check_config | default(true) }}"
+    optimize_performance: "{{ optimize_performance | default(false) }}"
+    repair_tables: "{{ repair_tables | default(false) }}"
+    
+    # 超时设置
+    connection_timeout: "{{ connection_timeout | default(30) }}"
+    query_timeout: "{{ query_timeout | default(60) }}"
+    
+    # 日志配置
+    log_file: "/var/log/self-healing/database-fix.log"
+    
+  pre_tasks:
+    - name: "创建日志目录"
+      file:
+        path: "/var/log/self-healing"
+        state: directory
+        mode: '0755'
+    
+    - name: "记录开始时间"
+      set_fact:
+        start_time: "{{ ansible_date_time.iso8601 }}"
+    
+    - name: "验证参数"
+      assert:
+        that:
+          - db_type in ['mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch']
+          - db_host != ''
+          - db_port | int > 0
+        fail_msg: "数据库参数验证失败"
+    
+    - name: "记录操作开始"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ start_time }}] 开始数据库连接诊断和修复 - 类型: {{ db_type }}, 主机: {{ db_host }}:{{ db_port }}"
+        create: yes
+
+  tasks:
+    # 数据库服务状态检查
+    - name: "检查MySQL服务状态"
+      shell: |
+        echo "=== MySQL服务状态 ==="
+        if systemctl is-active mysql >/dev/null 2>&1 || systemctl is-active mysqld >/dev/null 2>&1; then
+          service_name=$(systemctl is-active mysql >/dev/null 2>&1 && echo "mysql" || echo "mysqld")
+          echo "服务名称: $service_name"
+          systemctl status $service_name --no-pager -l
+          echo ""
+          echo "进程信息:"
+          ps aux | grep -E "[m]ysql|[m]ariadb" | head -5
+        else
+          echo "MySQL服务未运行"
+        fi
+      register: mysql_status
+      when: db_type == 'mysql'
+      changed_when: false
+    
+    - name: "检查PostgreSQL服务状态"
+      shell: |
+        echo "=== PostgreSQL服务状态 ==="
+        if systemctl is-active postgresql >/dev/null 2>&1; then
+          systemctl status postgresql --no-pager -l
+          echo ""
+          echo "进程信息:"
+          ps aux | grep -E "[p]ostgres" | head -5
+        else
+          echo "PostgreSQL服务未运行"
+        fi
+      register: postgresql_status
+      when: db_type == 'postgresql'
+      changed_when: false
+    
+    - name: "检查MongoDB服务状态"
+      shell: |
+        echo "=== MongoDB服务状态 ==="
+        if systemctl is-active mongod >/dev/null 2>&1; then
+          systemctl status mongod --no-pager -l
+          echo ""
+          echo "进程信息:"
+          ps aux | grep -E "[m]ongod" | head -5
+        else
+          echo "MongoDB服务未运行"
+        fi
+      register: mongodb_status
+      when: db_type == 'mongodb'
+      changed_when: false
+    
+    - name: "检查Redis服务状态"
+      shell: |
+        echo "=== Redis服务状态 ==="
+        if systemctl is-active redis >/dev/null 2>&1 || systemctl is-active redis-server >/dev/null 2>&1; then
+          service_name=$(systemctl is-active redis >/dev/null 2>&1 && echo "redis" || echo "redis-server")
+          systemctl status $service_name --no-pager -l
+          echo ""
+          echo "进程信息:"
+          ps aux | grep -E "[r]edis" | head -5
+        else
+          echo "Redis服务未运行"
+        fi
+      register: redis_status
+      when: db_type == 'redis'
+      changed_when: false
+    
+    # 网络连通性测试
+    - name: "测试数据库端口连通性"
+      shell: |
+        echo "=== 端口连通性测试 ==="
+        if command -v nc >/dev/null 2>&1; then
+          if timeout {{ connection_timeout }} nc -z {{ db_host }} {{ db_port }}; then
+            echo "端口 {{ db_host }}:{{ db_port }} 可达"
+          else
+            echo "端口 {{ db_host }}:{{ db_port }} 不可达"
+          fi
+        elif command -v telnet >/dev/null 2>&1; then
+          if timeout {{ connection_timeout }} bash -c "echo > /dev/tcp/{{ db_host }}/{{ db_port }}"; then
+            echo "端口 {{ db_host }}:{{ db_port }} 可达"
+          else
+            echo "端口 {{ db_host }}:{{ db_port }} 不可达"
+          fi
+        else
+          echo "无法测试端口连通性（缺少nc或telnet）"
+        fi
+      register: port_test
+      changed_when: false
+      ignore_errors: yes
+    
+    # 数据库连接测试
+    - name: "测试MySQL连接"
+      shell: |
+        echo "=== MySQL连接测试 ==="
+        if command -v mysql >/dev/null 2>&1; then
+          # 测试连接
+          if [ -n "{{ db_user }}" ] && [ -n "{{ db_password }}" ]; then
+            if timeout {{ connection_timeout }} mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} -e "SELECT 1;" 2>/dev/null; then
+              echo "MySQL连接成功"
+              
+              # 获取数据库状态
+              mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} -e "SHOW STATUS LIKE 'Threads_connected'; SHOW STATUS LIKE 'Max_used_connections'; SHOW VARIABLES LIKE 'max_connections';"
+            else
+              echo "MySQL连接失败"
+            fi
+          else
+            echo "缺少数据库用户名或密码"
+          fi
+        else
+          echo "MySQL客户端未安装"
+        fi
+      register: mysql_connection_test
+      when: db_type == 'mysql'
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: "测试PostgreSQL连接"
+      shell: |
+        echo "=== PostgreSQL连接测试 ==="
+        if command -v psql >/dev/null 2>&1; then
+          if [ -n "{{ db_user }}" ] && [ -n "{{ db_password }}" ]; then
+            export PGPASSWORD="{{ db_password }}"
+            if timeout {{ connection_timeout }} psql -h {{ db_host }} -p {{ db_port }} -U {{ db_user }} -d {{ db_name | default('postgres') }} -c "SELECT 1;" 2>/dev/null; then
+              echo "PostgreSQL连接成功"
+              
+              # 获取数据库状态
+              psql -h {{ db_host }} -p {{ db_port }} -U {{ db_user }} -d {{ db_name | default('postgres') }} -c "SELECT count(*) as active_connections FROM pg_stat_activity; SELECT setting as max_connections FROM pg_settings WHERE name='max_connections';"
+            else
+              echo "PostgreSQL连接失败"
+            fi
+          else
+            echo "缺少数据库用户名或密码"
+          fi
+        else
+          echo "PostgreSQL客户端未安装"
+        fi
+      register: postgresql_connection_test
+      when: db_type == 'postgresql'
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: "测试MongoDB连接"
+      shell: |
+        echo "=== MongoDB连接测试 ==="
+        if command -v mongo >/dev/null 2>&1; then
+          connection_string="mongodb://{{ db_host }}:{{ db_port }}"
+          if [ -n "{{ db_user }}" ] && [ -n "{{ db_password }}" ]; then
+            connection_string="mongodb://{{ db_user }}:{{ db_password }}@{{ db_host }}:{{ db_port }}"
+          fi
+          
+          if timeout {{ connection_timeout }} mongo "$connection_string" --eval "db.runCommand('ping')" 2>/dev/null; then
+            echo "MongoDB连接成功"
+            
+            # 获取数据库状态
+            mongo "$connection_string" --eval "db.runCommand('serverStatus').connections"
+          else
+            echo "MongoDB连接失败"
+          fi
+        else
+          echo "MongoDB客户端未安装"
+        fi
+      register: mongodb_connection_test
+      when: db_type == 'mongodb'
+      changed_when: false
+      ignore_errors: yes
+    
+    - name: "测试Redis连接"
+      shell: |
+        echo "=== Redis连接测试 ==="
+        if command -v redis-cli >/dev/null 2>&1; then
+          redis_cmd="redis-cli -h {{ db_host }} -p {{ db_port }}"
+          if [ -n "{{ db_password }}" ]; then
+            redis_cmd="$redis_cmd -a {{ db_password }}"
+          fi
+          
+          if timeout {{ connection_timeout }} $redis_cmd ping 2>/dev/null | grep -q "PONG"; then
+            echo "Redis连接成功"
+            
+            # 获取Redis状态
+            $redis_cmd info clients | grep -E "connected_clients|blocked_clients"
+            $redis_cmd info memory | grep -E "used_memory_human|maxmemory_human"
+          else
+            echo "Redis连接失败"
+          fi
+        else
+          echo "Redis客户端未安装"
+        fi
+      register: redis_connection_test
+      when: db_type == 'redis'
+      changed_when: false
+      ignore_errors: yes
+    
+    # 检查数据库配置文件
+    - name: "检查MySQL配置文件"
+      shell: |
+        echo "=== MySQL配置检查 ==="
+        config_files=("/etc/mysql/my.cnf" "/etc/my.cnf" "/usr/local/mysql/my.cnf")
+        
+        for config_file in "${config_files[@]}"; do
+          if [ -f "$config_file" ]; then
+            echo "配置文件: $config_file"
+            echo "关键配置项:"
+            grep -E "^(bind-address|port|max_connections|innodb_buffer_pool_size)" "$config_file" || echo "未找到关键配置项"
+            echo ""
+            break
+          fi
+        done
+        
+        # 检查错误日志
+        error_logs=("/var/log/mysql/error.log" "/var/log/mysqld.log" "/var/lib/mysql/$(hostname).err")
+        for log_file in "${error_logs[@]}"; do
+          if [ -f "$log_file" ]; then
+            echo "最近的错误日志 ($log_file):"
+            tail -20 "$log_file" | grep -E "ERROR|Warning" | tail -5
+            break
+          fi
+        done
+      register: mysql_config_check
+      when: 
+        - db_type == 'mysql'
+        - check_config
+      changed_when: false
+    
+    - name: "检查PostgreSQL配置文件"
+      shell: |
+        echo "=== PostgreSQL配置检查 ==="
+        
+        # 查找配置文件
+        config_file=$(find /etc/postgresql /var/lib/pgsql -name "postgresql.conf" 2>/dev/null | head -1)
+        if [ -n "$config_file" ]; then
+          echo "配置文件: $config_file"
+          echo "关键配置项:"
+          grep -E "^(listen_addresses|port|max_connections|shared_buffers)" "$config_file" || echo "未找到关键配置项"
+        fi
+        
+        # 检查错误日志
+        log_dir=$(find /var/log/postgresql /var/lib/pgsql -name "*.log" 2>/dev/null | head -1 | xargs dirname)
+        if [ -n "$log_dir" ]; then
+          echo "最近的错误日志:"
+          find "$log_dir" -name "*.log" -exec tail -20 {} \; | grep -E "ERROR|FATAL" | tail -5
+        fi
+      register: postgresql_config_check
+      when: 
+        - db_type == 'postgresql'
+        - check_config
+      changed_when: false
+    
+    # 分析问题
+    - name: "分析数据库问题"
+      set_fact:
+        db_issues:
+          service_down: >
+            {%- if db_type == 'mysql' -%}
+              {{ 'MySQL服务未运行' in mysql_status.stdout }}
+            {%- elif db_type == 'postgresql' -%}
+              {{ 'PostgreSQL服务未运行' in postgresql_status.stdout }}
+            {%- elif db_type == 'mongodb' -%}
+              {{ 'MongoDB服务未运行' in mongodb_status.stdout }}
+            {%- elif db_type == 'redis' -%}
+              {{ 'Redis服务未运行' in redis_status.stdout }}
+            {%- else -%}
+              false
+            {%- endif -%}
+          port_unreachable: "{{ '不可达' in port_test.stdout }}"
+          connection_failed: >
+            {%- if db_type == 'mysql' -%}
+              {{ 'MySQL连接失败' in mysql_connection_test.stdout }}
+            {%- elif db_type == 'postgresql' -%}
+              {{ 'PostgreSQL连接失败' in postgresql_connection_test.stdout }}
+            {%- elif db_type == 'mongodb' -%}
+              {{ 'MongoDB连接失败' in mongodb_connection_test.stdout }}
+            {%- elif db_type == 'redis' -%}
+              {{ 'Redis连接失败' in redis_connection_test.stdout }}
+            {%- else -%}
+              false
+            {%- endif -%}
+    
+    - name: "记录诊断结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 数据库诊断完成 - 问题: {{ db_issues }}"
+    
+    # 数据库修复操作
+    - name: "启动MySQL服务"
+      systemd:
+        name: "{{ 'mysql' if ansible_os_family == 'Debian' else 'mysqld' }}"
+        state: started
+        enabled: yes
+      register: mysql_start_result
+      when: 
+        - db_type == 'mysql'
+        - db_issues.service_down
+        - restart_service
+    
+    - name: "启动PostgreSQL服务"
+      systemd:
+        name: postgresql
+        state: started
+        enabled: yes
+      register: postgresql_start_result
+      when: 
+        - db_type == 'postgresql'
+        - db_issues.service_down
+        - restart_service
+    
+    - name: "启动MongoDB服务"
+      systemd:
+        name: mongod
+        state: started
+        enabled: yes
+      register: mongodb_start_result
+      when: 
+        - db_type == 'mongodb'
+        - db_issues.service_down
+        - restart_service
+    
+    - name: "启动Redis服务"
+      systemd:
+        name: "{{ 'redis' if ansible_os_family == 'Debian' else 'redis-server' }}"
+        state: started
+        enabled: yes
+      register: redis_start_result
+      when: 
+        - db_type == 'redis'
+        - db_issues.service_down
+        - restart_service
+    
+    - name: "重启数据库服务（如果连接失败）"
+      systemd:
+        name: >
+          {%- if db_type == 'mysql' -%}
+            {{ 'mysql' if ansible_os_family == 'Debian' else 'mysqld' }}
+          {%- elif db_type == 'postgresql' -%}
+            postgresql
+          {%- elif db_type == 'mongodb' -%}
+            mongod
+          {%- elif db_type == 'redis' -%}
+            {{ 'redis' if ansible_os_family == 'Debian' else 'redis-server' }}
+          {%- endif -%}
+        state: restarted
+      register: db_restart_result
+      when: 
+        - db_issues.connection_failed
+        - not db_issues.service_down
+        - restart_service
+    
+    # MySQL特定修复
+    - name: "修复MySQL表（如果需要）"
+      shell: |
+        echo "检查和修复MySQL表..."
+        if [ -n "{{ db_user }}" ] && [ -n "{{ db_password }}" ] && [ -n "{{ db_name }}" ]; then
+          # 检查表状态
+          mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} {{ db_name }} -e "CHECK TABLE $(mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} {{ db_name }} -e 'SHOW TABLES' | tail -n +2 | tr '\n' ',' | sed 's/,$//');" 2>/dev/null
+          
+          # 修复损坏的表
+          mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} {{ db_name }} -e "REPAIR TABLE $(mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} {{ db_name }} -e 'SHOW TABLES' | tail -n +2 | tr '\n' ',' | sed 's/,$//');" 2>/dev/null
+          
+          echo "MySQL表修复完成"
+        else
+          echo "缺少数据库连接信息，跳过表修复"
+        fi
+      register: mysql_repair_result
+      when: 
+        - db_type == 'mysql'
+        - repair_tables
+        - not db_issues.connection_failed
+      ignore_errors: yes
+    
+    # 性能优化
+    - name: "MySQL性能优化"
+      shell: |
+        echo "执行MySQL性能优化..."
+        if [ -n "{{ db_user }}" ] && [ -n "{{ db_password }}" ]; then
+          # 刷新查询缓存
+          mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} -e "FLUSH QUERY CACHE; FLUSH TABLES;" 2>/dev/null
+          
+          # 优化表
+          if [ -n "{{ db_name }}" ]; then
+            mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} {{ db_name }} -e "OPTIMIZE TABLE $(mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} {{ db_name }} -e 'SHOW TABLES' | tail -n +2 | tr '\n' ',' | sed 's/,$//');" 2>/dev/null
+          fi
+          
+          echo "MySQL性能优化完成"
+        fi
+      register: mysql_optimize_result
+      when: 
+        - db_type == 'mysql'
+        - optimize_performance
+        - not db_issues.connection_failed
+      ignore_errors: yes
+    
+    - name: "Redis内存清理"
+      shell: |
+        echo "执行Redis内存清理..."
+        redis_cmd="redis-cli -h {{ db_host }} -p {{ db_port }}"
+        if [ -n "{{ db_password }}" ]; then
+          redis_cmd="$redis_cmd -a {{ db_password }}"
+        fi
+        
+        # 清理过期键
+        $redis_cmd --scan --pattern "*" | head -1000 | while read key; do
+          ttl=$($redis_cmd ttl "$key")
+          if [ "$ttl" = "-1" ]; then
+            echo "检查键: $key (无过期时间)"
+          fi
+        done
+        
+        # 执行内存清理
+        $redis_cmd flushdb
+        
+        echo "Redis内存清理完成"
+      register: redis_cleanup_result
+      when: 
+        - db_type == 'redis'
+        - optimize_performance
+        - not db_issues.connection_failed
+      ignore_errors: yes
+    
+    # 等待服务稳定
+    - name: "等待数据库服务稳定"
+      wait_for:
+        port: "{{ db_port }}"
+        host: "{{ db_host }}"
+        timeout: 60
+      when: 
+        - mysql_start_result is defined or postgresql_start_result is defined or mongodb_start_result is defined or redis_start_result is defined or db_restart_result is defined
+    
+    # 修复后验证
+    - name: "验证数据库修复效果"
+      shell: |
+        echo "=== 修复后数据库测试 ==="
+        
+        # 重新测试端口
+        if timeout {{ connection_timeout }} nc -z {{ db_host }} {{ db_port }} 2>/dev/null; then
+          echo "端口连接: 正常 ✓"
+        else
+          echo "端口连接: 失败 ✗"
+        fi
+        
+        # 重新测试数据库连接
+        {% if db_type == 'mysql' %}
+        if [ -n "{{ db_user }}" ] && [ -n "{{ db_password }}" ]; then
+          if timeout {{ connection_timeout }} mysql -h {{ db_host }} -P {{ db_port }} -u {{ db_user }} -p{{ db_password }} -e "SELECT 1;" 2>/dev/null; then
+            echo "数据库连接: 正常 ✓"
+          else
+            echo "数据库连接: 失败 ✗"
+          fi
+        fi
+        {% elif db_type == 'postgresql' %}
+        if [ -n "{{ db_user }}" ] && [ -n "{{ db_password }}" ]; then
+          export PGPASSWORD="{{ db_password }}"
+          if timeout {{ connection_timeout }} psql -h {{ db_host }} -p {{ db_port }} -U {{ db_user }} -d {{ db_name | default('postgres') }} -c "SELECT 1;" 2>/dev/null; then
+            echo "数据库连接: 正常 ✓"
+          else
+            echo "数据库连接: 失败 ✗"
+          fi
+        fi
+        {% elif db_type == 'redis' %}
+        redis_cmd="redis-cli -h {{ db_host }} -p {{ db_port }}"
+        if [ -n "{{ db_password }}" ]; then
+          redis_cmd="$redis_cmd -a {{ db_password }}"
+        fi
+        if timeout {{ connection_timeout }} $redis_cmd ping 2>/dev/null | grep -q "PONG"; then
+          echo "数据库连接: 正常 ✓"
+        else
+          echo "数据库连接: 失败 ✗"
+        fi
+        {% endif %}
+      register: post_fix_test
+      changed_when: false
+    
+    - name: "分析修复结果"
+      set_fact:
+        fix_success:
+          port_fixed: "{{ '端口连接: 正常 ✓' in post_fix_test.stdout }}"
+          connection_fixed: "{{ '数据库连接: 正常 ✓' in post_fix_test.stdout }}"
+        overall_success: "{{ ('端口连接: 正常 ✓' in post_fix_test.stdout) and ('数据库连接: 正常 ✓' in post_fix_test.stdout) }}"
+    
+    - name: "记录修复结果"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 数据库修复完成 - 成功: {{ overall_success }}, 详情: {{ fix_success }}"
+
+  post_tasks:
+    - name: "生成数据库修复报告"
+      set_fact:
+        db_fix_report:
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          host: "{{ inventory_hostname }}"
+          database_type: "{{ db_type }}"
+          database_host: "{{ db_host }}:{{ db_port }}"
+          initial_issues: "{{ db_issues }}"
+          actions_taken:
+            service_started: "{{ mysql_start_result is defined or postgresql_start_result is defined or mongodb_start_result is defined or redis_start_result is defined }}"
+            service_restarted: "{{ db_restart_result is defined }}"
+            tables_repaired: "{{ mysql_repair_result is defined }}"
+            performance_optimized: "{{ mysql_optimize_result is defined or redis_cleanup_result is defined }}"
+          fix_results: "{{ fix_success }}"
+          overall_success: "{{ overall_success }}"
+    
+    - name: "记录操作完成"
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "[{{ ansible_date_time.iso8601 }}] 数据库修复操作完成 - 报告: {{ db_fix_report | to_json }}"
+    
+    - name: "发送成功通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "database_fix"
+          status: "success"
+          host: "{{ inventory_hostname }}"
+          message: "数据库连接修复成功 - {{ db_type }}://{{ db_host }}:{{ db_port }}"
+          details: "{{ db_fix_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - overall_success
+      ignore_errors: yes
+    
+    - name: "发送失败通知"
+      uri:
+        url: "{{ notification_webhook_url }}"
+        method: POST
+        body_format: json
+        body:
+          type: "database_fix"
+          status: "failed"
+          host: "{{ inventory_hostname }}"
+          message: "数据库连接修复失败，需要人工干预 - {{ db_type }}://{{ db_host }}:{{ db_port }}"
+          details: "{{ db_fix_report }}"
+        status_code: [200, 201, 204]
+      when: 
+        - notification_webhook_url is defined
+        - not overall_success
+      ignore_errors: yes

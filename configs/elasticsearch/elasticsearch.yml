@@ -1,0 +1,351 @@
+# Elasticsearch Configuration
+# AIOps-Platform 日志搜索引擎配置
+# 版本: 1.0.0
+
+# ===========================================
+# 集群配置
+# ===========================================
+# 集群名称
+cluster.name: aiops-elasticsearch
+
+# 节点名称
+node.name: elasticsearch-node-1
+
+# 节点角色
+node.roles: [master, data, ingest, ml, remote_cluster_client]
+
+# 网络配置
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+# 发现配置
+discovery.type: single-node
+# discovery.seed_hosts: ["elasticsearch-node-1", "elasticsearch-node-2", "elasticsearch-node-3"]
+# cluster.initial_master_nodes: ["elasticsearch-node-1", "elasticsearch-node-2", "elasticsearch-node-3"]
+
+# ===========================================
+# 路径配置
+# ===========================================
+# 数据路径
+path.data: /usr/share/elasticsearch/data
+
+# 日志路径
+path.logs: /usr/share/elasticsearch/logs
+
+# 配置路径
+path.conf: /usr/share/elasticsearch/config
+
+# 插件路径
+path.plugins: /usr/share/elasticsearch/plugins
+
+# 工作路径
+path.work: /tmp/elasticsearch
+
+# 仓库路径
+path.repo: ["/usr/share/elasticsearch/backup"]
+
+# ===========================================
+# 内存配置
+# ===========================================
+# 引导内存锁定
+bootstrap.memory_lock: true
+
+# JVM堆大小（通过环境变量设置）
+# ES_JAVA_OPTS: "-Xms2g -Xmx2g"
+
+# ===========================================
+# 网络和HTTP配置
+# ===========================================
+# HTTP配置
+http.enabled: true
+http.compression: true
+http.compression_level: 6
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+http.cors.allow-headers: X-Requested-With, X-Auth-Token, Content-Type, Content-Length, Authorization, Access-Control-Allow-Headers, Accept
+
+# 传输配置
+transport.compress: true
+transport.ping_schedule: 5s
+
+# ===========================================
+# 索引配置
+# ===========================================
+# 默认分片数
+index.number_of_shards: 1
+
+# 默认副本数
+index.number_of_replicas: 0
+
+# 自动创建索引
+action.auto_create_index: true
+
+# 索引刷新间隔
+index.refresh_interval: 1s
+
+# 索引合并配置
+index.merge.scheduler.max_thread_count: 1
+
+# 索引存储配置
+index.store.type: fs
+index.store.fs.fs_lock: simple
+
+# ===========================================
+# 搜索配置
+# ===========================================
+# 搜索线程池
+thread_pool.search.size: 13
+thread_pool.search.queue_size: 1000
+
+# 写入线程池
+thread_pool.write.size: 13
+thread_pool.write.queue_size: 200
+
+# 获取线程池
+thread_pool.get.size: 13
+thread_pool.get.queue_size: 1000
+
+# 分析线程池
+thread_pool.analyze.size: 1
+thread_pool.analyze.queue_size: 16
+
+# ===========================================
+# 缓存配置
+# ===========================================
+# 查询缓存
+indices.queries.cache.size: 10%
+
+# 请求缓存
+indices.requests.cache.size: 1%
+
+# 字段数据缓存
+indices.fielddata.cache.size: 20%
+
+# 断路器配置
+indices.breaker.fielddata.limit: 40%
+indices.breaker.request.limit: 60%
+indices.breaker.total.limit: 95%
+
+# ===========================================
+# 日志配置
+# ===========================================
+# 日志级别
+logger.level: INFO
+
+# 根日志级别
+rootLogger.level: INFO
+
+# 慢查询日志
+index.search.slowlog.threshold.query.warn: 10s
+index.search.slowlog.threshold.query.info: 5s
+index.search.slowlog.threshold.query.debug: 2s
+index.search.slowlog.threshold.query.trace: 500ms
+
+index.search.slowlog.threshold.fetch.warn: 1s
+index.search.slowlog.threshold.fetch.info: 800ms
+index.search.slowlog.threshold.fetch.debug: 500ms
+index.search.slowlog.threshold.fetch.trace: 200ms
+
+# 慢索引日志
+index.indexing.slowlog.threshold.index.warn: 10s
+index.indexing.slowlog.threshold.index.info: 5s
+index.indexing.slowlog.threshold.index.debug: 2s
+index.indexing.slowlog.threshold.index.trace: 500ms
+
+# ===========================================
+# 安全配置
+# ===========================================
+# X-Pack安全（如果启用）
+# xpack.security.enabled: true
+# xpack.security.transport.ssl.enabled: true
+# xpack.security.http.ssl.enabled: true
+# xpack.security.authc.api_key.enabled: true
+
+# ===========================================
+# 监控配置
+# ===========================================
+# X-Pack监控
+# xpack.monitoring.enabled: true
+# xpack.monitoring.collection.enabled: true
+# xpack.monitoring.exporters:
+#   id1:
+#     type: http
+#     host: ["http://monitoring-elasticsearch:9200"]
+
+# ===========================================
+# 机器学习配置
+# ===========================================
+# X-Pack机器学习
+# xpack.ml.enabled: true
+# xpack.ml.node_concurrent_job_allocations: 2
+# xpack.ml.max_machine_memory_percent: 30
+
+# ===========================================
+# 图形配置
+# ===========================================
+# X-Pack图形
+# xpack.graph.enabled: true
+
+# ===========================================
+# SQL配置
+# ===========================================
+# X-Pack SQL
+# xpack.sql.enabled: true
+
+# ===========================================
+# 告警配置
+# ===========================================
+# X-Pack告警
+# xpack.watcher.enabled: true
+# xpack.notification.email.default_account: gmail_account
+# xpack.notification.email.account:
+#   gmail_account:
+#     profile: gmail
+#     smtp:
+#       auth: true
+#       starttls.enable: true
+#       host: smtp.gmail.com
+#       port: 587
+#       user: alerts@aiops-platform.com
+#       password: email-password
+
+# ===========================================
+# 跨集群搜索配置
+# ===========================================
+# cluster.remote:
+#   remote_cluster:
+#     seeds: ["remote-elasticsearch:9300"]
+#     transport.compress: true
+#     skip_unavailable: true
+
+# ===========================================
+# 索引生命周期管理
+# ===========================================
+# X-Pack ILM
+# xpack.ilm.enabled: true
+# indices.lifecycle.poll_interval: 10m
+
+# ===========================================
+# 快照和恢复配置
+# ===========================================
+# 快照仓库
+# repositories:
+#   fs:
+#     type: fs
+#     settings:
+#       location: /usr/share/elasticsearch/backup
+#       compress: true
+#       chunk_size: 1gb
+
+# ===========================================
+# 性能调优配置
+# ===========================================
+# 批量请求配置
+http.max_content_length: 100mb
+http.max_chunk_size: 8kb
+http.max_header_size: 8kb
+http.max_initial_line_length: 4kb
+
+# 搜索配置
+search.max_buckets: 65536
+search.default_search_timeout: 30s
+search.low_level_cancellation: true
+
+# 索引配置
+index.max_result_window: 10000
+index.max_inner_result_window: 100
+index.max_rescore_window: 10000
+index.max_docvalue_fields_search: 100
+index.max_script_fields: 32
+index.max_ngram_diff: 1
+index.max_shingle_diff: 3
+index.max_refresh_listeners: 1000
+index.max_analyzed_offset: 1000000
+index.highlight.max_analyzed_offset: 1000000
+index.max_terms_count: 65536
+index.max_regex_length: 1000
+
+# 映射配置
+index.mapping.total_fields.limit: 1000
+index.mapping.depth.limit: 20
+index.mapping.nested_fields.limit: 50
+index.mapping.nested_objects.limit: 10000
+index.mapping.field_name_length.limit: 1000
+
+# ===========================================
+# 集群设置
+# ===========================================
+# 分片分配
+cluster.routing.allocation.enable: all
+cluster.routing.allocation.node_concurrent_recoveries: 2
+cluster.routing.allocation.node_initial_primaries_recoveries: 4
+cluster.routing.allocation.same_shard.host: false
+
+# 恢复设置
+indices.recovery.max_bytes_per_sec: 40mb
+indices.recovery.concurrent_streams: 3
+indices.recovery.concurrent_small_file_streams: 2
+indices.recovery.file_chunk_size: 512kb
+indices.recovery.translog_ops: 1000
+indices.recovery.translog_size: 512kb
+indices.recovery.compress: true
+
+# 平衡设置
+cluster.routing.rebalance.enable: all
+cluster.routing.allocation.allow_rebalance: indices_all_active
+cluster.routing.allocation.cluster_concurrent_rebalance: 2
+
+# ===========================================
+# 脚本配置
+# ===========================================
+# 脚本设置
+script.allowed_types: inline
+script.allowed_contexts: search, update, aggs
+script.max_compilations_rate: 75/5m
+script.cache.max_size: 100
+script.cache.expire: 0ms
+
+# ===========================================
+# 插件配置
+# ===========================================
+# 插件设置（根据需要启用）
+# plugin.mandatory: []
+
+# ===========================================
+# 开发和调试配置
+# ===========================================
+# 开发模式（生产环境应设为false）
+# node.portsfile: false
+
+# 调试设置
+# logger.org.elasticsearch.discovery: DEBUG
+# logger.org.elasticsearch.cluster.service: DEBUG
+
+# ===========================================
+# 自定义配置
+# ===========================================
+# 自定义分析器
+# index.analysis.analyzer.default.type: standard
+# index.analysis.analyzer.default.stopwords: _english_
+
+# 自定义映射模板
+# index.template.aiops-logs.index_patterns: ["aiops-*"]
+# index.template.aiops-logs.settings.number_of_shards: 1
+# index.template.aiops-logs.settings.number_of_replicas: 0
+
+# ===========================================
+# 环境特定配置
+# ===========================================
+# 生产环境配置
+# bootstrap.system_call_filter: true
+# discovery.zen.minimum_master_nodes: 2
+# gateway.recover_after_nodes: 2
+# gateway.expected_nodes: 3
+# gateway.recover_after_time: 5m
+
+# 开发环境配置
+# discovery.type: single-node
+# xpack.security.enabled: false
+# xpack.monitoring.collection.enabled: false

@@ -1,0 +1,12 @@
+[2025-09-09 21:34:22] [INFO] AIOps智能运维平台部署开始
+[2025-09-09 21:34:22] [INFO] 部署类型: docker
+[2025-09-09 21:34:22] [INFO] 环境: development
+[2025-09-09 21:34:22] [INFO] 日志文件: E:\workspace\gitea\aiops\logs\deployment-20250909-213422.log
+[2025-09-09 21:34:22] [INFO] 开始环境检查...
+[2025-09-09 21:34:23] [INFO] 系统资源检查:
+[2025-09-09 21:34:23] [INFO]   CPU核心数: 20
+[2025-09-09 21:34:23] [INFO]   总内存: 63.72GB
+[2025-09-09 21:34:23] [INFO]   可用磁盘空间: 249.1GB
+[2025-09-09 21:34:56] [ERROR] Docker环境检查失败: WARNING: No blkio throttle.read_bps_device support
+[2025-09-09 21:34:56] [ERROR] 部署失败: 环境检查失败，请解决上述问题后重试
+[2025-09-09 21:34:56] [ERROR] 详细错误信息请查看日志文件: E:\workspace\gitea\aiops\logs\deployment-20250909-213422.log

@@ -1,0 +1,531 @@
+# Blackbox Exporter配置文件
+# AIOps平台黑盒监控和端点健康检查配置
+# 作者: AI Assistant
+# 创建时间: 2024
+
+# ===========================================
+# 模块配置
+# ===========================================
+modules:
+  # HTTP GET检查
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      headers:
+        Host: vhost.example.com
+        Accept-Language: en-US
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      no_follow_redirects: false
+      fail_if_ssl: false
+      fail_if_not_ssl: false
+      fail_if_body_matches_regexp:
+        - "Could not connect to database"
+        - "Internal Server Error"
+        - "Service Unavailable"
+      fail_if_body_not_matches_regexp:
+        - ".*"
+      fail_if_header_matches:
+        - header: Content-Type
+          regexp: ".*text/html.*"
+          allow_missing: true
+      fail_if_header_not_matches:
+        - header: Content-Type
+          regexp: "application/json.*"
+          allow_missing: false
+      tls_config:
+        insecure_skip_verify: false
+        ca_file: "/etc/ssl/certs/ca-certificates.crt"
+      preferred_ip_protocol: "ip4"
+      ip_protocol_fallback: true
+
+  # HTTP POST检查
+  http_post_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: POST
+      headers:
+        Content-Type: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      body: '{"health": "check"}'
+      valid_status_codes: [200, 201, 202]
+
+  # HTTPS检查
+  http_2xx_ssl:
+    prober: http
+    timeout: 10s
+    http:
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      valid_status_codes: [200, 201, 202, 204]
+      method: GET
+      headers:
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      no_follow_redirects: false
+      fail_if_ssl: false
+      fail_if_not_ssl: true
+      tls_config:
+        insecure_skip_verify: false
+        ca_file: "/etc/ssl/certs/ca-certificates.crt"
+      preferred_ip_protocol: "ip4"
+
+  # HTTP基本认证检查
+  http_2xx_basic_auth:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      basic_auth:
+        username: "admin"
+        password: "password"
+      headers:
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+
+  # HTTP Bearer Token认证检查
+  http_2xx_bearer_token:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      bearer_token: "your-bearer-token-here"
+      headers:
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+
+  # API健康检查
+  api_health_check:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"(ok|healthy|up)"'
+      fail_if_body_matches_regexp:
+        - '"status"\s*:\s*"(error|unhealthy|down)"'
+
+  # 数据库连接检查
+  database_health_check:
+    prober: http
+    timeout: 15s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"database"\s*:\s*"(connected|ok)"'
+
+  # TCP连接检查
+  tcp_connect:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      preferred_ip_protocol: "ip4"
+      ip_protocol_fallback: true
+
+  # SSH连接检查
+  ssh_banner:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      query_response:
+        - expect: "^SSH-2.0-"
+      preferred_ip_protocol: "ip4"
+
+  # POP3S检查
+  pop3s_banner:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - expect: "^+OK"
+      tls: true
+      tls_config:
+        insecure_skip_verify: false
+
+  # SMTP检查
+  smtp_starttls:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - expect: "^220 "
+        - send: "EHLO prober\r\n"
+        - expect: "^250-STARTTLS"
+        - send: "STARTTLS\r\n"
+        - expect: "^220"
+        - starttls: true
+        - send: "EHLO prober\r\n"
+        - expect: "^250-AUTH"
+        - send: "QUIT\r\n"
+
+  # IRC检查
+  irc_banner:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - send: "NICK prober"
+        - send: "USER prober prober prober :prober"
+        - expect: "PING :([^ ]+)(\r?\n)"
+        - send: "PONG ${1}"
+        - expect: "^:[^ ]+ 001"
+
+  # ICMP Ping检查
+  icmp:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: "ip4"
+      source_ip_address: "127.0.0.1"
+      payload_size: 64
+      dont_fragment: false
+
+  # ICMP IPv6检查
+  icmp_ipv6:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: "ip6"
+      payload_size: 64
+
+  # DNS查询检查
+  dns_udp:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "example.com"
+      query_type: "A"
+      valid_rcodes:
+        - NOERROR
+      validate_answer_rrs:
+        fail_if_matches_regexp:
+          - ".*127.0.0.1"
+        fail_if_all_match_regexp:
+          - ".*127.0.0.1"
+        fail_if_not_matches_regexp:
+          - "example.com.\t300\tIN\tA\t.*"
+        fail_if_none_matches_regexp:
+          - ".*"
+      validate_authority_rrs:
+        fail_if_matches_regexp:
+          - ".*"
+      validate_additional_rrs:
+        fail_if_matches_regexp:
+          - ".*"
+      preferred_ip_protocol: "ip4"
+
+  # DNS over TCP检查
+  dns_tcp:
+    prober: dns
+    timeout: 5s
+    dns:
+      transport_protocol: "tcp"
+      preferred_ip_protocol: "ip4"
+      query_name: "example.com"
+      query_type: "A"
+
+  # DNS SOA记录检查
+  dns_soa:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "example.com"
+      query_type: "SOA"
+
+  # gRPC健康检查
+  grpc:
+    prober: grpc
+    timeout: 5s
+    grpc:
+      service: "grpc.health.v1.Health"
+      tls: false
+      preferred_ip_protocol: "ip4"
+
+  # gRPC TLS健康检查
+  grpc_tls:
+    prober: grpc
+    timeout: 5s
+    grpc:
+      service: "grpc.health.v1.Health"
+      tls: true
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: "ip4"
+
+  # Redis检查
+  redis_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - send: "PING\r\n"
+        - expect: "\+PONG"
+
+  # MySQL检查
+  mysql_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - expect: "^.\x00\x00\x00\x0a"
+
+  # PostgreSQL检查
+  postgresql_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - send: "\x00\x00\x00\x17\x00\x03\x00\x00user\x00test\x00\x00"
+        - expect: "^R"
+
+  # MongoDB检查
+  mongodb_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - send: "\x3a\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\xd4\x07\x00\x00\x00\x00\x00\x00test.$cmd\x00\x00\x00\x00\x00\x01\x00\x00\x00\x15\x00\x00\x00\x10ismaster\x00\x01\x00\x00\x00\x00"
+        - expect: "^.\x00\x00\x00\x01"
+
+  # Elasticsearch检查
+  elasticsearch_check:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"(green|yellow)"'
+      fail_if_body_matches_regexp:
+        - '"status"\s*:\s*"red"'
+
+  # Prometheus检查
+  prometheus_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: text/plain
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - "prometheus_build_info"
+
+  # Grafana检查
+  grafana_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"database"\s*:\s*"ok"'
+
+  # Traefik检查
+  traefik_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"ok"'
+
+  # Jaeger检查
+  jaeger_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+
+  # Loki检查
+  loki_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+
+  # Alertmanager检查
+  alertmanager_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"success"'
+
+  # Node Exporter检查
+  node_exporter_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: text/plain
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - "node_exporter_build_info"
+
+  # cAdvisor检查
+  cadvisor_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: text/plain
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - "cadvisor_version_info"
+
+  # AI引擎健康检查
+  ai_engine_check:
+    prober: http
+    timeout: 15s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"healthy"'
+        - '"model_loaded"\s*:\s*true'
+      fail_if_body_matches_regexp:
+        - '"status"\s*:\s*"(unhealthy|error)"'
+
+  # 自愈系统健康检查
+  healing_system_check:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"active"'
+        - '"ansible_ready"\s*:\s*true'
+
+  # API网关健康检查
+  api_gateway_check:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      headers:
+        Accept: application/json
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+      fail_if_body_not_matches_regexp:
+        - '"status"\s*:\s*"running"'
+        - '"routes_loaded"\s*:\s*true'
+
+  # 证书过期检查
+  tls_certificate_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: []
+      fail_if_not_ssl: true
+      tls_config:
+        insecure_skip_verify: false
+      preferred_ip_protocol: "ip4"
+
+  # WebSocket检查
+  websocket_check:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [101]
+      headers:
+        Upgrade: websocket
+        Connection: Upgrade
+        Sec-WebSocket-Key: "dGhlIHNhbXBsZSBub25jZQ=="
+        Sec-WebSocket-Version: "13"
+        User-Agent: "Blackbox Exporter/AIOps Platform"
+
+  # FTP检查
+  ftp_banner:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - expect: "^220"
+        - send: "QUIT\r\n"
+        - expect: "^221"
+
+  # LDAP检查
+  ldap_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - send: "\x30\x0c\x02\x01\x01\x60\x07\x02\x01\x03\x04\x00\x80\x00"
+        - expect: "^\x30"
+
+  # SNMP检查
+  snmp_check:
+    prober: tcp
+    timeout: 5s
+    tcp:
+      query_response:
+        - send: "\x30\x26\x02\x01\x00\x04\x06public\xa0\x19\x02\x01\x00\x02\x01\x00\x30\x0b\x30\x09\x06\x05\x2b\x06\x01\x02\x01\x05\x00"
+        - expect: "^\x30"
+
+# ===========================================
+# 全局配置
+# ===========================================
+# 日志配置
+log:
+  level: info
+  format: logfmt
+
+# Web配置
+web:
+  listen-address: ":9115"
+  telemetry-path: "/metrics"
+  config-file: "/etc/blackbox_exporter/blackbox.yml"
+
+# 超时配置
+timeout-offset: 0.5s
+
+# 历史记录限制
+history.limit: 100

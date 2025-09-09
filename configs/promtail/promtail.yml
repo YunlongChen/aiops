@@ -1,0 +1,446 @@
+# Promtail日志收集器配置文件
+# AIOps平台日志收集和转发配置
+# 作者: AI Assistant
+# 创建时间: 2024
+
+# ===========================================
+# 服务器配置
+# ===========================================
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+  log_format: logfmt
+  
+  # 健康检查
+  healthcheck_url: http://localhost:9080/ready
+  
+  # 外部标签
+  external_labels:
+    cluster: aiops-platform
+    job: promtail
+    __replica__: promtail-1
+
+# ===========================================
+# 客户端配置
+# ===========================================
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    # 批处理配置
+    batchwait: 1s
+    batchsize: 1048576  # 1MB
+    
+    # 重试配置
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    
+    # 超时配置
+    timeout: 10s
+    
+    # 外部标签
+    external_labels:
+      cluster: aiops-platform
+      environment: production
+    
+    # 租户ID（多租户模式）
+    # tenant_id: aiops-platform
+
+# ===========================================
+# 位置配置
+# ===========================================
+positions:
+  filename: /tmp/positions.yaml
+  sync_period: 10s
+  ignore_invalid_yaml: false
+
+# ===========================================
+# 抓取配置
+# ===========================================
+scrape_configs:
+  # 系统日志
+  - job_name: system-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system-logs
+          __path__: /var/log/*.log
+          host: ${HOSTNAME}
+    
+    # 管道配置
+    pipeline_stages:
+      # 正则表达式解析
+      - regex:
+          expression: '^(?P<timestamp>\S+\s+\S+\s+\S+)\s+(?P<hostname>\S+)\s+(?P<service>\S+)\[(?P<pid>\d+)\]:\s+(?P<message>.*)$'
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: Jan 02 15:04:05
+          location: UTC
+      
+      # 标签提取
+      - labels:
+          hostname:
+          service:
+          pid:
+      
+      # 输出格式化
+      - output:
+          source: message
+
+  # Docker容器日志
+  - job_name: docker-logs
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["logging=promtail"]
+    
+    # 重新标记
+    relabel_configs:
+      # 容器名称
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*?)'
+        target_label: container_name
+      
+      # 容器ID
+      - source_labels: ['__meta_docker_container_id']
+        target_label: container_id
+      
+      # 镜像名称
+      - source_labels: ['__meta_docker_container_image']
+        target_label: image
+      
+      # 网络
+      - source_labels: ['__meta_docker_network_name']
+        target_label: network
+      
+      # 端口
+      - source_labels: ['__meta_docker_port_public']
+        target_label: port
+      
+      # 日志路径
+      - source_labels: ['__meta_docker_container_id']
+        target_label: __path__
+        replacement: /var/lib/docker/containers/$1/$1-json.log
+    
+    # 管道配置
+    pipeline_stages:
+      # JSON解析
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            attrs:
+      
+      # 时间戳解析
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+      
+      # 标签提取
+      - labels:
+          stream:
+      
+      # 输出格式化
+      - output:
+          source: output
+
+  # AIOps应用日志
+  - job_name: aiops-apps
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: aiops-apps
+          __path__: /var/log/aiops/*.log
+          application: aiops
+    
+    # 管道配置
+    pipeline_stages:
+      # 多行日志处理（Java堆栈跟踪）
+      - multiline:
+          firstline: '^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}'
+          max_wait_time: 3s
+      
+      # JSON解析
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            logger: logger
+            message: message
+            thread: thread
+            exception: exception
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05.000'
+          location: UTC
+      
+      # 标签提取
+      - labels:
+          level:
+          logger:
+          thread:
+      
+      # 指标提取
+      - metrics:
+          log_lines_total:
+            type: Counter
+            description: "Total number of log lines"
+            config:
+              match_all: true
+              action: inc
+          
+          log_errors_total:
+            type: Counter
+            description: "Total number of error log lines"
+            config:
+              match_all: true
+              action: inc
+            source: level
+            config:
+              value: ERROR
+      
+      # 输出格式化
+      - template:
+          source: output
+          template: '[{{ .level }}] {{ .logger }} - {{ .message }}{{ if .exception }} Exception: {{ .exception }}{{ end }}'
+
+  # Prometheus日志
+  - job_name: prometheus-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: prometheus
+          __path__: /var/log/prometheus/*.log
+          service: prometheus
+    
+    # 管道配置
+    pipeline_stages:
+      # 正则表达式解析
+      - regex:
+          expression: '^level=(?P<level>\w+)\s+ts=(?P<timestamp>[\d\-T:\.Z]+)\s+caller=(?P<caller>\S+)\s+msg="(?P<message>[^"]+)"(?P<extra>.*)$'
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+      
+      # 标签提取
+      - labels:
+          level:
+          caller:
+      
+      # 输出格式化
+      - template:
+          source: output
+          template: '[{{ .level }}] {{ .caller }} - {{ .message }}'
+
+  # Grafana日志
+  - job_name: grafana-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: grafana
+          __path__: /var/log/grafana/*.log
+          service: grafana
+    
+    # 管道配置
+    pipeline_stages:
+      # 正则表达式解析
+      - regex:
+          expression: '^t=(?P<timestamp>[\d\-T:\.Z]+)\s+lvl=(?P<level>\w+)\s+msg="(?P<message>[^"]+)"(?P<extra>.*)$'
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02T15:04:05.000Z07:00'
+      
+      # 标签提取
+      - labels:
+          level:
+      
+      # 输出格式化
+      - template:
+          source: output
+          template: '[{{ .level }}] {{ .message }}'
+
+  # Nginx访问日志
+  - job_name: nginx-access
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-access
+          __path__: /var/log/nginx/access.log
+          service: nginx
+          log_type: access
+    
+    # 管道配置
+    pipeline_stages:
+      # 正则表达式解析（Nginx默认格式）
+      - regex:
+          expression: '^(?P<remote_addr>[\d\.]+)\s+-\s+(?P<remote_user>\S+)\s+\[(?P<timestamp>[^\]]+)\]\s+"(?P<method>\S+)\s+(?P<path>\S+)\s+(?P<protocol>\S+)"\s+(?P<status>\d+)\s+(?P<body_bytes_sent>\d+)\s+"(?P<http_referer>[^"]+)"\s+"(?P<http_user_agent>[^"]+)"(?P<extra>.*)$'
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: '02/Jan/2006:15:04:05 -0700'
+      
+      # 标签提取
+      - labels:
+          method:
+          status:
+          remote_addr:
+      
+      # 指标提取
+      - metrics:
+          nginx_requests_total:
+            type: Counter
+            description: "Total number of nginx requests"
+            config:
+              match_all: true
+              action: inc
+          
+          nginx_request_duration_seconds:
+            type: Histogram
+            description: "Nginx request duration in seconds"
+            config:
+              buckets: [0.1, 0.5, 1.0, 2.5, 5.0, 10.0]
+            source: request_time
+      
+      # 输出格式化
+      - template:
+          source: output
+          template: '{{ .remote_addr }} - {{ .method }} {{ .path }} {{ .status }} {{ .body_bytes_sent }}'
+
+  # Nginx错误日志
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx-error
+          __path__: /var/log/nginx/error.log
+          service: nginx
+          log_type: error
+    
+    # 管道配置
+    pipeline_stages:
+      # 正则表达式解析
+      - regex:
+          expression: '^(?P<timestamp>\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(?P<level>\w+)\]\s+(?P<pid>\d+)#(?P<tid>\d+):\s+(?P<message>.*)$'
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: '2006/01/02 15:04:05'
+      
+      # 标签提取
+      - labels:
+          level:
+          pid:
+      
+      # 输出格式化
+      - template:
+          source: output
+          template: '[{{ .level }}] PID:{{ .pid }} - {{ .message }}'
+
+  # PostgreSQL日志
+  - job_name: postgresql-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: postgresql
+          __path__: /var/log/postgresql/*.log
+          service: postgresql
+    
+    # 管道配置
+    pipeline_stages:
+      # 正则表达式解析
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\s+\w+)\s+\[(?P<pid>\d+)\]\s+(?P<level>\w+):\s+(?P<message>.*)$'
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05.000 MST'
+      
+      # 标签提取
+      - labels:
+          level:
+          pid:
+      
+      # 输出格式化
+      - template:
+          source: output
+          template: '[{{ .level }}] PID:{{ .pid }} - {{ .message }}'
+
+  # Redis日志
+  - job_name: redis-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: redis
+          __path__: /var/log/redis/*.log
+          service: redis
+    
+    # 管道配置
+    pipeline_stages:
+      # 正则表达式解析
+      - regex:
+          expression: '^(?P<pid>\d+):(?P<role>\w+)\s+(?P<timestamp>\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\.\d{3})\s+(?P<level>[\*\#\-\.])\s+(?P<message>.*)$'
+      
+      # 时间戳解析
+      - timestamp:
+          source: timestamp
+          format: '02 Jan 2006 15:04:05.000'
+      
+      # 标签提取
+      - labels:
+          role:
+          pid:
+          level:
+      
+      # 输出格式化
+      - template:
+          source: output
+          template: '[{{ .level }}] {{ .role }}:{{ .pid }} - {{ .message }}'
+
+# ===========================================
+# 目标配置
+# ===========================================
+target_config:
+  sync_period: 10s
+
+# ===========================================
+# 限制配置
+# ===========================================
+limits_config:
+  readline_rate: 10000
+  readline_burst: 20000
+  max_streams: 0
+
+# ===========================================
+# 追踪配置
+# ===========================================
+tracing:
+  enabled: false
+  # jaeger:
+  #   agent:
+  #     host: jaeger
+  #     port: 6831
+  #   sampler:
+  #     type: const
+  #     param: 1

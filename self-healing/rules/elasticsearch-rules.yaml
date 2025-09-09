@@ -1,0 +1,296 @@
+# Elasticsearch 自愈规则配置
+# 定义Elasticsearch集群相关的自动修复策略
+
+id: elasticsearch-cluster-health
+name: Elasticsearch集群健康检查
+description: 监控Elasticsearch集群状态并执行自动修复
+alert_pattern: ElasticsearchCluster
+severity: critical
+cooldown: 300
+enabled: true
+
+actions:
+  - id: restart-elasticsearch-service
+    name: 重启Elasticsearch服务
+    playbook: elasticsearch/restart-service.yml
+    timeout: 180
+    retry_count: 2
+    conditions:
+      cluster_status: red
+      node_count_threshold: 1
+    variables:
+      service_name: elasticsearch
+      wait_for_service: true
+      health_check_timeout: 60
+  
+  - id: clear-elasticsearch-cache
+    name: 清理Elasticsearch缓存
+    playbook: elasticsearch/clear-cache.yml
+    timeout: 120
+    retry_count: 1
+    conditions:
+      memory_usage_threshold: 90
+    variables:
+      cache_types:
+        - fielddata
+        - query
+        - request
+      force_clear: false
+  
+  - id: optimize-elasticsearch-indices
+    name: 优化Elasticsearch索引
+    playbook: elasticsearch/optimize-indices.yml
+    timeout: 300
+    retry_count: 1
+    conditions:
+      index_fragmentation_threshold: 50
+    variables:
+      max_num_segments: 1
+      only_expunge_deletes: false
+      flush_after: true
+
+---
+
+id: elasticsearch-disk-space
+name: Elasticsearch磁盘空间不足
+description: 处理Elasticsearch磁盘空间不足的问题
+alert_pattern: ElasticsearchDiskSpace
+severity: high
+cooldown: 600
+enabled: true
+
+actions:
+  - id: cleanup-old-indices
+    name: 清理旧索引
+    playbook: elasticsearch/cleanup-indices.yml
+    timeout: 300
+    retry_count: 1
+    conditions:
+      disk_usage_threshold: 85
+    variables:
+      retention_days: 30
+      index_patterns:
+        - "logstash-*"
+        - "filebeat-*"
+        - "metricbeat-*"
+      dry_run: false
+  
+  - id: compress-elasticsearch-indices
+    name: 压缩Elasticsearch索引
+    playbook: elasticsearch/compress-indices.yml
+    timeout: 600
+    retry_count: 1
+    conditions:
+      compression_ratio_threshold: 2.0
+    variables:
+      compression_level: best_compression
+      force_merge_segments: 1
+  
+  - id: move-indices-to-cold-storage
+    name: 移动索引到冷存储
+    playbook: elasticsearch/move-to-cold-storage.yml
+    timeout: 900
+    retry_count: 1
+    conditions:
+      index_age_days: 7
+    variables:
+      cold_storage_path: /mnt/cold-storage
+      verify_integrity: true
+
+---
+
+id: elasticsearch-memory-pressure
+name: Elasticsearch内存压力
+description: 处理Elasticsearch内存使用过高的问题
+alert_pattern: ElasticsearchMemoryPressure
+severity: high
+cooldown: 300
+enabled: true
+
+actions:
+  - id: adjust-heap-size
+    name: 调整JVM堆内存大小
+    playbook: elasticsearch/adjust-heap-size.yml
+    timeout: 180
+    retry_count: 1
+    conditions:
+      heap_usage_threshold: 90
+      available_memory_gb: 8
+    variables:
+      heap_size_percentage: 50
+      restart_required: true
+      backup_config: true
+  
+  - id: enable-circuit-breakers
+    name: 启用熔断器
+    playbook: elasticsearch/enable-circuit-breakers.yml
+    timeout: 60
+    retry_count: 1
+    conditions:
+      circuit_breaker_enabled: false
+    variables:
+      fielddata_limit: "40%"
+      request_limit: "60%"
+      in_flight_requests_limit: "100%"
+  
+  - id: reduce-replica-count
+    name: 减少副本数量
+    playbook: elasticsearch/reduce-replicas.yml
+    timeout: 300
+    retry_count: 1
+    conditions:
+      replica_count_threshold: 2
+      cluster_size_threshold: 3
+    variables:
+      target_replica_count: 1
+      index_patterns:
+        - "*"
+      exclude_system_indices: true
+
+---
+
+id: elasticsearch-query-performance
+name: Elasticsearch查询性能问题
+description: 处理Elasticsearch查询响应缓慢的问题
+alert_pattern: ElasticsearchSlowQuery
+severity: medium
+cooldown: 180
+enabled: true
+
+actions:
+  - id: analyze-slow-queries
+    name: 分析慢查询
+    playbook: elasticsearch/analyze-slow-queries.yml
+    timeout: 120
+    retry_count: 1
+    conditions:
+      query_time_threshold: 5000
+    variables:
+      log_level: INFO
+      threshold_query_warn: "2s"
+      threshold_query_info: "5s"
+      threshold_fetch_warn: "1s"
+      threshold_fetch_info: "800ms"
+  
+  - id: refresh-field-mappings
+    name: 刷新字段映射
+    playbook: elasticsearch/refresh-mappings.yml
+    timeout: 180
+    retry_count: 1
+    conditions:
+      mapping_explosion_threshold: 1000
+    variables:
+      dynamic_mapping: strict
+      ignore_malformed: false
+      coerce: false
+  
+  - id: optimize-search-settings
+    name: 优化搜索设置
+    playbook: elasticsearch/optimize-search.yml
+    timeout: 120
+    retry_count: 1
+    conditions:
+      search_queue_size_threshold: 1000
+    variables:
+      search_thread_pool_size: 13
+      search_queue_size: 1000
+      search_timeout: "30s"
+
+---
+
+id: elasticsearch-node-failure
+name: Elasticsearch节点故障
+description: 处理Elasticsearch节点离线或故障的问题
+alert_pattern: ElasticsearchNodeDown
+severity: critical
+cooldown: 120
+enabled: true
+
+actions:
+  - id: check-node-connectivity
+    name: 检查节点连通性
+    playbook: elasticsearch/check-node-connectivity.yml
+    timeout: 60
+    retry_count: 3
+    conditions:
+      node_status: offline
+    variables:
+      ping_timeout: 10
+      port_check_timeout: 5
+      ssh_check_enabled: true
+  
+  - id: restart-failed-node
+    name: 重启故障节点
+    playbook: elasticsearch/restart-node.yml
+    timeout: 300
+    retry_count: 2
+    conditions:
+      node_restart_allowed: true
+      cluster_stability: green
+    variables:
+      graceful_shutdown: true
+      wait_for_recovery: true
+      recovery_timeout: 600
+  
+  - id: exclude-failed-node
+    name: 排除故障节点
+    playbook: elasticsearch/exclude-node.yml
+    timeout: 600
+    retry_count: 1
+    conditions:
+      node_recovery_failed: true
+      remaining_nodes_threshold: 2
+    variables:
+      allocation_exclude: true
+      force_allocation: false
+      wait_for_relocation: true
+
+---
+
+id: elasticsearch-index-corruption
+name: Elasticsearch索引损坏
+description: 处理Elasticsearch索引损坏或不一致的问题
+alert_pattern: ElasticsearchIndexCorruption
+severity: high
+cooldown: 900
+enabled: true
+
+actions:
+  - id: verify-index-integrity
+    name: 验证索引完整性
+    playbook: elasticsearch/verify-index-integrity.yml
+    timeout: 300
+    retry_count: 1
+    conditions:
+      corruption_detected: true
+    variables:
+      checksum_verification: true
+      segment_verification: true
+      create_report: true
+  
+  - id: repair-corrupted-index
+    name: 修复损坏索引
+    playbook: elasticsearch/repair-index.yml
+    timeout: 1800
+    retry_count: 1
+    conditions:
+      repair_possible: true
+      backup_available: true
+    variables:
+      repair_method: "reindex"
+      source_backup_path: "/backup/elasticsearch"
+      verify_after_repair: true
+  
+  - id: restore-from-backup
+    name: 从备份恢复索引
+    playbook: elasticsearch/restore-from-backup.yml
+    timeout: 3600
+    retry_count: 1
+    conditions:
+      repair_failed: true
+      backup_available: true
+    variables:
+      backup_repository: "s3_backup"
+      restore_point: "latest"
+      verify_restore: true
+      close_existing_index: true

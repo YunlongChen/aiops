@@ -1,0 +1,287 @@
+# Traefik边缘路由器配置文件
+# 提供负载均衡、SSL终止、服务发现等功能
+
+# 全局配置
+global:
+  # 检查新版本
+  checkNewVersion: false
+  # 发送匿名使用统计
+  sendAnonymousUsage: false
+
+# 服务发现配置
+api:
+  # 启用API和仪表板
+  dashboard: true
+  # 调试模式
+  debug: false
+  # 不安全模式（开发环境）
+  insecure: true
+
+# 入口点配置
+entryPoints:
+  # HTTP入口点
+  web:
+    address: ":80"
+    # HTTP重定向到HTTPS
+    http:
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  
+  # HTTPS入口点
+  websecure:
+    address: ":443"
+    # HTTP/2支持
+    http:
+      tls:
+        options: default
+  
+  # Traefik仪表板入口点
+  traefik:
+    address: ":8080"
+  
+  # 监控入口点
+  metrics:
+    address: ":8082"
+  
+  # gRPC入口点
+  grpc:
+    address: ":9000"
+
+# 证书解析器配置
+certificatesResolvers:
+  # Let's Encrypt证书解析器
+  letsencrypt:
+    acme:
+      # ACME服务器URL
+      caServer: https://acme-v02.api.letsencrypt.org/directory
+      # 邮箱地址
+      email: admin@aiops.local
+      # 证书存储位置
+      storage: /data/acme.json
+      # DNS挑战配置
+      dnsChallenge:
+        provider: cloudflare
+        delayBeforeCheck: 30s
+        resolvers:
+          - "1.1.1.1:53"
+          - "8.8.8.8:53"
+      # HTTP挑战配置
+      httpChallenge:
+        entryPoint: web
+  
+  # 自签名证书解析器（开发环境）
+  selfsigned:
+    acme:
+      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+      email: dev@aiops.local
+      storage: /data/acme-staging.json
+      httpChallenge:
+        entryPoint: web
+
+# 服务提供者配置
+providers:
+  # Docker提供者
+  docker:
+    # 启用Docker提供者
+    endpoint: "unix:///var/run/docker.sock"
+    # 默认规则
+    defaultRule: "Host(`{{ normalize .Name }}.aiops.local`)"
+    # 暴露默认情况下的容器
+    exposedByDefault: false
+    # 网络
+    network: aiops-network
+    # 监听Docker事件
+    watch: true
+    # 使用绑定端口IP
+    useBindPortIP: false
+    # 轮询间隔
+    pollInterval: 5s
+  
+  # Kubernetes提供者
+  kubernetes:
+    # 启用Kubernetes提供者
+    endpoints:
+      - "https://kubernetes.default.svc:443"
+    # 令牌文件
+    token: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    # CA证书文件
+    certAuthFilePath: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    # 命名空间
+    namespaces:
+      - "default"
+      - "aiops"
+      - "monitoring"
+      - "logging"
+    # 标签选择器
+    labelSelector: "app.kubernetes.io/managed-by=traefik"
+    # Ingress类
+    ingressClass: "traefik"
+    # 监听Kubernetes事件
+    watch: true
+  
+  # 文件提供者
+  file:
+    # 配置文件目录
+    directory: /etc/traefik/dynamic
+    # 监听文件变化
+    watch: true
+  
+  # Consul提供者（可选）
+  consul:
+    # Consul端点
+    endpoints:
+      - "consul:8500"
+    # 根键
+    rootKey: "traefik"
+    # 轮询间隔
+    pollInterval: 5s
+
+# 日志配置
+log:
+  # 日志级别
+  level: INFO
+  # 日志格式
+  format: json
+  # 日志文件路径
+  filePath: "/var/log/traefik/traefik.log"
+
+# 访问日志配置
+accessLog:
+  # 访问日志文件路径
+  filePath: "/var/log/traefik/access.log"
+  # 日志格式
+  format: json
+  # 缓冲大小
+  bufferingSize: 100
+  # 过滤器
+  filters:
+    # 状态码过滤
+    statusCodes:
+      - "400-499"
+      - "500-599"
+    # 重试次数过滤
+    retryAttempts: true
+    # 最小持续时间
+    minDuration: "10ms"
+  # 字段配置
+  fields:
+    # 默认模式
+    defaultMode: keep
+    # 名称配置
+    names:
+      ClientUsername: drop
+    # 头部配置
+    headers:
+      defaultMode: keep
+      names:
+        User-Agent: redact
+        Authorization: drop
+        Content-Type: keep
+
+# 指标配置
+metrics:
+  # Prometheus指标
+  prometheus:
+    # 启用Prometheus指标
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    # 指标端点
+    entryPoint: metrics
+    # 手动路由
+    manualRouting: false
+    # 桶
+    buckets:
+      - 0.1
+      - 0.3
+      - 1.2
+      - 5.0
+  
+  # InfluxDB指标（可选）
+  influxDB:
+    address: influxdb:8086
+    protocol: http
+    database: traefik
+    retentionPolicy: autogen
+    username: traefik
+    password: traefik123
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    pushInterval: 10s
+  
+  # StatsD指标（可选）
+  statsD:
+    address: statsd:8125
+    pushInterval: 10s
+    addEntryPointsLabels: true
+    addServicesLabels: true
+
+# 追踪配置
+tracing:
+  # Jaeger追踪
+  jaeger:
+    # Jaeger端点
+    samplingServerURL: http://jaeger:14268/api/sampling
+    # 本地代理端点
+    localAgentHostPort: jaeger:6831
+    # 生成128位追踪ID
+    gen128Bit: true
+    # 传播格式
+    propagation: jaeger
+    # 追踪上下文头名称
+    traceContextHeaderName: uber-trace-id
+  
+  # Zipkin追踪（可选）
+  zipkin:
+    httpEndpoint: http://zipkin:9411/api/v2/spans
+    sameSpan: true
+    id128Bit: true
+    sampleRate: 1.0
+
+# 集群配置
+cluster:
+  # 集群存储
+  store: consul
+  # 前缀
+  prefix: traefik
+
+# 实验性功能
+experimental:
+  # 启用HTTP/3
+  http3: true
+  # 本地插件
+  localPlugins:
+    # 自定义插件目录
+    example:
+      moduleName: github.com/traefik/plugindemo
+
+# 主机解析器
+hostResolver:
+  # 解析器配置
+  cnameFlattening: true
+  resolvConfig: /etc/resolv.conf
+  resolvDepth: 5
+
+# 服务器传输配置
+serversTransport:
+  # 不安全跳过验证
+  insecureSkipVerify: false
+  # 根CA证书
+  rootCAs:
+    - /etc/ssl/certs/ca-certificates.crt
+  # 最大空闲连接
+  maxIdleConnsPerHost: 42
+  # 转发超时
+  forwardingTimeouts:
+    dialTimeout: 30s
+    responseHeaderTimeout: 0s
+    idleConnTimeout: 90s
+
+# Pilot配置（Traefik企业版）
+pilot:
+  # 令牌
+  token: "xxxx"
+  # 仪表板
+  dashboard: false

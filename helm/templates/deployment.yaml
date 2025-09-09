@@ -1,0 +1,567 @@
+{{/*
+AIOps-Platform Kubernetes部署模板
+文件: deployment.yaml
+描述: 定义所有核心服务的Kubernetes Deployment资源
+版本: 1.0.0
+作者: AIOps Team
+*/}}
+
+{{- if .Values.traefik.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiops.fullname" . }}-traefik
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: traefik
+spec:
+  {{- if not .Values.traefik.autoscaling.enabled }}
+  replicas: {{ .Values.traefik.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: traefik
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: traefik
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.global.securityContext | nindent 8 }}
+      containers:
+        - name: traefik
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.traefik.image.repository }}:{{ .Values.traefik.image.tag }}"
+          imagePullPolicy: {{ .Values.traefik.image.pullPolicy }}
+          args:
+            - --api.dashboard=true
+            - --api.insecure=true
+            - --entrypoints.web.address=:80
+            - --entrypoints.websecure.address=:443
+            - --providers.kubernetescrd
+            - --providers.kubernetesingress
+            - --certificatesresolvers.letsencrypt.acme.email=admin@aiops-platform.com
+            - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
+            - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+            - --metrics.prometheus=true
+            - --metrics.prometheus.addEntryPointsLabels=true
+            - --metrics.prometheus.addServicesLabels=true
+            - --log.level=INFO
+            - --accesslog=true
+          ports:
+            - name: web
+              containerPort: 80
+              protocol: TCP
+            - name: websecure
+              containerPort: 443
+              protocol: TCP
+            - name: traefik
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: traefik
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: traefik
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.traefik.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/traefik
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "aiops.fullname" . }}-traefik-config
+      {{- with .Values.traefik.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.traefik.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.traefik.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
+{{- if .Values.prometheus.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiops.fullname" . }}-prometheus
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: prometheus
+spec:
+  replicas: {{ .Values.prometheus.server.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: prometheus
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: prometheus
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.global.securityContext | nindent 8 }}
+      containers:
+        - name: prometheus
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.prometheus.server.image.repository }}:{{ .Values.prometheus.server.image.tag }}"
+          imagePullPolicy: {{ .Values.prometheus.server.image.pullPolicy }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus/
+            - --web.console.libraries=/etc/prometheus/console_libraries
+            - --web.console.templates=/etc/prometheus/consoles
+            - --storage.tsdb.retention.time={{ .Values.prometheus.server.retention }}
+            - --web.enable-lifecycle
+            - --web.enable-admin-api
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.prometheus.server.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: storage
+              mountPath: /prometheus
+            - name: rules
+              mountPath: /etc/prometheus/rules
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "aiops.fullname" . }}-prometheus-config
+        - name: rules
+          configMap:
+            name: {{ include "aiops.fullname" . }}-prometheus-rules
+        - name: storage
+          {{- if .Values.prometheus.server.persistentVolume.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "aiops.fullname" . }}-prometheus-storage
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}
+
+{{- if .Values.grafana.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiops.fullname" . }}-grafana
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: grafana
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: grafana
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.global.securityContext | nindent 8 }}
+      containers:
+        - name: grafana
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag }}"
+          imagePullPolicy: {{ .Values.grafana.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: {{ .Values.grafana.adminUser }}
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aiops.fullname" . }}-grafana-secret
+                  key: admin-password
+            - name: GF_PATHS_DATA
+              value: /var/lib/grafana
+            - name: GF_PATHS_LOGS
+              value: /var/log/grafana
+            - name: GF_PATHS_PLUGINS
+              value: /var/lib/grafana/plugins
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.grafana.resources | nindent 12 }}
+          volumeMounts:
+            - name: storage
+              mountPath: /var/lib/grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-config
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: storage
+          {{- if .Values.grafana.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "aiops.fullname" . }}-grafana-storage
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: datasources
+          configMap:
+            name: {{ include "aiops.fullname" . }}-grafana-datasources
+        - name: dashboards-config
+          configMap:
+            name: {{ include "aiops.fullname" . }}-grafana-dashboards-config
+        - name: dashboards
+          configMap:
+            name: {{ include "aiops.fullname" . }}-grafana-dashboards
+{{- end }}
+
+{{- if .Values.alertmanager.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiops.fullname" . }}-alertmanager
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: alertmanager
+spec:
+  replicas: {{ .Values.alertmanager.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: alertmanager
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: alertmanager
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.global.securityContext | nindent 8 }}
+      containers:
+        - name: alertmanager
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.alertmanager.image.repository }}:{{ .Values.alertmanager.image.tag }}"
+          imagePullPolicy: {{ .Values.alertmanager.image.pullPolicy }}
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+            - --web.external-url=http://localhost:9093
+            - --web.route-prefix=/
+            - --cluster.listen-address=0.0.0.0:9094
+          ports:
+            - name: http
+              containerPort: 9093
+              protocol: TCP
+            - name: cluster
+              containerPort: 9094
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.alertmanager.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: storage
+              mountPath: /alertmanager
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "aiops.fullname" . }}-alertmanager-config
+        - name: storage
+          {{- if .Values.alertmanager.persistentVolume.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "aiops.fullname" . }}-alertmanager-storage
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}
+
+{{- if .Values.aiEngine.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiops.fullname" . }}-ai-engine
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ai-engine
+spec:
+  {{- if not .Values.aiEngine.autoscaling.enabled }}
+  replicas: {{ .Values.aiEngine.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ai-engine
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ai-engine
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.global.securityContext | nindent 8 }}
+      containers:
+        - name: ai-engine
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.aiEngine.image.repository }}:{{ .Values.aiEngine.image.tag }}"
+          imagePullPolicy: {{ .Values.aiEngine.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            {{- toYaml .Values.aiEngine.env | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.aiEngine.resources | nindent 12 }}
+          volumeMounts:
+            - name: models
+              mountPath: /app/models
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: models
+          {{- if .Values.aiEngine.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "aiops.fullname" . }}-ai-engine-models
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: data
+          emptyDir: {}
+{{- end }}
+
+{{- if .Values.apiGateway.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiops.fullname" . }}-api-gateway
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-gateway
+spec:
+  {{- if not .Values.apiGateway.autoscaling.enabled }}
+  replicas: {{ .Values.apiGateway.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api-gateway
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api-gateway
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiops.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.global.securityContext | nindent 8 }}
+      containers:
+        - name: api-gateway
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.apiGateway.image.repository }}:{{ .Values.apiGateway.image.tag }}"
+          imagePullPolicy: {{ .Values.apiGateway.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- toYaml .Values.apiGateway.env | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.apiGateway.resources | nindent 12 }}
+{{- end }}
+
+{{- if .Values.selfHealing.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiops.fullname" . }}-self-healing
+  labels:
+    {{- include "aiops.labels" . | nindent 4 }}
+    app.kubernetes.io/component: self-healing
+spec:
+  replicas: {{ .Values.selfHealing.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "aiops.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: self-healing
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "aiops.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: self-healing
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.selfHealing.serviceAccount.name | default (include "aiops.serviceAccountName" .) }}
+      securityContext:
+        {{- toYaml .Values.global.securityContext | nindent 8 }}
+      containers:
+        - name: self-healing
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.selfHealing.image.repository }}:{{ .Values.selfHealing.image.tag }}"
+          imagePullPolicy: {{ .Values.selfHealing.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- toYaml .Values.selfHealing.env | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.selfHealing.resources | nindent 12 }}
+{{- end }}
