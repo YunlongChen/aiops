@@ -4,6 +4,35 @@
 
 ## 2025-01-09
 
+### ELK日志系统恢复 (ELK Stack Recovery)
+
+#### 🔧 配置文件修复 (Configuration Fixes)
+
+**📋 Kibana配置优化**
+- **UUID配置**: 修复server.uuid格式错误，使用有效的UUID格式
+- **版本兼容性**: 移除Kibana 8.x不支持的console.enabled配置
+- **配置简化**: 简化kibana.yml配置文件，移除过时和不兼容的配置项
+- **核心配置**: 保留服务器、Elasticsearch、路径、日志和监控的核心配置
+
+**🔧 Logstash配置修复**
+- **版本降级**: 将Logstash从8.8.0降级到7.17.0解决兼容性问题
+- **配置简化**: 通过逐步简化配置文件定位问题根源
+- **网络连接**: 解决Docker网络中Elasticsearch连接问题
+- **Pipeline配置**: 修复pipeline语法错误，确保TCP和Beats输入正常工作
+- **输出配置**: 暂时移除Elasticsearch输出，使用stdout进行调试
+
+**🐳 容器状态管理**
+- **Elasticsearch**: 运行正常，状态为healthy，集群状态为green
+- **Kibana**: 成功启动，配置问题已解决
+- **Logstash**: 成功启动并运行，能够接收TCP和Beats输入数据
+
+**🔍 问题诊断和解决**
+- **配置验证错误**: 解决多个Kibana配置验证失败问题
+- **启动失败修复**: 通过配置文件简化解决启动问题
+- **依赖关系**: 确保ELK组件间的正确依赖关系
+- **网络问题**: 解决容器间网络通信和服务发现问题
+- **版本兼容**: 通过版本降级解决组件间兼容性问题
+
 ### Helm打包和Kubernetes部署指南
 
 #### 📦 Helm Chart打包 (Helm Chart Packaging)
