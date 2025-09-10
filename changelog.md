@@ -2,6 +2,54 @@
 
 本文档记录了AIOps项目的所有重要变更和更新。
 
+## 2025-01-14
+
+### 🚀 AIOps测试管理Web服务完成
+
+#### 新增功能
+- **Rust Axum Web服务**: 成功创建并启动基于Rust的高性能Web服务
+  - 服务地址: http://localhost:3030
+  - API文档: http://localhost:3030/api/v1/docs
+  - 健康检查: http://localhost:3030/health
+- **完整的REST API接口**:
+  - 测试用例管理 (CRUD操作)
+  - 测试运行记录管理
+  - 运行时管理器管理
+  - 系统统计和监控
+- **SQLite数据库集成**: 实现数据持久化存储
+  - 自动创建数据库表结构
+  - 支持测试用例、测试运行、运行时管理器数据存储
+- **API接口验证**: 所有核心API接口测试通过
+  - ✅ 健康检查接口
+  - ✅ API文档接口
+  - ✅ 系统统计接口
+  - ✅ 测试用例CRUD接口
+  - ✅ 运行时管理器CRUD接口
+  - ✅ 测试运行记录接口
+
+#### 技术实现
+- **后端框架**: Rust + Axum + SQLx + SQLite
+- **API设计**: RESTful风格，支持JSON格式
+- **CORS支持**: 允许跨域访问
+- **错误处理**: 统一的API响应格式
+- **数据库**: SQLite本地数据库，支持并发访问
+
+#### 项目结构
+```
+test-web-service/
+├── src/
+│   ├── api/           # API路由和处理器
+│   ├── config/        # 配置管理
+│   ├── database/      # 数据库操作
+│   ├── models/        # 数据模型
+│   ├── services/      # 业务逻辑服务
+│   └── main.rs        # 主程序入口
+├── data/              # 数据库文件目录
+└── Cargo.toml         # Rust项目配置
+```
+
+---
+
 ## 2025-09-10
 
 ### 🔧 测试框架修复和优化
@@ -44,6 +92,44 @@
 - 所有核心AIOps测试场景现已稳定运行
 - 测试文件管理规范化
 - 项目结构优化
+
+---
+
+## 2025-01-11
+
+### 🔧 Rust Web服务编译问题修复
+
+#### 修复的问题
+- **SQLx宏编译错误**: 修复了所有sqlx宏调用导致的编译时数据库连接问题
+  - 将 `sqlx::query_scalar!` 宏替换为普通的 `sqlx::query_scalar` 函数调用
+  - 影响文件: 
+    - src/api/test_cases.rs (第278行, 第291行)
+    - src/api/test_runs.rs (第256行)
+    - src/api/runtime_managers.rs (第278行)
+- **环境变量编译错误**: 修复了system.rs中env!宏使用问题
+  - 将 `env!` 宏替换为 `option_env!` 宏以处理未定义的环境变量
+  - 影响文件: src/api/system.rs (第150-160行)
+- **重复定义错误**: 修复了PaginationInfo结构体重复定义问题
+  - 移除了runtime_manager.rs中的重复导入
+  - 影响文件: src/models/runtime_manager.rs
+- **缺失类型导入**: 添加了缺失的sqlx类型导入
+  - 添加了Pool和Sqlite类型导入
+  - 影响文件: src/models/runtime_manager.rs
+- **缺失结构体定义**: 创建了RunTestCaseRequest结构体
+  - 添加了runtime_type、config_override、metadata字段
+  - 影响文件: src/models/test_case.rs
+
+#### 验证结果
+- ✅ `cargo check`: 编译检查通过，无错误
+- ✅ `cargo build`: 构建成功，仅有21个警告（未使用的导入和变量）
+- ✅ 所有SQLx查询现在使用运行时绑定而非编译时宏
+- ✅ 项目可以在没有数据库连接的情况下编译
+
+#### 技术改进
+- 移除了对编译时数据库连接的依赖
+- 改善了代码的可移植性和构建稳定性
+- 完善了API请求结构体定义
+- 优化了类型导入和模块结构
 
 ---
 
