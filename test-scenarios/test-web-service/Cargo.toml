@@ -1,0 +1,22 @@
+[package]
+name = "aiops-web-service"
+version = "0.1.0"
+edition = "2021"
+authors = ["AIOps Team"]
+description = "AIOps测试管理Web服务"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+anyhow = "1.0"
+thiserror = "1.0"
+clap = { version = "4.0", features = ["derive"] }
