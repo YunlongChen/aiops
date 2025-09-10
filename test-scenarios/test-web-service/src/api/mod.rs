@@ -15,6 +15,7 @@ mod users;
 mod settings;
 
 use crate::AppState;
+use crate::handlers::test_script_handler;
 
 /// 创建API路由
 pub fn routes() -> Router<AppState> {
@@ -74,4 +75,15 @@ pub fn routes() -> Router<AppState> {
         .route("/settings/config", get(settings::get_system_config))
         .route("/preferences", get(settings::get_user_preferences))
         .route("/preferences", put(settings::update_user_preference))
+        
+        // 测试脚本管理路由
+        .route("/test-scripts", get(test_script_handler::list_test_scripts))
+        .route("/test-scripts", post(test_script_handler::create_test_script))
+        .route("/test-scripts/:id", get(test_script_handler::get_test_script))
+        .route("/test-scripts/:id", put(test_script_handler::update_test_script))
+        .route("/test-scripts/:id", delete(test_script_handler::delete_test_script))
+        .route("/test-scripts/:id/execute", post(test_script_handler::execute_test_script))
+        .route("/test-scripts/batch-execute", post(test_script_handler::batch_execute_test_scripts))
+        .route("/test-scripts/languages", get(test_script_handler::get_supported_languages))
+        .route("/test-scripts/validate", post(test_script_handler::validate_test_script))
 }

@@ -21,7 +21,8 @@ use tracing_subscriber;
 mod api;
 mod config;
 mod database;
-// mod handlers; // 暂时注释掉，模块不存在
+mod execution;
+mod handlers;
 mod models;
 mod services;
 

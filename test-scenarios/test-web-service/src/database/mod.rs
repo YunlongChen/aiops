@@ -127,6 +127,28 @@ impl Database {
         .execute(&self.pool)
         .await?;
 
+        // 测试脚本表
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS test_scripts (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                language TEXT NOT NULL,
+                script_content TEXT NOT NULL,
+                test_inputs TEXT,
+                expected_outputs TEXT,
+                environment_vars TEXT,
+                dependencies TEXT,
+                timeout_seconds INTEGER DEFAULT 30,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
         info!("数据库表结构初始化完成");
         Ok(())
     }

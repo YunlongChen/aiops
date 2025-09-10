@@ -11,10 +11,12 @@ use uuid::Uuid;
 pub mod test_case;
 pub mod test_run;
 pub mod runtime_manager;
+pub mod test_script;
 
 pub use test_case::*;
 pub use test_run::*;
 pub use runtime_manager::*;
+pub use test_script::*;
 
 /// 运行时类型枚举
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
