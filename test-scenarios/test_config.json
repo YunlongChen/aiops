@@ -1,0 +1,140 @@
+{
+  "scenario_generator": {
+    "web_application": {
+      "base_response_time_ms": 150,
+      "base_throughput_rps": 100,
+      "base_error_rate": 0.02,
+      "base_cpu_usage": 0.45,
+      "base_memory_usage": 0.60,
+      "anomaly_probability": 0.05,
+      "peak_hours": [9, 10, 11, 14, 15, 16, 20, 21],
+      "weekend_factor": 0.7
+    },
+    "database": {
+      "base_query_time_ms": 25,
+      "base_connections": 50,
+      "base_cpu_usage": 0.35,
+      "base_memory_usage": 0.70,
+      "base_disk_io_mbps": 15,
+      "anomaly_probability": 0.03,
+      "maintenance_hours": [2, 3, 4]
+    },
+    "system": {
+      "base_cpu_usage": 0.40,
+      "base_memory_usage": 0.65,
+      "base_disk_usage": 0.55,
+      "base_network_mbps": 25,
+      "base_disk_io_ops": 200,
+      "anomaly_probability": 0.02
+    }
+  },
+  "data_pusher": {
+    "prometheus": {
+      "enabled": true,
+      "gateway_url": "http://localhost:9091",
+      "job_name": "aiops_test",
+      "push_interval_seconds": 15
+    },
+    "elasticsearch": {
+      "enabled": true,
+      "host": "localhost",
+      "port": 9200,
+      "index_prefix": "aiops-test",
+      "batch_size": 100
+    },
+    "ai_engine": {
+      "enabled": true,
+      "base_url": "http://localhost:8000",
+      "analysis_endpoint": "/analyze",
+      "batch_size": 50
+    }
+  },
+  "test_scenarios": {
+    "normal_business": {
+      "enabled": true,
+      "duration_hours": 2,
+      "data_points_per_minute": 12,
+      "description": "模拟正常业务运行场景，包含日常流量模式和轻微波动"
+    },
+    "anomaly_scenarios": {
+      "enabled": true,
+      "scenarios": {
+        "morning_rush_failure": {
+          "description": "早高峰期间系统故障场景",
+          "duration_hours": 6,
+          "severity": "high"
+        },
+        "resource_exhaustion_cascade": {
+          "description": "资源耗尽引发的级联故障",
+          "duration_hours": 4,
+          "severity": "critical"
+        },
+        "database_crisis": {
+          "description": "数据库性能危机场景",
+          "duration_hours": 3,
+          "severity": "high"
+        },
+        "network_degradation": {
+          "description": "网络性能逐步恶化场景",
+          "duration_hours": 8,
+          "severity": "medium"
+        },
+        "memory_leak_gradual": {
+          "description": "内存泄漏逐步恶化场景",
+          "duration_hours": 12,
+          "severity": "medium"
+        }
+      }
+    },
+    "stress_test": {
+      "enabled": false,
+      "duration_minutes": 30,
+      "load_multiplier": 5.0,
+      "ramp_up_minutes": 5,
+      "description": "高负载压力测试，验证系统在极限负载下的表现"
+    },
+    "chaos_engineering": {
+      "enabled": false,
+      "duration_hours": 1,
+      "failure_injection_rate": 0.1,
+      "description": "混沌工程测试，随机注入各种故障"
+    }
+  },
+  "output": {
+    "save_to_files": true,
+    "file_formats": ["json", "prometheus"],
+    "output_directory": "./test_output",
+    "compress_files": true,
+    "retention_days": 30
+  },
+  "real_time": {
+    "enabled": false,
+    "push_to_prometheus": true,
+    "push_to_elasticsearch": true,
+    "ai_engine_analysis": true,
+    "push_interval_seconds": 15,
+    "analysis_interval_minutes": 5,
+    "alert_thresholds": {
+      "response_time_ms": 1000,
+      "error_rate": 0.05,
+      "cpu_usage": 0.85,
+      "memory_usage": 0.90
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "test_runner.log",
+    "max_size_mb": 100,
+    "backup_count": 5,
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+  "monitoring": {
+    "health_check_interval_seconds": 30,
+    "performance_metrics": {
+      "track_memory_usage": true,
+      "track_cpu_usage": true,
+      "track_test_duration": true,
+      "track_data_generation_rate": true
+    }
+  }
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "alert_id": "alert_0001",
+    "timestamp": "2025-09-10T05:30:47.552446",
+    "service": "web-app",
+    "severity": "critical",
+    "title": "Web-App High Response Time",
+    "description": "响应时间异常高: 4264.74ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0002",
+    "timestamp": "2025-09-10T05:31:07.552446",
+    "service": "web-app",
+    "severity": "critical",
+    "title": "Web-App High Response Time",
+    "description": "响应时间异常高: 3799.51ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0003",
+    "timestamp": "2025-09-10T05:33:27.552446",
+    "service": "web-app",
+    "severity": "critical",
+    "title": "Web-App High Response Time",
+    "description": "响应时间异常高: 4401.84ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0004",
+    "timestamp": "2025-09-10T05:35:12.552446",
+    "service": "web-app",
+    "severity": "critical",
+    "title": "Web-App High Response Time",
+    "description": "响应时间异常高: 4967.17ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0005",
+    "timestamp": "2025-09-10T05:30:42.552446",
+    "service": "database",
+    "severity": "critical",
+    "title": "Database Slow Query",
+    "description": "查询时间过长: 2584.34ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0006",
+    "timestamp": "2025-09-10T05:31:22.552446",
+    "service": "database",
+    "severity": "critical",
+    "title": "Database Slow Query",
+    "description": "查询时间过长: 2678.65ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0007",
+    "timestamp": "2025-09-10T05:32:22.552446",
+    "service": "database",
+    "severity": "critical",
+    "title": "Database Slow Query",
+    "description": "查询时间过长: 2084.23ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0008",
+    "timestamp": "2025-09-10T05:33:02.552446",
+    "service": "database",
+    "severity": "warning",
+    "title": "Database Slow Query",
+    "description": "查询时间过长: 1039.51ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0009",
+    "timestamp": "2025-09-10T05:33:32.552446",
+    "service": "database",
+    "severity": "critical",
+    "title": "Database Slow Query",
+    "description": "查询时间过长: 2374.50ms",
+    "status": "active"
+  },
+  {
+    "alert_id": "alert_0010",
+    "timestamp": "2025-09-10T05:34:02.552446",
+    "service": "database",
+    "severity": "warning",
+    "title": "Database Slow Query",
+    "description": "查询时间过长: 1601.37ms",
+    "status": "active"
+  }
+]

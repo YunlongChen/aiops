@@ -1,0 +1,302 @@
+[
+  {
+    "timestamp": "2025-09-10T05:30:32.552446",
+    "service": "database",
+    "avg_query_time_ms": 65.59,
+    "active_connections": 30,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.9057,
+    "disk_io_ops": 392,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:30:42.552446",
+    "service": "database",
+    "avg_query_time_ms": 2584.34,
+    "active_connections": 83,
+    "lock_waits": 12,
+    "buffer_hit_ratio": 0.97,
+    "disk_io_ops": 572,
+    "is_high_load": true
+  },
+  {
+    "timestamp": "2025-09-10T05:30:52.552446",
+    "service": "database",
+    "avg_query_time_ms": 117.48,
+    "active_connections": 36,
+    "lock_waits": 2,
+    "buffer_hit_ratio": 0.863,
+    "disk_io_ops": 939,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:02.552446",
+    "service": "database",
+    "avg_query_time_ms": 72.64,
+    "active_connections": 19,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.8963,
+    "disk_io_ops": 192,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:12.552446",
+    "service": "database",
+    "avg_query_time_ms": 118.03,
+    "active_connections": 10,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.863,
+    "disk_io_ops": 495,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:22.552446",
+    "service": "database",
+    "avg_query_time_ms": 2678.65,
+    "active_connections": 100,
+    "lock_waits": 8,
+    "buffer_hit_ratio": 0.9713,
+    "disk_io_ops": 938,
+    "is_high_load": true
+  },
+  {
+    "timestamp": "2025-09-10T05:31:32.552446",
+    "service": "database",
+    "avg_query_time_ms": 35.25,
+    "active_connections": 15,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.8746,
+    "disk_io_ops": 978,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:42.552446",
+    "service": "database",
+    "avg_query_time_ms": 131.05,
+    "active_connections": 26,
+    "lock_waits": 2,
+    "buffer_hit_ratio": 0.875,
+    "disk_io_ops": 374,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:52.552446",
+    "service": "database",
+    "avg_query_time_ms": 109.67,
+    "active_connections": 43,
+    "lock_waits": 2,
+    "buffer_hit_ratio": 0.9899,
+    "disk_io_ops": 301,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:02.552446",
+    "service": "database",
+    "avg_query_time_ms": 133.25,
+    "active_connections": 26,
+    "lock_waits": 0,
+    "buffer_hit_ratio": 0.9402,
+    "disk_io_ops": 273,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:12.552446",
+    "service": "database",
+    "avg_query_time_ms": 46.36,
+    "active_connections": 11,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.8749,
+    "disk_io_ops": 401,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:22.552446",
+    "service": "database",
+    "avg_query_time_ms": 2084.23,
+    "active_connections": 85,
+    "lock_waits": 12,
+    "buffer_hit_ratio": 0.8716,
+    "disk_io_ops": 805,
+    "is_high_load": true
+  },
+  {
+    "timestamp": "2025-09-10T05:32:32.552446",
+    "service": "database",
+    "avg_query_time_ms": 122.41,
+    "active_connections": 39,
+    "lock_waits": 2,
+    "buffer_hit_ratio": 0.8856,
+    "disk_io_ops": 366,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:42.552446",
+    "service": "database",
+    "avg_query_time_ms": 164.77,
+    "active_connections": 29,
+    "lock_waits": 2,
+    "buffer_hit_ratio": 0.9838,
+    "disk_io_ops": 470,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:52.552446",
+    "service": "database",
+    "avg_query_time_ms": 39.21,
+    "active_connections": 22,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.9855,
+    "disk_io_ops": 422,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:02.552446",
+    "service": "database",
+    "avg_query_time_ms": 1039.51,
+    "active_connections": 94,
+    "lock_waits": 12,
+    "buffer_hit_ratio": 0.8509,
+    "disk_io_ops": 140,
+    "is_high_load": true
+  },
+  {
+    "timestamp": "2025-09-10T05:33:12.552446",
+    "service": "database",
+    "avg_query_time_ms": 106.21,
+    "active_connections": 43,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.9572,
+    "disk_io_ops": 323,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:22.552446",
+    "service": "database",
+    "avg_query_time_ms": 138.61,
+    "active_connections": 28,
+    "lock_waits": 0,
+    "buffer_hit_ratio": 0.9351,
+    "disk_io_ops": 250,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:32.552446",
+    "service": "database",
+    "avg_query_time_ms": 2374.5,
+    "active_connections": 91,
+    "lock_waits": 7,
+    "buffer_hit_ratio": 0.8807,
+    "disk_io_ops": 352,
+    "is_high_load": true
+  },
+  {
+    "timestamp": "2025-09-10T05:33:42.552446",
+    "service": "database",
+    "avg_query_time_ms": 69.15,
+    "active_connections": 14,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.9408,
+    "disk_io_ops": 526,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:52.552446",
+    "service": "database",
+    "avg_query_time_ms": 193.18,
+    "active_connections": 48,
+    "lock_waits": 2,
+    "buffer_hit_ratio": 0.9882,
+    "disk_io_ops": 112,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:02.552446",
+    "service": "database",
+    "avg_query_time_ms": 1601.37,
+    "active_connections": 91,
+    "lock_waits": 7,
+    "buffer_hit_ratio": 0.9671,
+    "disk_io_ops": 586,
+    "is_high_load": true
+  },
+  {
+    "timestamp": "2025-09-10T05:34:12.552446",
+    "service": "database",
+    "avg_query_time_ms": 60.8,
+    "active_connections": 10,
+    "lock_waits": 0,
+    "buffer_hit_ratio": 0.9851,
+    "disk_io_ops": 696,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:22.552446",
+    "service": "database",
+    "avg_query_time_ms": 36.47,
+    "active_connections": 38,
+    "lock_waits": 2,
+    "buffer_hit_ratio": 0.9662,
+    "disk_io_ops": 611,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:32.552446",
+    "service": "database",
+    "avg_query_time_ms": 124.37,
+    "active_connections": 18,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.9692,
+    "disk_io_ops": 884,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:42.552446",
+    "service": "database",
+    "avg_query_time_ms": 103.17,
+    "active_connections": 50,
+    "lock_waits": 0,
+    "buffer_hit_ratio": 0.9322,
+    "disk_io_ops": 235,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:52.552446",
+    "service": "database",
+    "avg_query_time_ms": 12.0,
+    "active_connections": 24,
+    "lock_waits": 0,
+    "buffer_hit_ratio": 0.99,
+    "disk_io_ops": 797,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:02.552446",
+    "service": "database",
+    "avg_query_time_ms": 134.06,
+    "active_connections": 26,
+    "lock_waits": 1,
+    "buffer_hit_ratio": 0.8603,
+    "disk_io_ops": 525,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:12.552446",
+    "service": "database",
+    "avg_query_time_ms": 45.52,
+    "active_connections": 12,
+    "lock_waits": 0,
+    "buffer_hit_ratio": 0.9725,
+    "disk_io_ops": 406,
+    "is_high_load": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:22.552446",
+    "service": "database",
+    "avg_query_time_ms": 35.18,
+    "active_connections": 28,
+    "lock_waits": 0,
+    "buffer_hit_ratio": 0.9607,
+    "disk_io_ops": 291,
+    "is_high_load": false
+  }
+]

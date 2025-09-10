@@ -50,7 +50,7 @@ from packaging import version
 
 from utils.logger import setup_logger
 from utils.cache import CacheManager
-from utils.config import Config
+from utils.config import ConfigManager
 
 logger = setup_logger(__name__)
 
@@ -615,7 +615,7 @@ class ModelVersionControl:
 class ModelManager:
     """模型管理器主类"""
     
-    def __init__(self, config: Config):
+    def __init__(self, config: ConfigManager):
         """
         初始化模型管理器
         
@@ -627,14 +627,25 @@ class ModelManager:
         self.executor = ThreadPoolExecutor(max_workers=4)
         
         # 初始化组件
-        storage_path = config.get('model_storage_path', './models')
+        # 如果config是ConfigManager实例，需要先加载配置或使用默认值
+        if hasattr(config, 'get_value'):
+            # ConfigManager实例
+            try:
+                storage_path = config.get_value('default', 'model_storage_path', './models')
+            except:
+                storage_path = './models'
+            try:
+                self.cache_size_limit = config.get_value('default', 'model_cache_size', 5)
+            except:
+                self.cache_size_limit = 5
+        else:
+            # 字典类型配置
+            storage_path = config.get('model_storage_path', './models')
+            self.cache_size_limit = config.get('model_cache_size', 5)
+        
         self.storage = ModelStorage(storage_path)
         self.performance_monitor = ModelPerformanceMonitor()
         self.version_control = ModelVersionControl(self.storage)
-        
-        # 模型缓存
-        self.model_cache = {}
-        self.cache_size_limit = config.get('model_cache_size', 5)
         
         # 部署状态
         self.deployed_models = {}

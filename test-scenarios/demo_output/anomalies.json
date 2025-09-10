@@ -1,0 +1,167 @@
+{
+  "total_data_points": 190,
+  "anomalies_detected": 17,
+  "anomaly_rate": 0.0895,
+  "anomalies": [
+    {
+      "timestamp": "2025-09-10T05:30:47.552446",
+      "service": "web-app",
+      "anomaly_type": "high_response_time",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:30:47.552446",
+        "service": "web-app",
+        "response_time_ms": 4264.74,
+        "error_rate": 0.1444,
+        "requests_per_second": 177,
+        "cpu_usage_percent": 89.9,
+        "memory_usage_mb": 1369,
+        "is_anomaly": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:31:07.552446",
+      "service": "web-app",
+      "anomaly_type": "high_response_time",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:31:07.552446",
+        "service": "web-app",
+        "response_time_ms": 3799.51,
+        "error_rate": 0.1169,
+        "requests_per_second": 182,
+        "cpu_usage_percent": 85.67,
+        "memory_usage_mb": 1075,
+        "is_anomaly": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:33:27.552446",
+      "service": "web-app",
+      "anomaly_type": "high_response_time",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:33:27.552446",
+        "service": "web-app",
+        "response_time_ms": 4401.84,
+        "error_rate": 0.0613,
+        "requests_per_second": 61,
+        "cpu_usage_percent": 88.42,
+        "memory_usage_mb": 1967,
+        "is_anomaly": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:35:12.552446",
+      "service": "web-app",
+      "anomaly_type": "high_response_time",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:35:12.552446",
+        "service": "web-app",
+        "response_time_ms": 4967.17,
+        "error_rate": 0.1348,
+        "requests_per_second": 122,
+        "cpu_usage_percent": 82.39,
+        "memory_usage_mb": 1266,
+        "is_anomaly": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:30:42.552446",
+      "service": "database",
+      "anomaly_type": "slow_query",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:30:42.552446",
+        "service": "database",
+        "avg_query_time_ms": 2584.34,
+        "active_connections": 83,
+        "lock_waits": 12,
+        "buffer_hit_ratio": 0.97,
+        "disk_io_ops": 572,
+        "is_high_load": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:31:22.552446",
+      "service": "database",
+      "anomaly_type": "slow_query",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:31:22.552446",
+        "service": "database",
+        "avg_query_time_ms": 2678.65,
+        "active_connections": 100,
+        "lock_waits": 8,
+        "buffer_hit_ratio": 0.9713,
+        "disk_io_ops": 938,
+        "is_high_load": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:32:22.552446",
+      "service": "database",
+      "anomaly_type": "slow_query",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:32:22.552446",
+        "service": "database",
+        "avg_query_time_ms": 2084.23,
+        "active_connections": 85,
+        "lock_waits": 12,
+        "buffer_hit_ratio": 0.8716,
+        "disk_io_ops": 805,
+        "is_high_load": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:33:02.552446",
+      "service": "database",
+      "anomaly_type": "slow_query",
+      "severity": "warning",
+      "details": {
+        "timestamp": "2025-09-10T05:33:02.552446",
+        "service": "database",
+        "avg_query_time_ms": 1039.51,
+        "active_connections": 94,
+        "lock_waits": 12,
+        "buffer_hit_ratio": 0.8509,
+        "disk_io_ops": 140,
+        "is_high_load": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:33:32.552446",
+      "service": "database",
+      "anomaly_type": "slow_query",
+      "severity": "critical",
+      "details": {
+        "timestamp": "2025-09-10T05:33:32.552446",
+        "service": "database",
+        "avg_query_time_ms": 2374.5,
+        "active_connections": 91,
+        "lock_waits": 7,
+        "buffer_hit_ratio": 0.8807,
+        "disk_io_ops": 352,
+        "is_high_load": true
+      }
+    },
+    {
+      "timestamp": "2025-09-10T05:34:02.552446",
+      "service": "database",
+      "anomaly_type": "slow_query",
+      "severity": "warning",
+      "details": {
+        "timestamp": "2025-09-10T05:34:02.552446",
+        "service": "database",
+        "avg_query_time_ms": 1601.37,
+        "active_connections": 91,
+        "lock_waits": 7,
+        "buffer_hit_ratio": 0.9671,
+        "disk_io_ops": 586,
+        "is_high_load": true
+      }
+    }
+  ]
+}

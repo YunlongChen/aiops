@@ -1,0 +1,63 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "AIOps监控仪表板",
+    "tags": [
+      "aiops",
+      "monitoring",
+      "test"
+    ],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "CPU使用率",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "cpu_usage",
+            "legendFormat": "CPU使用率"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "内存使用率",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "memory_usage",
+            "legendFormat": "内存使用率"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "响应时间",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "response_time",
+            "legendFormat": "响应时间"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "错误率",
+        "type": "singlestat",
+        "targets": [
+          {
+            "expr": "error_rate",
+            "legendFormat": "错误率"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

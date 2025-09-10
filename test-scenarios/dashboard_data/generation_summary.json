@@ -1,0 +1,16 @@
+{
+  "generation_time": "2025-09-10T05:43:08.511144",
+  "time_range": {
+    "start": "2025-09-09T05:43:08.431051",
+    "end": "2025-09-10T05:43:08.431064"
+  },
+  "data_points_per_metric": 1441,
+  "total_metrics": 16,
+  "files_generated": [
+    "system_metrics.json",
+    "application_metrics.json",
+    "business_metrics.json",
+    "database_metrics.json",
+    "dashboard_config.json"
+  ]
+}

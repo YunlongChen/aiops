@@ -1,0 +1,602 @@
+[
+  {
+    "timestamp": "2025-09-10T05:30:32.552446",
+    "service": "web-app",
+    "response_time_ms": 421.55,
+    "error_rate": 0.0098,
+    "requests_per_second": 64,
+    "cpu_usage_percent": 24.86,
+    "memory_usage_mb": 872,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:30:37.552446",
+    "service": "web-app",
+    "response_time_ms": 151.18,
+    "error_rate": 0.0019,
+    "requests_per_second": 158,
+    "cpu_usage_percent": 45.09,
+    "memory_usage_mb": 886,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:30:42.552446",
+    "service": "web-app",
+    "response_time_ms": 291.57,
+    "error_rate": 0.0148,
+    "requests_per_second": 107,
+    "cpu_usage_percent": 49.85,
+    "memory_usage_mb": 1648,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:30:47.552446",
+    "service": "web-app",
+    "response_time_ms": 4264.74,
+    "error_rate": 0.1444,
+    "requests_per_second": 177,
+    "cpu_usage_percent": 89.9,
+    "memory_usage_mb": 1369,
+    "is_anomaly": true
+  },
+  {
+    "timestamp": "2025-09-10T05:30:52.552446",
+    "service": "web-app",
+    "response_time_ms": 443.56,
+    "error_rate": 0.0168,
+    "requests_per_second": 143,
+    "cpu_usage_percent": 36.38,
+    "memory_usage_mb": 1065,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:30:57.552446",
+    "service": "web-app",
+    "response_time_ms": 480.44,
+    "error_rate": 0.0044,
+    "requests_per_second": 53,
+    "cpu_usage_percent": 38.6,
+    "memory_usage_mb": 1556,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:02.552446",
+    "service": "web-app",
+    "response_time_ms": 334.01,
+    "error_rate": 0.0114,
+    "requests_per_second": 69,
+    "cpu_usage_percent": 33.75,
+    "memory_usage_mb": 1945,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:07.552446",
+    "service": "web-app",
+    "response_time_ms": 3799.51,
+    "error_rate": 0.1169,
+    "requests_per_second": 182,
+    "cpu_usage_percent": 85.67,
+    "memory_usage_mb": 1075,
+    "is_anomaly": true
+  },
+  {
+    "timestamp": "2025-09-10T05:31:12.552446",
+    "service": "web-app",
+    "response_time_ms": 283.42,
+    "error_rate": 0.0083,
+    "requests_per_second": 78,
+    "cpu_usage_percent": 38.35,
+    "memory_usage_mb": 1626,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:17.552446",
+    "service": "web-app",
+    "response_time_ms": 174.28,
+    "error_rate": 0.0167,
+    "requests_per_second": 100,
+    "cpu_usage_percent": 31.86,
+    "memory_usage_mb": 1370,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:22.552446",
+    "service": "web-app",
+    "response_time_ms": 331.39,
+    "error_rate": 0.0126,
+    "requests_per_second": 162,
+    "cpu_usage_percent": 20.93,
+    "memory_usage_mb": 806,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:27.552446",
+    "service": "web-app",
+    "response_time_ms": 150.54,
+    "error_rate": 0.0038,
+    "requests_per_second": 177,
+    "cpu_usage_percent": 22.32,
+    "memory_usage_mb": 1117,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:32.552446",
+    "service": "web-app",
+    "response_time_ms": 455.52,
+    "error_rate": 0.0192,
+    "requests_per_second": 122,
+    "cpu_usage_percent": 26.67,
+    "memory_usage_mb": 1992,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:37.552446",
+    "service": "web-app",
+    "response_time_ms": 448.66,
+    "error_rate": 0.0072,
+    "requests_per_second": 135,
+    "cpu_usage_percent": 51.01,
+    "memory_usage_mb": 803,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:42.552446",
+    "service": "web-app",
+    "response_time_ms": 161.61,
+    "error_rate": 0.0011,
+    "requests_per_second": 168,
+    "cpu_usage_percent": 34.1,
+    "memory_usage_mb": 1903,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:47.552446",
+    "service": "web-app",
+    "response_time_ms": 469.17,
+    "error_rate": 0.0031,
+    "requests_per_second": 141,
+    "cpu_usage_percent": 58.83,
+    "memory_usage_mb": 1861,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:52.552446",
+    "service": "web-app",
+    "response_time_ms": 321.21,
+    "error_rate": 0.0109,
+    "requests_per_second": 172,
+    "cpu_usage_percent": 34.35,
+    "memory_usage_mb": 2022,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:31:57.552446",
+    "service": "web-app",
+    "response_time_ms": 263.25,
+    "error_rate": 0.0006,
+    "requests_per_second": 167,
+    "cpu_usage_percent": 52.55,
+    "memory_usage_mb": 685,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:02.552446",
+    "service": "web-app",
+    "response_time_ms": 288.71,
+    "error_rate": 0.0036,
+    "requests_per_second": 184,
+    "cpu_usage_percent": 52.08,
+    "memory_usage_mb": 605,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:07.552446",
+    "service": "web-app",
+    "response_time_ms": 233.39,
+    "error_rate": 0.0085,
+    "requests_per_second": 144,
+    "cpu_usage_percent": 42.9,
+    "memory_usage_mb": 1481,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:12.552446",
+    "service": "web-app",
+    "response_time_ms": 361.19,
+    "error_rate": 0.0133,
+    "requests_per_second": 83,
+    "cpu_usage_percent": 37.95,
+    "memory_usage_mb": 1857,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:17.552446",
+    "service": "web-app",
+    "response_time_ms": 248.6,
+    "error_rate": 0.0125,
+    "requests_per_second": 147,
+    "cpu_usage_percent": 38.0,
+    "memory_usage_mb": 637,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:22.552446",
+    "service": "web-app",
+    "response_time_ms": 402.98,
+    "error_rate": 0.0018,
+    "requests_per_second": 136,
+    "cpu_usage_percent": 35.58,
+    "memory_usage_mb": 991,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:27.552446",
+    "service": "web-app",
+    "response_time_ms": 451.89,
+    "error_rate": 0.0035,
+    "requests_per_second": 117,
+    "cpu_usage_percent": 37.45,
+    "memory_usage_mb": 2019,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:32.552446",
+    "service": "web-app",
+    "response_time_ms": 140.23,
+    "error_rate": 0.0157,
+    "requests_per_second": 56,
+    "cpu_usage_percent": 58.83,
+    "memory_usage_mb": 587,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:37.552446",
+    "service": "web-app",
+    "response_time_ms": 252.2,
+    "error_rate": 0.0032,
+    "requests_per_second": 78,
+    "cpu_usage_percent": 22.08,
+    "memory_usage_mb": 1526,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:42.552446",
+    "service": "web-app",
+    "response_time_ms": 415.88,
+    "error_rate": 0.0112,
+    "requests_per_second": 57,
+    "cpu_usage_percent": 32.97,
+    "memory_usage_mb": 554,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:47.552446",
+    "service": "web-app",
+    "response_time_ms": 257.33,
+    "error_rate": 0.01,
+    "requests_per_second": 122,
+    "cpu_usage_percent": 47.71,
+    "memory_usage_mb": 974,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:52.552446",
+    "service": "web-app",
+    "response_time_ms": 155.43,
+    "error_rate": 0.009,
+    "requests_per_second": 134,
+    "cpu_usage_percent": 37.89,
+    "memory_usage_mb": 884,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:32:57.552446",
+    "service": "web-app",
+    "response_time_ms": 221.89,
+    "error_rate": 0.0166,
+    "requests_per_second": 69,
+    "cpu_usage_percent": 35.0,
+    "memory_usage_mb": 1908,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:02.552446",
+    "service": "web-app",
+    "response_time_ms": 291.53,
+    "error_rate": 0.0121,
+    "requests_per_second": 176,
+    "cpu_usage_percent": 48.87,
+    "memory_usage_mb": 1291,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:07.552446",
+    "service": "web-app",
+    "response_time_ms": 386.3,
+    "error_rate": 0.0063,
+    "requests_per_second": 163,
+    "cpu_usage_percent": 50.48,
+    "memory_usage_mb": 1652,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:12.552446",
+    "service": "web-app",
+    "response_time_ms": 127.06,
+    "error_rate": 0.0178,
+    "requests_per_second": 190,
+    "cpu_usage_percent": 31.46,
+    "memory_usage_mb": 1870,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:17.552446",
+    "service": "web-app",
+    "response_time_ms": 291.31,
+    "error_rate": 0.0182,
+    "requests_per_second": 130,
+    "cpu_usage_percent": 45.91,
+    "memory_usage_mb": 783,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:22.552446",
+    "service": "web-app",
+    "response_time_ms": 320.35,
+    "error_rate": 0.0131,
+    "requests_per_second": 133,
+    "cpu_usage_percent": 57.7,
+    "memory_usage_mb": 713,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:27.552446",
+    "service": "web-app",
+    "response_time_ms": 4401.84,
+    "error_rate": 0.0613,
+    "requests_per_second": 61,
+    "cpu_usage_percent": 88.42,
+    "memory_usage_mb": 1967,
+    "is_anomaly": true
+  },
+  {
+    "timestamp": "2025-09-10T05:33:32.552446",
+    "service": "web-app",
+    "response_time_ms": 291.17,
+    "error_rate": 0.002,
+    "requests_per_second": 81,
+    "cpu_usage_percent": 35.32,
+    "memory_usage_mb": 753,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:37.552446",
+    "service": "web-app",
+    "response_time_ms": 481.8,
+    "error_rate": 0.0114,
+    "requests_per_second": 54,
+    "cpu_usage_percent": 42.12,
+    "memory_usage_mb": 1784,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:42.552446",
+    "service": "web-app",
+    "response_time_ms": 222.59,
+    "error_rate": 0.0188,
+    "requests_per_second": 106,
+    "cpu_usage_percent": 40.19,
+    "memory_usage_mb": 1783,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:47.552446",
+    "service": "web-app",
+    "response_time_ms": 417.91,
+    "error_rate": 0.0102,
+    "requests_per_second": 52,
+    "cpu_usage_percent": 24.25,
+    "memory_usage_mb": 1288,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:52.552446",
+    "service": "web-app",
+    "response_time_ms": 333.65,
+    "error_rate": 0.0142,
+    "requests_per_second": 165,
+    "cpu_usage_percent": 20.85,
+    "memory_usage_mb": 932,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:33:57.552446",
+    "service": "web-app",
+    "response_time_ms": 242.42,
+    "error_rate": 0.0056,
+    "requests_per_second": 59,
+    "cpu_usage_percent": 30.55,
+    "memory_usage_mb": 852,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:02.552446",
+    "service": "web-app",
+    "response_time_ms": 103.2,
+    "error_rate": 0.0114,
+    "requests_per_second": 189,
+    "cpu_usage_percent": 54.37,
+    "memory_usage_mb": 1864,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:07.552446",
+    "service": "web-app",
+    "response_time_ms": 377.96,
+    "error_rate": 0.005,
+    "requests_per_second": 149,
+    "cpu_usage_percent": 55.21,
+    "memory_usage_mb": 667,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:12.552446",
+    "service": "web-app",
+    "response_time_ms": 118.7,
+    "error_rate": 0.0144,
+    "requests_per_second": 99,
+    "cpu_usage_percent": 42.78,
+    "memory_usage_mb": 1213,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:17.552446",
+    "service": "web-app",
+    "response_time_ms": 364.76,
+    "error_rate": 0.018,
+    "requests_per_second": 121,
+    "cpu_usage_percent": 49.31,
+    "memory_usage_mb": 1847,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:22.552446",
+    "service": "web-app",
+    "response_time_ms": 486.7,
+    "error_rate": 0.0157,
+    "requests_per_second": 182,
+    "cpu_usage_percent": 44.79,
+    "memory_usage_mb": 1592,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:27.552446",
+    "service": "web-app",
+    "response_time_ms": 111.84,
+    "error_rate": 0.0162,
+    "requests_per_second": 92,
+    "cpu_usage_percent": 59.37,
+    "memory_usage_mb": 588,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:32.552446",
+    "service": "web-app",
+    "response_time_ms": 155.24,
+    "error_rate": 0.0155,
+    "requests_per_second": 65,
+    "cpu_usage_percent": 52.79,
+    "memory_usage_mb": 672,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:37.552446",
+    "service": "web-app",
+    "response_time_ms": 252.06,
+    "error_rate": 0.016,
+    "requests_per_second": 88,
+    "cpu_usage_percent": 25.99,
+    "memory_usage_mb": 1771,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:42.552446",
+    "service": "web-app",
+    "response_time_ms": 386.8,
+    "error_rate": 0.0001,
+    "requests_per_second": 197,
+    "cpu_usage_percent": 29.53,
+    "memory_usage_mb": 674,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:47.552446",
+    "service": "web-app",
+    "response_time_ms": 463.64,
+    "error_rate": 0.0048,
+    "requests_per_second": 54,
+    "cpu_usage_percent": 54.54,
+    "memory_usage_mb": 995,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:52.552446",
+    "service": "web-app",
+    "response_time_ms": 145.89,
+    "error_rate": 0.0193,
+    "requests_per_second": 88,
+    "cpu_usage_percent": 37.27,
+    "memory_usage_mb": 644,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:34:57.552446",
+    "service": "web-app",
+    "response_time_ms": 115.42,
+    "error_rate": 0.0074,
+    "requests_per_second": 106,
+    "cpu_usage_percent": 43.44,
+    "memory_usage_mb": 1372,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:02.552446",
+    "service": "web-app",
+    "response_time_ms": 401.76,
+    "error_rate": 0.0187,
+    "requests_per_second": 154,
+    "cpu_usage_percent": 33.07,
+    "memory_usage_mb": 1377,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:07.552446",
+    "service": "web-app",
+    "response_time_ms": 207.24,
+    "error_rate": 0.013,
+    "requests_per_second": 61,
+    "cpu_usage_percent": 27.73,
+    "memory_usage_mb": 730,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:12.552446",
+    "service": "web-app",
+    "response_time_ms": 4967.17,
+    "error_rate": 0.1348,
+    "requests_per_second": 122,
+    "cpu_usage_percent": 82.39,
+    "memory_usage_mb": 1266,
+    "is_anomaly": true
+  },
+  {
+    "timestamp": "2025-09-10T05:35:17.552446",
+    "service": "web-app",
+    "response_time_ms": 483.95,
+    "error_rate": 0.0102,
+    "requests_per_second": 69,
+    "cpu_usage_percent": 37.9,
+    "memory_usage_mb": 1883,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:22.552446",
+    "service": "web-app",
+    "response_time_ms": 388.43,
+    "error_rate": 0.0018,
+    "requests_per_second": 140,
+    "cpu_usage_percent": 26.82,
+    "memory_usage_mb": 811,
+    "is_anomaly": false
+  },
+  {
+    "timestamp": "2025-09-10T05:35:27.552446",
+    "service": "web-app",
+    "response_time_ms": 488.96,
+    "error_rate": 0.0006,
+    "requests_per_second": 76,
+    "cpu_usage_percent": 29.82,
+    "memory_usage_mb": 1584,
+    "is_anomaly": false
+  }
+]
