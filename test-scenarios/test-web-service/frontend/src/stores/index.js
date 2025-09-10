@@ -4,38 +4,14 @@
  */
 
 import { defineStore } from 'pinia'
-import axios from 'axios'
-
-/**
- * API客户端配置
- * 设置基础URL和请求拦截器
- */
-const api = axios.create({
-  baseURL: '/api/v1',
-  timeout: 10000,
-})
-
-// 请求拦截器
-api.interceptors.request.use(
-  (config) => {
-    // 可以在这里添加认证token等
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// 响应拦截器
-api.interceptors.response.use(
-  (response) => {
-    return response.data
-  },
-  (error) => {
-    console.error('API请求错误:', error)
-    return Promise.reject(error)
-  }
-)
+import { 
+  systemAPI, 
+  testCasesAPI, 
+  testRunsAPI, 
+  runtimeManagersAPI,
+  usersAPI,
+  settingsAPI
+} from '../services/api.js'
 
 /**
  * 主应用状态store
@@ -75,19 +51,141 @@ export const useAppStore = defineStore('app', {
      */
     async fetchSystemInfo() {
       try {
-        this.setLoading(true)
-        this.setError(null)
-        const response = await api.get('/system/info')
-        this.systemInfo = response.data
+        this.loading = true
+        const response = await systemAPI.getSystemInfo()
+        this.systemInfo = response
       } catch (error) {
-        this.setError('获取系统信息失败')
-        throw error
+        this.setError(error.message)
       } finally {
-        this.setLoading(false)
+        this.loading = false
       }
     },
-  },
-})
+    
+    /**
+     * 获取系统统计
+     */
+    async fetchSystemStats() {
+      try {
+        return await systemAPI.getSystemStats()
+      } catch (error) {
+        this.setError(error.message)
+        throw error
+      }
+    },
+    
+    // 用户管理相关actions
+    /**
+     * 用户登录
+     * @param {Object} credentials - 登录凭据
+     */
+    async login(credentials) {
+      try {
+        const response = await usersAPI.login(credentials)
+        const loginData = response.data || response
+        this.currentUser = loginData.user
+        this.isAuthenticated = true
+        // 存储token到localStorage
+        if (loginData.token) {
+          localStorage.setItem('auth_token', loginData.token)
+        }
+        return loginData
+      } catch (error) {
+        console.error('登录失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 用户登出
+     */
+    async logout() {
+      try {
+        await usersAPI.logout()
+        this.currentUser = null
+        this.isAuthenticated = false
+        localStorage.removeItem('auth_token')
+      } catch (error) {
+        console.error('登出失败:', error)
+        // 即使API调用失败，也要清除本地状态
+        this.currentUser = null
+        this.isAuthenticated = false
+        localStorage.removeItem('auth_token')
+      }
+    },
+    
+    /**
+      * 获取当前用户信息
+      */
+     async fetchCurrentUser() {
+       try {
+         const response = await usersAPI.getCurrentUser()
+         this.currentUser = response.data || response
+         this.isAuthenticated = true
+       } catch (error) {
+         console.error('获取当前用户信息失败:', error)
+         this.currentUser = null
+         this.isAuthenticated = false
+       }
+     },
+     
+     /**
+      * 获取用户列表
+      * @param {Object} params - 查询参数
+      */
+     async fetchUsers(params = {}) {
+       try {
+         const response = await usersAPI.list(params)
+         this.users = response.data || response
+         this.usersPagination = response.pagination || { total: (response.data || response).length || 0 }
+       } catch (error) {
+         console.error('获取用户列表失败:', error)
+         throw error
+       }
+     },
+     
+     // 设置管理相关actions
+     /**
+      * 获取设置列表
+      * @param {Object} params - 查询参数
+      */
+     async fetchSettings(params = {}) {
+       try {
+         const response = await settingsAPI.list(params)
+         this.settings = response.data || response
+         this.settingsPagination = response.pagination || { total: (response.data || response).length || 0 }
+       } catch (error) {
+         console.error('获取设置列表失败:', error)
+         throw error
+       }
+     },
+     
+     /**
+      * 获取系统配置
+      */
+     async fetchSystemConfig() {
+       try {
+         const response = await settingsAPI.getSystemConfig()
+         this.systemConfig = response.data || response
+       } catch (error) {
+         console.error('获取系统配置失败:', error)
+         throw error
+       }
+     },
+     
+     /**
+      * 获取用户偏好设置
+      */
+     async fetchUserPreferences() {
+       try {
+         const response = await settingsAPI.getUserPreferences()
+         this.userPreferences = response.data || response
+       } catch (error) {
+         console.error('获取用户偏好设置失败:', error)
+         throw error
+       }
+     },
+   },
+ })
 
 /**
  * 测试用例状态store
@@ -115,9 +213,9 @@ export const useTestCasesStore = defineStore('testCases', {
      */
     async fetchTestCases(params = {}) {
       try {
-        const response = await api.get('/test-cases', { params })
-        this.testCases = response.data
-        this.pagination = response.pagination
+        const response = await testCasesAPI.list(params)
+        this.testCases = response.data || response
+        this.pagination = response.pagination || { total: response.length || 0 }
       } catch (error) {
         console.error('获取测试用例失败:', error)
         throw error
@@ -130,9 +228,9 @@ export const useTestCasesStore = defineStore('testCases', {
      */
     async createTestCase(testCase) {
       try {
-        const response = await api.post('/test-cases', testCase)
-        this.testCases.unshift(response.data)
-        return response.data
+        const response = await testCasesAPI.create(testCase)
+        this.testCases.unshift(response.data || response)
+        return response.data || response
       } catch (error) {
         console.error('创建测试用例失败:', error)
         throw error
@@ -163,9 +261,9 @@ export const useTestRunsStore = defineStore('testRuns', {
      */
     async fetchTestRuns(params = {}) {
       try {
-        const response = await api.get('/test-runs', { params })
-        this.testRuns = response.data
-        this.pagination = response.pagination
+        const response = await testRunsAPI.list(params)
+        this.testRuns = response.data || response
+        this.pagination = response.pagination || { total: response.length || 0 }
       } catch (error) {
         console.error('获取测试运行失败:', error)
         throw error
@@ -178,9 +276,9 @@ export const useTestRunsStore = defineStore('testRuns', {
      */
     async executeTest(testRunData) {
       try {
-        const response = await api.post('/test-runs', testRunData)
-        this.testRuns.unshift(response.data)
-        return response.data
+        const response = await testRunsAPI.create(testRunData)
+        this.testRuns.unshift(response.data || response)
+        return response.data || response
       } catch (error) {
         console.error('执行测试失败:', error)
         throw error
@@ -205,8 +303,8 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
      */
     async fetchRuntimeManagers() {
       try {
-        const response = await api.get('/runtime-managers')
-        this.runtimeManagers = response.data
+        const response = await runtimeManagersAPI.list()
+        this.runtimeManagers = response.data || response
       } catch (error) {
         console.error('获取运行时管理器失败:', error)
         throw error
@@ -219,9 +317,9 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
      */
     async createRuntimeManager(runtimeManager) {
       try {
-        const response = await api.post('/runtime-managers', runtimeManager)
-        this.runtimeManagers.push(response.data)
-        return response.data
+        const response = await runtimeManagersAPI.create(runtimeManager)
+        this.runtimeManagers.push(response.data || response)
+        return response.data || response
       } catch (error) {
         console.error('创建运行时管理器失败:', error)
         throw error
@@ -234,8 +332,8 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
      */
     async testConnection(id) {
       try {
-        const response = await api.post(`/runtime-managers/${id}/test`)
-        return response.data
+        const response = await runtimeManagersAPI.test(id)
+        return response.data || response
       } catch (error) {
         console.error('测试连接失败:', error)
         throw error
@@ -244,4 +342,193 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
   },
 })
 
-export { api }
+/**
+ * 用户管理状态store
+ * 管理用户相关的状态和操作
+ */
+export const useUsersStore = defineStore('users', {
+  state: () => ({
+    users: [],
+    currentUser: null,
+    isAuthenticated: false,
+    pagination: {
+      page: 1,
+      limit: 10,
+      total: 0,
+    },
+  }),
+  
+  getters: {
+    totalPages: (state) => Math.ceil(state.pagination.total / state.pagination.limit),
+  },
+  
+  actions: {
+    /**
+     * 获取用户列表
+     * @param {Object} params - 查询参数
+     */
+    async fetchUsers(params = {}) {
+      try {
+        const response = await usersAPI.list(params)
+        this.users = response.data || response
+        this.pagination = response.pagination || { total: response.length || 0 }
+      } catch (error) {
+        console.error('获取用户列表失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 创建用户
+     * @param {Object} user - 用户数据
+     */
+    async createUser(user) {
+      try {
+        const response = await usersAPI.create(user)
+        this.users.unshift(response.data || response)
+        return response.data || response
+      } catch (error) {
+        console.error('创建用户失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 更新用户
+     * @param {string} id - 用户ID
+     * @param {Object} user - 用户数据
+     */
+    async updateUser(id, user) {
+      try {
+        const response = await usersAPI.update(id, user)
+        const index = this.users.findIndex(u => u.id === id)
+        if (index !== -1) {
+          this.users[index] = response.data || response
+        }
+        return response.data || response
+      } catch (error) {
+        console.error('更新用户失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 删除用户
+     * @param {string} id - 用户ID
+     */
+    async deleteUser(id) {
+      try {
+        await usersAPI.delete(id)
+        this.users = this.users.filter(u => u.id !== id)
+      } catch (error) {
+        console.error('删除用户失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 设置当前用户
+     * @param {Object} user - 用户信息
+     */
+    setCurrentUser(user) {
+      this.currentUser = user
+      this.isAuthenticated = !!user
+    },
+  },
+})
+
+/**
+ * 设置管理状态store
+ * 管理系统设置相关的状态和操作
+ */
+export const useSettingsStore = defineStore('settings', {
+  state: () => ({
+    settings: [],
+    systemConfig: null,
+    userPreferences: [],
+    pagination: {
+      page: 1,
+      limit: 10,
+      total: 0,
+    },
+  }),
+  
+  getters: {
+    totalPages: (state) => Math.ceil(state.pagination.total / state.pagination.limit),
+  },
+  
+  actions: {
+    /**
+     * 获取设置列表
+     * @param {Object} params - 查询参数
+     */
+    async fetchSettings(params = {}) {
+      try {
+        const response = await settingsAPI.list(params)
+        this.settings = response.data || response
+        this.pagination = response.pagination || { total: response.length || 0 }
+      } catch (error) {
+        console.error('获取设置列表失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 获取系统配置
+     */
+    async fetchSystemConfig() {
+      try {
+        const response = await settingsAPI.getSystemConfig()
+        this.systemConfig = response.data || response
+      } catch (error) {
+        console.error('获取系统配置失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 更新系统配置
+     * @param {Object} config - 配置数据
+     */
+    async updateSystemConfig(config) {
+      try {
+        const response = await settingsAPI.updateSystemConfig(config)
+        this.systemConfig = response.data || response
+        return response.data || response
+      } catch (error) {
+        console.error('更新系统配置失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 获取用户偏好设置
+     * @param {string} userId - 用户ID
+     */
+    async fetchUserPreferences(userId) {
+      try {
+        const response = await settingsAPI.getUserPreferences(userId)
+        this.userPreferences = response.data || response
+      } catch (error) {
+        console.error('获取用户偏好设置失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 更新用户偏好设置
+     * @param {string} userId - 用户ID
+     * @param {Object} preferences - 偏好设置数据
+     */
+    async updateUserPreferences(userId, preferences) {
+      try {
+        const response = await settingsAPI.updateUserPreferences(userId, preferences)
+        this.userPreferences = response.data || response
+        return response.data || response
+      } catch (error) {
+        console.error('更新用户偏好设置失败:', error)
+        throw error
+      }
+    },
+  },
+})

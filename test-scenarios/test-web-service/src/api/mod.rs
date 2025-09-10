@@ -11,6 +11,8 @@ mod test_cases;
 mod test_runs;
 mod runtime_managers;
 mod system;
+mod users;
+mod settings;
 
 use crate::AppState;
 
@@ -48,4 +50,28 @@ pub fn routes() -> Router<AppState> {
         .route("/runtime-managers/:id", delete(runtime_managers::delete_manager))
         .route("/runtime-managers/:id/heartbeat", post(runtime_managers::heartbeat))
         .route("/runtime-managers/:id/test", post(runtime_managers::test_connection))
+        
+        // 用户管理路由
+        .route("/auth/login", post(users::login))
+        .route("/auth/logout", post(users::logout))
+        .route("/auth/refresh", post(users::refresh_token))
+        .route("/auth/me", get(users::get_current_user))
+        .route("/users", get(users::list_users))
+        .route("/users", post(users::create_user))
+        .route("/users/:id", get(users::get_user))
+        .route("/users/:id", put(users::update_user))
+        .route("/users/:id", delete(users::delete_user))
+        .route("/users/change-password", post(users::change_password))
+        .route("/users/:id/reset-password", post(users::reset_password))
+        
+        // 设置管理路由
+        .route("/settings", get(settings::list_settings))
+        .route("/settings/category/:category", get(settings::get_settings_by_category))
+        .route("/settings/:key", get(settings::get_setting))
+        .route("/settings/:key", put(settings::update_setting))
+        .route("/settings/batch", put(settings::batch_update_settings))
+        .route("/settings/:key/reset", post(settings::reset_setting))
+        .route("/settings/config", get(settings::get_system_config))
+        .route("/preferences", get(settings::get_user_preferences))
+        .route("/preferences", put(settings::update_user_preference))
 }
