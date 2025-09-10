@@ -10,6 +10,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use tower_http::services::ServeDir;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -91,6 +92,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(service_info))
         .route("/health", get(health_check))
         .nest("/api/v1", api::routes())
+        .nest_service("/static", ServeDir::new("static"))
+        .fallback_service(ServeDir::new("static").append_index_html_on_directories(true))
         .layer(CorsLayer::permissive())
         .with_state(app_state);
 

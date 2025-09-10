@@ -1,0 +1,421 @@
+<!--
+  AIOps测试管理平台 - 运行时管理器页面
+  管理Docker、Kubernetes等运行时环境
+-->
+
+<template>
+  <div class="space-y-6">
+    <!-- 页面标题和操作按钮 -->
+    <div class="md:flex md:items-center md:justify-between">
+      <div class="flex-1 min-w-0">
+        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+          运行时管理器
+        </h2>
+        <p class="mt-1 text-sm text-gray-500">
+          管理Docker、Kubernetes等运行时环境
+        </p>
+      </div>
+      <div class="mt-4 flex md:mt-0 md:ml-4">
+        <button
+          @click="showCreateModal = true"
+          class="btn-primary"
+        >
+          添加运行时
+        </button>
+      </div>
+    </div>
+
+    <!-- 运行时管理器列表 -->
+    <div class="card">
+      <div class="px-4 py-5 sm:p-6">
+        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+          <table class="min-w-full divide-y divide-gray-300">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="table-header">名称</th>
+                <th class="table-header">类型</th>
+                <th class="table-header">状态</th>
+                <th class="table-header">创建时间</th>
+                <th class="table-header">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+              <tr v-for="manager in runtimeManagers" :key="manager.id">
+                <td class="table-cell font-medium">{{ manager.name }}</td>
+                <td class="table-cell">
+                  <span :class="getTypeClass(manager.runtime_type)" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
+                    {{ getTypeText(manager.runtime_type) }}
+                  </span>
+                </td>
+                <td class="table-cell">
+                  <span :class="getStatusClass(manager.status)" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
+                    {{ getStatusText(manager.status) }}
+                  </span>
+                </td>
+                <td class="table-cell">{{ formatDate(manager.created_at) }}</td>
+                <td class="table-cell">
+                  <div class="flex space-x-2">
+                    <button
+                      @click="testConnection(manager.id)"
+                      :disabled="testingConnection === manager.id"
+                      class="text-blue-600 hover:text-blue-900 text-sm"
+                    >
+                      {{ testingConnection === manager.id ? '测试中...' : '测试连接' }}
+                    </button>
+                    <button
+                      @click="editManager(manager)"
+                      class="text-indigo-600 hover:text-indigo-900 text-sm"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      @click="deleteManager(manager.id)"
+                      class="text-red-600 hover:text-red-900 text-sm"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="runtimeManagers.length === 0">
+                <td colspan="5" class="table-cell text-center text-gray-500">
+                  暂无运行时管理器
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 创建/编辑运行时管理器模态框 -->
+    <div v-if="showCreateModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+          <h3 class="text-lg font-medium text-gray-900 mb-4">
+            {{ editingManager ? '编辑运行时管理器' : '创建运行时管理器' }}
+          </h3>
+          <form @submit.prevent="submitForm">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700">名称</label>
+                <input
+                  v-model="form.name"
+                  type="text"
+                  required
+                  class="input-field"
+                  placeholder="输入运行时管理器名称"
+                >
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700">类型</label>
+                <select v-model="form.runtime_type" required class="input-field">
+                  <option value="">选择运行时类型</option>
+                  <option value="docker">Docker</option>
+                  <option value="kubernetes">Kubernetes</option>
+                  <option value="local">本地</option>
+                </select>
+              </div>
+              
+              <!-- Docker配置 -->
+              <div v-if="form.runtime_type === 'docker'" class="space-y-3">
+                <h4 class="text-sm font-medium text-gray-700">Docker配置</h4>
+                <div>
+                  <label class="block text-sm text-gray-600">Docker Host</label>
+                  <input
+                    v-model="form.config.host"
+                    type="text"
+                    class="input-field"
+                    placeholder="unix:///var/run/docker.sock"
+                  >
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-600">API版本</label>
+                  <input
+                    v-model="form.config.api_version"
+                    type="text"
+                    class="input-field"
+                    placeholder="1.41"
+                  >
+                </div>
+              </div>
+              
+              <!-- Kubernetes配置 -->
+              <div v-if="form.runtime_type === 'kubernetes'" class="space-y-3">
+                <h4 class="text-sm font-medium text-gray-700">Kubernetes配置</h4>
+                <div>
+                  <label class="block text-sm text-gray-600">集群URL</label>
+                  <input
+                    v-model="form.config.cluster_url"
+                    type="text"
+                    class="input-field"
+                    placeholder="https://kubernetes.default.svc"
+                  >
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-600">命名空间</label>
+                  <input
+                    v-model="form.config.namespace"
+                    type="text"
+                    class="input-field"
+                    placeholder="default"
+                  >
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-600">Token</label>
+                  <input
+                    v-model="form.config.token"
+                    type="password"
+                    class="input-field"
+                    placeholder="Kubernetes访问令牌"
+                  >
+                </div>
+              </div>
+              
+              <!-- 本地配置 -->
+              <div v-if="form.runtime_type === 'local'" class="space-y-3">
+                <h4 class="text-sm font-medium text-gray-700">本地配置</h4>
+                <div>
+                  <label class="block text-sm text-gray-600">工作目录</label>
+                  <input
+                    v-model="form.config.working_directory"
+                    type="text"
+                    class="input-field"
+                    placeholder="/tmp/test-workspace"
+                  >
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-600">环境变量</label>
+                  <textarea
+                    v-model="form.config.environment_variables"
+                    class="input-field"
+                    rows="3"
+                    placeholder="KEY1=value1\nKEY2=value2"
+                  ></textarea>
+                </div>
+              </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6">
+              <button
+                type="button"
+                @click="closeModal"
+                class="btn-secondary"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                :disabled="submitting"
+                class="btn-primary"
+              >
+                {{ submitting ? '提交中...' : (editingManager ? '更新' : '创建') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 运行时管理器页面组件逻辑
+ * 负责管理Docker、Kubernetes等运行时环境
+ */
+import { useRuntimeManagersStore } from '../stores'
+import dayjs from 'dayjs'
+
+export default {
+  name: 'RuntimeManagers',
+  data() {
+    return {
+      showCreateModal: false,
+      editingManager: null,
+      submitting: false,
+      testingConnection: null,
+      form: {
+        name: '',
+        runtime_type: '',
+        config: {},
+      },
+    }
+  },
+  
+  computed: {
+    runtimeManagers() {
+      const store = useRuntimeManagersStore()
+      return store.runtimeManagers
+    },
+  },
+  
+  async mounted() {
+    await this.loadRuntimeManagers()
+  },
+  
+  methods: {
+    /**
+     * 加载运行时管理器列表
+     */
+    async loadRuntimeManagers() {
+      try {
+        const store = useRuntimeManagersStore()
+        await store.fetchRuntimeManagers()
+      } catch (error) {
+        console.error('加载运行时管理器失败:', error)
+      }
+    },
+    
+    /**
+     * 测试连接
+     * @param {string} id - 运行时管理器ID
+     */
+    async testConnection(id) {
+      this.testingConnection = id
+      try {
+        const store = useRuntimeManagersStore()
+        const result = await store.testConnection(id)
+        alert(`连接测试${result.success ? '成功' : '失败'}: ${result.message}`)
+      } catch (error) {
+        alert('连接测试失败: ' + error.message)
+      } finally {
+        this.testingConnection = null
+      }
+    },
+    
+    /**
+     * 编辑运行时管理器
+     * @param {Object} manager - 运行时管理器对象
+     */
+    editManager(manager) {
+      this.editingManager = manager
+      this.form = {
+        name: manager.name,
+        runtime_type: manager.runtime_type,
+        config: { ...manager.config },
+      }
+      this.showCreateModal = true
+    },
+    
+    /**
+     * 删除运行时管理器
+     * @param {string} id - 运行时管理器ID
+     */
+    async deleteManager(id) {
+      if (confirm('确定要删除这个运行时管理器吗？')) {
+        try {
+          // TODO: 实现删除API调用
+          console.log('删除运行时管理器:', id)
+          await this.loadRuntimeManagers()
+        } catch (error) {
+          alert('删除失败: ' + error.message)
+        }
+      }
+    },
+    
+    /**
+     * 提交表单
+     */
+    async submitForm() {
+      this.submitting = true
+      try {
+        const store = useRuntimeManagersStore()
+        
+        if (this.editingManager) {
+          // TODO: 实现更新API调用
+          console.log('更新运行时管理器:', this.form)
+        } else {
+          await store.createRuntimeManager(this.form)
+        }
+        
+        this.closeModal()
+        await this.loadRuntimeManagers()
+      } catch (error) {
+        alert('操作失败: ' + error.message)
+      } finally {
+        this.submitting = false
+      }
+    },
+    
+    /**
+     * 关闭模态框
+     */
+    closeModal() {
+      this.showCreateModal = false
+      this.editingManager = null
+      this.form = {
+        name: '',
+        runtime_type: '',
+        config: {},
+      }
+    },
+    
+    /**
+     * 获取类型样式类
+     * @param {string} type - 运行时类型
+     * @returns {string} CSS类名
+     */
+    getTypeClass(type) {
+      const typeClasses = {
+        'docker': 'bg-blue-100 text-blue-800',
+        'kubernetes': 'bg-green-100 text-green-800',
+        'local': 'bg-gray-100 text-gray-800',
+      }
+      return typeClasses[type] || 'bg-gray-100 text-gray-800'
+    },
+    
+    /**
+     * 获取类型文本
+     * @param {string} type - 运行时类型
+     * @returns {string} 类型文本
+     */
+    getTypeText(type) {
+      const typeTexts = {
+        'docker': 'Docker',
+        'kubernetes': 'Kubernetes',
+        'local': '本地',
+      }
+      return typeTexts[type] || '未知'
+    },
+    
+    /**
+     * 获取状态样式类
+     * @param {string} status - 状态值
+     * @returns {string} CSS类名
+     */
+    getStatusClass(status) {
+      const statusClasses = {
+        'active': 'bg-green-100 text-green-800',
+        'inactive': 'bg-red-100 text-red-800',
+        'unknown': 'bg-gray-100 text-gray-800',
+      }
+      return statusClasses[status] || 'bg-gray-100 text-gray-800'
+    },
+    
+    /**
+     * 获取状态文本
+     * @param {string} status - 状态值
+     * @returns {string} 状态文本
+     */
+    getStatusText(status) {
+      const statusTexts = {
+        'active': '活跃',
+        'inactive': '不活跃',
+        'unknown': '未知',
+      }
+      return statusTexts[status] || '未知'
+    },
+    
+    /**
+     * 格式化日期
+     * @param {string} date - 日期字符串
+     * @returns {string} 格式化后的日期
+     */
+    formatDate(date) {
+      return date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-'
+    },
+  },
+}
+</script>
