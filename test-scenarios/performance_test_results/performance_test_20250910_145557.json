@@ -1,0 +1,49 @@
+{
+  "test_suite": "comprehensive_performance_test",
+  "start_time": "2025-09-10T14:52:43.664276",
+  "end_time": "2025-09-10T14:55:57.651112",
+  "total_duration_seconds": 193.99,
+  "system_info": {
+    "cpu_cores": 28,
+    "platform": "win32",
+    "python_version": "3.13.7 (tags/v3.13.7:bcee1c3, Aug 14 2025, 14:15:11) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "test_results": {
+    "cpu_test": {
+      "test_type": "cpu_stress",
+      "start_time": "2025-09-10T14:52:43.664334",
+      "end_time": "2025-09-10T14:53:57.640226",
+      "duration_seconds": 73.98,
+      "threads_used": 28,
+      "cpu_cores": 28,
+      "status": "completed"
+    },
+    "memory_test": {
+      "test_type": "memory_stress",
+      "start_time": "2025-09-10T14:53:57.640399",
+      "end_time": "2025-09-10T14:54:57.640402",
+      "duration_seconds": 60.0,
+      "requested_memory_mb": 200,
+      "allocated_memory_mb": 200,
+      "status": "completed"
+    },
+    "disk_io_test": {
+      "test_type": "disk_io_stress",
+      "start_time": "2025-09-10T14:54:57.647368",
+      "end_time": "2025-09-10T14:55:57.650878",
+      "duration_seconds": 60.0,
+      "file_size_mb": 50,
+      "write_operations": 98950,
+      "read_operations": 98910,
+      "bytes_written": 103756595200,
+      "bytes_read": 103714652160,
+      "write_throughput_mbps": 1649.07,
+      "read_throughput_mbps": 1648.4,
+      "status": "completed"
+    }
+  },
+  "summary_stats": {
+    "tests_completed": 3,
+    "all_tests_passed": true
+  }
+}

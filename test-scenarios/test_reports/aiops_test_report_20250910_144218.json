@@ -1,0 +1,60 @@
+{
+  "test_suite": "AIOps综合测试",
+  "start_time": "2025-09-10T14:38:49.905679",
+  "end_time": "2025-09-10T14:42:18.175380",
+  "total_duration": 208.26970195770264,
+  "total_tests": 6,
+  "successful_tests": 6,
+  "failed_tests": 0,
+  "success_rate": 100.0,
+  "test_results": {
+    "Web应用监控快速测试": {
+      "command": "py web_app_simulator.py --duration 30",
+      "success": true,
+      "duration": 30.06796646118164,
+      "return_code": 0,
+      "stdout": "🌐 启动Web应用监控模拟器\n模拟时长: 30秒\n故障模式: 禁用\n开始时间: 2025-09-10 14:38:49\n[14:38:49] 请求: 1107, 错误率: 1.36%, 响应时间: 219.9ms, CPU: 43.0%\n[14:38:54] 请求: 1300, 错误率: 1.31%, 响应时间: 282.9ms, CPU: 42.6%\n[14:38:59] 请求: 1264, 错误率: 2.93%, 响应时间: 393.1ms, CPU: 99.2%\n[14:39:04] 请求: 1324, 错误率: 1.28%, 响应时间: 279.5ms, CPU: 102.1%\n[14:39:09] 请求: 1466, 错误率: 1.30%, 响应时间: 282.1ms, CPU: 43.6%\n[14:39:14] 请求: 1201, 错误率: 1.50%, 响应时间: 212.5ms, CPU: 72.3%\n\n✅ Web应用监控模拟完成\n总共生成 6 个数据点\n",
+      "stderr": ""
+    },
+    "数据库监控快速测试": {
+      "command": "py database_simulator.py --duration 60 --export db_quick_metrics.json",
+      "success": true,
+      "duration": 70.30149221420288,
+      "return_code": 0,
+      "stdout": "Database simulation running for 60 seconds...\nPress Ctrl+C to stop early\n\n=== Simulation Summary ===\nTotal queries: 10000\nSuccess rate: 99.13%\nAverage response time: 78.69ms\nSlow query rate: 0.89%\n",
+      "stderr": "E:\\workspace\\gitea\\aiops\\test-scenarios\\database_simulator.py:261: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes\n  cursor.execute(\nE:\\workspace\\gitea\\aiops\\test-scenarios\\database_simulator.py:271: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes\n  cursor.execute(\nE:\\workspace\\gitea\\aiops\\test-scenarios\\database_simulator.py:279: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes\n  cursor.execute(\n2025-09-10 14:39:21,139 - DatabaseSimulator - INFO - Mock database setup completed\n2025-09-10 14:39:21,140 - DatabaseSimulator - INFO - Database simulation started for 4 instances\n2025-09-10 14:40:31,155 - DatabaseSimulator - INFO - Database simulation stopped\n2025-09-10 14:40:31,257 - DatabaseSimulator - INFO - Metrics exported to db_quick_metrics.json\n"
+    },
+    "系统监控快速测试": {
+      "command": "py system_monitor.py --duration 45 --export sys_quick_metrics.json",
+      "success": true,
+      "duration": 60.083739280700684,
+      "return_code": 0,
+      "stdout": "System monitoring running for 45 seconds...\nPress Ctrl+C to stop early\n\n=== Monitoring Summary ===\nMonitored servers: 6\nDuration: 0.5 minutes\nSystem metrics collected: 12\nProcess metrics collected: 83\n",
+      "stderr": "2025-09-10 14:40:32,345 - SystemMonitor - INFO - System monitoring started for 6 servers\n2025-09-10 14:41:32,345 - SystemMonitor - INFO - System monitoring stopped\n2025-09-10 14:41:32,349 - SystemMonitor - INFO - Metrics exported to sys_quick_metrics.json\n"
+    },
+    "异常检测快速测试": {
+      "command": "py anomaly_simulator.py",
+      "success": true,
+      "duration": 0.061067819595336914,
+      "return_code": 0,
+      "stdout": "可用的异常场景:\n  - morning_rush_failure\n  - resource_exhaustion_cascade\n  - gradual_system_degradation\n  - periodic_instability\n  - database_crisis\n\n生成了 3 个异常模式\n异常时间线已保存到 anomaly_timeline.json\n",
+      "stderr": ""
+    },
+    "仪表板数据快速生成": {
+      "command": "py simple_dashboard_generator.py",
+      "success": true,
+      "duration": 0.14683008193969727,
+      "return_code": 0,
+      "stdout": "=== 简化版Grafana仪表板数据生成器 ===\n正在生成测试数据...\n\n=== 仪表板数据生成完成 ===\n输出目录: dashboard_data\n生成文件数: 6\n总指标数: 16\n每个指标数据点数: 1441\n\n数据生成完成！\n可以将生成的数据导入到Grafana中进行可视化展示。\n",
+      "stderr": "2025-09-10 14:41:34,482 - DashboardGenerator - INFO - 导出数据到目录: dashboard_data\n2025-09-10 14:41:34,482 - DashboardGenerator - INFO - 生成系统指标数据\n2025-09-10 14:41:34,488 - DashboardGenerator - INFO - 生成应用指标数据\n2025-09-10 14:41:34,494 - DashboardGenerator - INFO - 生成业务指标数据\n2025-09-10 14:41:34,499 - DashboardGenerator - INFO - 生成数据库指标数据\n2025-09-10 14:41:34,504 - DashboardGenerator - INFO - 生成仪表板配置\n2025-09-10 14:41:34,519 - DashboardGenerator - INFO - 已保存: dashboard_data\\system_metrics.json\n2025-09-10 14:41:34,533 - DashboardGenerator - INFO - 已保存: dashboard_data\\application_metrics.json\n2025-09-10 14:41:34,547 - DashboardGenerator - INFO - 已保存: dashboard_data\\business_metrics.json\n2025-09-10 14:41:34,562 - DashboardGenerator - INFO - 已保存: dashboard_data\\database_metrics.json\n2025-09-10 14:41:34,562 - DashboardGenerator - INFO - 已保存: dashboard_data\\dashboard_config.json\n2025-09-10 14:41:34,562 - DashboardGenerator - INFO - 生成汇总报告: dashboard_data\\generation_summary.json\n"
+    },
+    "CPU压力快速测试": {
+      "command": "py simple_performance_tester.py --test-type cpu --duration 30",
+      "success": true,
+      "duration": 41.60425615310669,
+      "return_code": 0,
+      "stdout": "=== 简化版性能压力测试器 ===\n测试类型: cpu\n持续时间: 30秒\n开始测试...\n\n\n=== 性能测试完成 ===\n结果文件: performance_test_results\\performance_test_20250910_144217.json\n报告文件: performance_test_results\\performance_report_20250910_144217.txt\n\n测试完成！\n",
+      "stderr": "2025-09-10 14:41:35,712 - PerformanceTester - INFO - 开始CPU压力测试: 28线程, 30秒\n2025-09-10 14:42:17,165 - PerformanceTester - INFO - CPU压力测试完成: 41.45秒\n2025-09-10 14:42:17,166 - PerformanceTester - INFO - 测试结果已保存到: performance_test_results\\performance_test_20250910_144217.json\n2025-09-10 14:42:17,166 - PerformanceTester - INFO - 测试报告已保存到: performance_test_results\\performance_report_20250910_144217.txt\n"
+    }
+  }
+}

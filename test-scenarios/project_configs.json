@@ -1,0 +1,360 @@
+{
+  "basic_load_test": [
+    {
+      "type": "java",
+      "name": "basic-java-service",
+      "introduce_error": false,
+      "description": "基础Java微服务"
+    },
+    {
+      "type": "rust",
+      "name": "basic-rust-api",
+      "introduce_error": false,
+      "description": "基础Rust API服务"
+    },
+    {
+      "type": "nodejs",
+      "name": "basic-node-app",
+      "introduce_error": false,
+      "description": "基础Node.js应用"
+    }
+  ],
+  "comprehensive_load_test": [
+    {
+      "type": "java",
+      "name": "user-service",
+      "introduce_error": false,
+      "description": "用户管理服务"
+    },
+    {
+      "type": "java",
+      "name": "order-service",
+      "introduce_error": false,
+      "description": "订单处理服务"
+    },
+    {
+      "type": "java",
+      "name": "payment-service",
+      "introduce_error": false,
+      "description": "支付处理服务"
+    },
+    {
+      "type": "java",
+      "name": "notification-service",
+      "introduce_error": false,
+      "description": "通知服务"
+    },
+    {
+      "type": "rust",
+      "name": "high-performance-gateway",
+      "introduce_error": false,
+      "description": "高性能API网关"
+    },
+    {
+      "type": "rust",
+      "name": "data-processing-engine",
+      "introduce_error": false,
+      "description": "数据处理引擎"
+    },
+    {
+      "type": "rust",
+      "name": "real-time-analytics",
+      "introduce_error": false,
+      "description": "实时分析服务"
+    },
+    {
+      "type": "nodejs",
+      "name": "web-frontend",
+      "introduce_error": false,
+      "description": "Web前端应用"
+    },
+    {
+      "type": "nodejs",
+      "name": "websocket-server",
+      "introduce_error": false,
+      "description": "WebSocket服务器"
+    },
+    {
+      "type": "nodejs",
+      "name": "file-upload-service",
+      "introduce_error": false,
+      "description": "文件上传服务"
+    },
+    {
+      "type": "nodejs",
+      "name": "email-service",
+      "introduce_error": false,
+      "description": "邮件发送服务"
+    }
+  ],
+  "error_prone_test": [
+    {
+      "type": "java",
+      "name": "buggy-legacy-service",
+      "introduce_error": true,
+      "description": "有问题的遗留Java服务"
+    },
+    {
+      "type": "java",
+      "name": "unstable-batch-job",
+      "introduce_error": true,
+      "description": "不稳定的批处理任务"
+    },
+    {
+      "type": "rust",
+      "name": "failing-data-processor",
+      "introduce_error": true,
+      "description": "失败的数据处理器"
+    },
+    {
+      "type": "nodejs",
+      "name": "broken-api-service",
+      "introduce_error": true,
+      "description": "损坏的API服务"
+    },
+    {
+      "type": "nodejs",
+      "name": "memory-leak-app",
+      "introduce_error": true,
+      "description": "内存泄漏应用"
+    }
+  ],
+  "mixed_scenario_test": [
+    {
+      "type": "java",
+      "name": "stable-core-service",
+      "introduce_error": false,
+      "description": "稳定的核心服务"
+    },
+    {
+      "type": "java",
+      "name": "intermittent-service",
+      "introduce_error": true,
+      "description": "间歇性故障服务"
+    },
+    {
+      "type": "rust",
+      "name": "reliable-processor",
+      "introduce_error": false,
+      "description": "可靠的处理器"
+    },
+    {
+      "type": "rust",
+      "name": "flaky-analyzer",
+      "introduce_error": true,
+      "description": "不稳定的分析器"
+    },
+    {
+      "type": "nodejs",
+      "name": "robust-frontend",
+      "introduce_error": false,
+      "description": "健壮的前端应用"
+    },
+    {
+      "type": "nodejs",
+      "name": "problematic-middleware",
+      "introduce_error": true,
+      "description": "有问题的中间件"
+    }
+  ],
+  "microservices_ecosystem_test": [
+    {
+      "type": "java",
+      "name": "auth-service",
+      "introduce_error": false,
+      "description": "认证服务"
+    },
+    {
+      "type": "java",
+      "name": "user-profile-service",
+      "introduce_error": false,
+      "description": "用户档案服务"
+    },
+    {
+      "type": "java",
+      "name": "product-catalog-service",
+      "introduce_error": false,
+      "description": "产品目录服务"
+    },
+    {
+      "type": "java",
+      "name": "inventory-service",
+      "introduce_error": false,
+      "description": "库存管理服务"
+    },
+    {
+      "type": "java",
+      "name": "pricing-service",
+      "introduce_error": false,
+      "description": "定价服务"
+    },
+    {
+      "type": "rust",
+      "name": "api-gateway",
+      "introduce_error": false,
+      "description": "API网关"
+    },
+    {
+      "type": "rust",
+      "name": "load-balancer",
+      "introduce_error": false,
+      "description": "负载均衡器"
+    },
+    {
+      "type": "rust",
+      "name": "metrics-collector",
+      "introduce_error": false,
+      "description": "指标收集器"
+    },
+    {
+      "type": "nodejs",
+      "name": "admin-dashboard",
+      "introduce_error": false,
+      "description": "管理仪表板"
+    },
+    {
+      "type": "nodejs",
+      "name": "customer-portal",
+      "introduce_error": false,
+      "description": "客户门户"
+    },
+    {
+      "type": "nodejs",
+      "name": "mobile-api",
+      "introduce_error": false,
+      "description": "移动端API"
+    },
+    {
+      "type": "nodejs",
+      "name": "webhook-handler",
+      "introduce_error": false,
+      "description": "Webhook处理器"
+    },
+    {
+      "type": "java",
+      "name": "legacy-integration",
+      "introduce_error": true,
+      "description": "遗留系统集成（不稳定）"
+    },
+    {
+      "type": "rust",
+      "name": "experimental-feature",
+      "introduce_error": true,
+      "description": "实验性功能（可能失败）"
+    },
+    {
+      "type": "nodejs",
+      "name": "third-party-connector",
+      "introduce_error": true,
+      "description": "第三方连接器（不可靠）"
+    }
+  ],
+  "performance_stress_test": [
+    {
+      "type": "java",
+      "name": "cpu-intensive-service",
+      "introduce_error": false,
+      "description": "CPU密集型Java服务"
+    },
+    {
+      "type": "java",
+      "name": "memory-heavy-processor",
+      "introduce_error": false,
+      "description": "内存密集型处理器"
+    },
+    {
+      "type": "rust",
+      "name": "high-throughput-api",
+      "introduce_error": false,
+      "description": "高吞吐量API"
+    },
+    {
+      "type": "rust",
+      "name": "concurrent-data-processor",
+      "introduce_error": false,
+      "description": "并发数据处理器"
+    },
+    {
+      "type": "nodejs",
+      "name": "io-intensive-service",
+      "introduce_error": false,
+      "description": "I/O密集型服务"
+    },
+    {
+      "type": "nodejs",
+      "name": "event-driven-processor",
+      "introduce_error": false,
+      "description": "事件驱动处理器"
+    }
+  ],
+  "build_failure_scenarios": [
+    {
+      "type": "java",
+      "name": "missing-dependency-project",
+      "introduce_error": true,
+      "description": "缺少依赖的Java项目"
+    },
+    {
+      "type": "java",
+      "name": "compilation-error-project",
+      "introduce_error": true,
+      "description": "编译错误的Java项目"
+    },
+    {
+      "type": "rust",
+      "name": "syntax-error-project",
+      "introduce_error": true,
+      "description": "语法错误的Rust项目"
+    },
+    {
+      "type": "rust",
+      "name": "type-mismatch-project",
+      "introduce_error": true,
+      "description": "类型不匹配的Rust项目"
+    },
+    {
+      "type": "nodejs",
+      "name": "missing-module-project",
+      "introduce_error": true,
+      "description": "缺少模块的Node.js项目"
+    },
+    {
+      "type": "nodejs",
+      "name": "package-conflict-project",
+      "introduce_error": true,
+      "description": "包冲突的Node.js项目"
+    }
+  ],
+  "runtime_failure_scenarios": [
+    {
+      "type": "java",
+      "name": "null-pointer-service",
+      "introduce_error": true,
+      "description": "空指针异常服务"
+    },
+    {
+      "type": "java",
+      "name": "out-of-memory-service",
+      "introduce_error": true,
+      "description": "内存溢出服务"
+    },
+    {
+      "type": "rust",
+      "name": "panic-prone-service",
+      "introduce_error": true,
+      "description": "容易panic的Rust服务"
+    },
+    {
+      "type": "nodejs",
+      "name": "uncaught-exception-service",
+      "introduce_error": true,
+      "description": "未捕获异常的Node.js服务"
+    },
+    {
+      "type": "nodejs",
+      "name": "callback-hell-service",
+      "introduce_error": true,
+      "description": "回调地狱服务"
+    }
+  ]
+}

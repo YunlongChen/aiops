@@ -1,0 +1,60 @@
+{
+  "test_suite": "AIOps综合测试",
+  "start_time": "2025-09-10T13:29:21.471624",
+  "end_time": "2025-09-10T13:29:28.057697",
+  "total_duration": 6.58607292175293,
+  "total_tests": 6,
+  "successful_tests": 0,
+  "failed_tests": 6,
+  "success_rate": 0.0,
+  "test_results": {
+    "Web应用监控快速测试": {
+      "command": "python web_app_simulator.py --duration 30",
+      "success": false,
+      "duration": 0.0765378475189209,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "数据库监控快速测试": {
+      "command": "python database_simulator.py --duration 60 --export db_quick_metrics.json",
+      "success": false,
+      "duration": 0.07782936096191406,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "系统监控快速测试": {
+      "command": "python system_monitor.py --duration 45 --export sys_quick_metrics.json",
+      "success": false,
+      "duration": 0.07503819465637207,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "异常检测快速测试": {
+      "command": "python anomaly_simulator.py",
+      "success": false,
+      "duration": 0.19885635375976562,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "仪表板数据快速生成": {
+      "command": "python simple_dashboard_generator.py",
+      "success": false,
+      "duration": 0.07759785652160645,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "CPU压力快速测试": {
+      "command": "python simple_performance_tester.py --test-type cpu --duration 30",
+      "success": false,
+      "duration": 0.07628941535949707,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    }
+  }
+}

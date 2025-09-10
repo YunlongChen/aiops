@@ -1,0 +1,348 @@
+{
+  "test_suite": "AIOps综合测试",
+  "start_time": "2025-09-10T14:33:31.563669",
+  "end_time": "2025-09-10T14:34:00.627236",
+  "total_duration": 29.063567399978638,
+  "total_tests": 14,
+  "successful_tests": 4,
+  "failed_tests": 10,
+  "success_rate": 28.57142857142857,
+  "test_results": {
+    "Web应用监控测试": {
+      "command": "python web_app_simulator.py --duration 60",
+      "success": false,
+      "duration": 0.17536163330078125,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "数据库性能监控测试": {
+      "command": "python database_simulator.py --duration 120 --export db_test_metrics.json --report db_test_report.json",
+      "success": false,
+      "duration": 0.20797133445739746,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "系统资源监控测试": {
+      "command": "python system_monitor.py --duration 90 --export sys_test_metrics.json --report sys_test_report.json",
+      "success": false,
+      "duration": 0.1978931427001953,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "异常检测测试": {
+      "command": "python anomaly_simulator.py",
+      "success": false,
+      "duration": 0.2036755084991455,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "告警系统测试": {
+      "command": "python alert_simulator.py",
+      "success": false,
+      "duration": 0.08522415161132812,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "仪表板数据生成": {
+      "command": "python simple_dashboard_generator.py",
+      "success": false,
+      "duration": 0.09450411796569824,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "性能压力测试": {
+      "command": "python simple_performance_tester.py --test-type comprehensive --duration 60",
+      "success": false,
+      "duration": 0.07858705520629883,
+      "return_code": 9009,
+      "stdout": "",
+      "stderr": ""
+    },
+    "多项目负载测试-basic_load_test": {
+      "command": "multi_project_load_test(basic_load_test)",
+      "success": false,
+      "duration": 0.0005433559417724609,
+      "details": {
+        "success": false,
+        "error": "'ProjectLoadTester' object has no attribute 'run_load_test_from_config'",
+        "duration": 0.0005433559417724609
+      }
+    },
+    "多项目负载测试-comprehensive_load_test": {
+      "command": "multi_project_load_test(comprehensive_load_test)",
+      "success": false,
+      "duration": 0.00013709068298339844,
+      "details": {
+        "success": false,
+        "error": "'ProjectLoadTester' object has no attribute 'run_load_test_from_config'",
+        "duration": 0.00013709068298339844
+      }
+    },
+    "多项目负载测试-performance_stress_test": {
+      "command": "multi_project_load_test(performance_stress_test)",
+      "success": false,
+      "duration": 0.0002713203430175781,
+      "details": {
+        "success": false,
+        "error": "'ProjectLoadTester' object has no attribute 'run_load_test_from_config'",
+        "duration": 0.0002713203430175781
+      }
+    },
+    "错误注入测试-error_prone_test": {
+      "command": "error_injection_test(error_prone_test)",
+      "success": true,
+      "duration": 0.002075672149658203,
+      "details": {
+        "success": true,
+        "injection_results": [
+          {
+            "project_type": "java",
+            "error_category": "compilation",
+            "error_type": "syntax_error",
+            "injected_at": "2025-09-10T14:33:52.614906",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\buggy-legacy-service\\\\src\\\\main\\\\java\\\\Main.java'",
+            "project_name": "buggy-legacy-service"
+          },
+          {
+            "project_type": "java",
+            "error_category": "compilation",
+            "error_type": "missing_import",
+            "injected_at": "2025-09-10T14:33:52.615372",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\unstable-batch-job\\\\src\\\\main\\\\java\\\\Main.java'",
+            "project_name": "unstable-batch-job"
+          },
+          {
+            "project_type": "rust",
+            "error_category": "runtime",
+            "error_type": "panic_unwrap",
+            "injected_at": "2025-09-10T14:33:52.615581",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\failing-data-processor\\\\src\\\\main.rs'",
+            "project_name": "failing-data-processor"
+          },
+          {
+            "project_type": "nodejs",
+            "error_category": "runtime",
+            "error_type": "memory_leak",
+            "injected_at": "2025-09-10T14:33:52.615771",
+            "files_modified": [
+              "E:\\workspace\\gitea\\aiops\\test-scenarios\\temp_projects\\broken-api-service\\index.js"
+            ],
+            "success": true,
+            "error_details": "Injected memory_leak in index.js",
+            "project_name": "broken-api-service"
+          },
+          {
+            "project_type": "nodejs",
+            "error_category": "runtime",
+            "error_type": "promise_rejection",
+            "injected_at": "2025-09-10T14:33:52.616403",
+            "files_modified": [
+              "E:\\workspace\\gitea\\aiops\\test-scenarios\\temp_projects\\memory-leak-app\\index.js"
+            ],
+            "success": true,
+            "error_details": "Injected promise_rejection in index.js",
+            "project_name": "memory-leak-app"
+          }
+        ],
+        "duration": 0.002075672149658203,
+        "successful_injections": 2,
+        "total_attempts": 5
+      }
+    },
+    "错误注入测试-mixed_scenario_test": {
+      "command": "error_injection_test(mixed_scenario_test)",
+      "success": true,
+      "duration": 0.0019047260284423828,
+      "details": {
+        "success": true,
+        "injection_results": [
+          {
+            "project_type": "java",
+            "error_category": "build",
+            "error_type": "missing_dependency",
+            "injected_at": "2025-09-10T14:33:54.617900",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\intermittent-service\\\\src\\\\main\\\\java\\\\Main.java'",
+            "project_name": "intermittent-service"
+          },
+          {
+            "project_type": "rust",
+            "error_category": "runtime",
+            "error_type": "deadlock",
+            "injected_at": "2025-09-10T14:33:54.618418",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\flaky-analyzer\\\\src\\\\main.rs'",
+            "project_name": "flaky-analyzer"
+          },
+          {
+            "project_type": "nodejs",
+            "error_category": "build",
+            "error_type": "package_conflict",
+            "injected_at": "2025-09-10T14:33:54.618816",
+            "files_modified": [],
+            "success": true,
+            "error_details": "Build error package_conflict injection not implemented",
+            "project_name": "problematic-middleware"
+          }
+        ],
+        "duration": 0.0019047260284423828,
+        "successful_injections": 1,
+        "total_attempts": 3
+      }
+    },
+    "错误注入测试-build_failure_scenarios": {
+      "command": "error_injection_test(build_failure_scenarios)",
+      "success": true,
+      "duration": 0.002721071243286133,
+      "details": {
+        "success": true,
+        "injection_results": [
+          {
+            "project_type": "java",
+            "error_category": "compilation",
+            "error_type": "missing_import",
+            "injected_at": "2025-09-10T14:33:56.620052",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\missing-dependency-project\\\\src\\\\main\\\\java\\\\Main.java'",
+            "project_name": "missing-dependency-project"
+          },
+          {
+            "project_type": "java",
+            "error_category": "runtime",
+            "error_type": "array_index_out_of_bounds",
+            "injected_at": "2025-09-10T14:33:56.620442",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\compilation-error-project\\\\src\\\\main\\\\java\\\\Main.java'",
+            "project_name": "compilation-error-project"
+          },
+          {
+            "project_type": "rust",
+            "error_category": "compilation",
+            "error_type": "type_mismatch",
+            "injected_at": "2025-09-10T14:33:56.620792",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\syntax-error-project\\\\src\\\\main.rs'",
+            "project_name": "syntax-error-project"
+          },
+          {
+            "project_type": "rust",
+            "error_category": "build",
+            "error_type": "target_error",
+            "injected_at": "2025-09-10T14:33:56.621048",
+            "files_modified": [],
+            "success": true,
+            "error_details": "Build error target_error injection not implemented",
+            "project_name": "type-mismatch-project"
+          },
+          {
+            "project_type": "nodejs",
+            "error_category": "compilation",
+            "error_type": "syntax_error",
+            "injected_at": "2025-09-10T14:33:56.621337",
+            "files_modified": [
+              "E:\\workspace\\gitea\\aiops\\test-scenarios\\temp_projects\\missing-module-project\\index.js"
+            ],
+            "success": true,
+            "error_details": "Injected syntax_error in index.js",
+            "project_name": "missing-module-project"
+          },
+          {
+            "project_type": "nodejs",
+            "error_category": "build",
+            "error_type": "package_conflict",
+            "injected_at": "2025-09-10T14:33:56.622161",
+            "files_modified": [],
+            "success": true,
+            "error_details": "Build error package_conflict injection not implemented",
+            "project_name": "package-conflict-project"
+          }
+        ],
+        "duration": 0.002721071243286133,
+        "successful_injections": 3,
+        "total_attempts": 6
+      }
+    },
+    "错误注入测试-runtime_failure_scenarios": {
+      "command": "error_injection_test(runtime_failure_scenarios)",
+      "success": true,
+      "duration": 0.004158735275268555,
+      "details": {
+        "success": true,
+        "injection_results": [
+          {
+            "project_type": "java",
+            "error_category": "compilation",
+            "error_type": "missing_semicolon",
+            "injected_at": "2025-09-10T14:33:58.623776",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\null-pointer-service\\\\src\\\\main\\\\java\\\\Main.java'",
+            "project_name": "null-pointer-service"
+          },
+          {
+            "project_type": "java",
+            "error_category": "build",
+            "error_type": "missing_dependency",
+            "injected_at": "2025-09-10T14:33:58.624531",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\out-of-memory-service\\\\src\\\\main\\\\java\\\\Main.java'",
+            "project_name": "out-of-memory-service"
+          },
+          {
+            "project_type": "rust",
+            "error_category": "runtime",
+            "error_type": "deadlock",
+            "injected_at": "2025-09-10T14:33:58.625221",
+            "files_modified": [],
+            "success": false,
+            "error": "[Errno 2] No such file or directory: 'E:\\\\workspace\\\\gitea\\\\aiops\\\\test-scenarios\\\\temp_projects\\\\panic-prone-service\\\\src\\\\main.rs'",
+            "project_name": "panic-prone-service"
+          },
+          {
+            "project_type": "nodejs",
+            "error_category": "build",
+            "error_type": "package_conflict",
+            "injected_at": "2025-09-10T14:33:58.625873",
+            "files_modified": [],
+            "success": true,
+            "error_details": "Build error package_conflict injection not implemented",
+            "project_name": "uncaught-exception-service"
+          },
+          {
+            "project_type": "nodejs",
+            "error_category": "runtime",
+            "error_type": "uncaught_exception",
+            "injected_at": "2025-09-10T14:33:58.626365",
+            "files_modified": [
+              "E:\\workspace\\gitea\\aiops\\test-scenarios\\temp_projects\\callback-hell-service\\index.js"
+            ],
+            "success": true,
+            "error_details": "Injected uncaught_exception in index.js",
+            "project_name": "callback-hell-service"
+          }
+        ],
+        "duration": 0.004158735275268555,
+        "successful_injections": 2,
+        "total_attempts": 5
+      }
+    }
+  }
+}
