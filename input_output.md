@@ -171,4 +171,112 @@ py cleanup_test_files.py --backup --clean
 
 ---
 
+## 2025-01-10 会话记录
+
+### Q: 需要为AIOps测试框架创建测试使用指南
+**用户需求:**
+- 创建详细的测试使用指南
+- 说明如何添加新的测试场景
+- 提供测试框架的完整使用方法
+
+**解决方案:**
+1. **创建TESTING_GUIDE.md** - 完整的测试使用指南
+   - 测试框架概述和架构说明
+   - 详细的使用方法和命令示例
+   - 测试场景类型说明 (负载测试、异常注入、监控测试等)
+   - 添加新测试场景的两种方法
+   - 配置文件说明和自定义指南
+   - 常见问题解答和故障排除
+
+2. **开发cleanup_test_files.py** - 测试文件清理工具
+   - 扫描和识别测试结果文件
+   - 支持备份重要文件
+   - 自动清理临时文件和测试输出
+   - 提供详细的清理报告
+
+3. **优化项目文件管理**
+   - 更新.gitignore规则，忽略测试结果文件
+   - 建立清晰的文件组织结构
+   - 提供文件管理最佳实践
+
+**实现效果:**
+- ✅ 创建了完整的测试使用指南 (TESTING_GUIDE.md)
+- ✅ 开发了功能完善的清理工具 (cleanup_test_files.py)
+- ✅ 优化了.gitignore规则和项目文件管理
+- ✅ 清理了30.1MB的测试结果文件
+- ✅ 建立了完善的文档体系和文件管理机制
+
+**技术特点:**
+- 支持多种测试场景类型
+- 提供灵活的配置选项
+- 包含完整的错误处理和日志记录
+- 遵循最佳实践和代码规范
+
+---
+
+### Q: AIOps测试与传统测试的区别及配置文件分类
+**用户问题:**
+1. 这里的测试和传统的测试有什么区别吗，是作为单元测试还是其他的什么测试呢，所有的代码都是python写的，对于不熟悉python的人，应该如何完成呢
+2. 请对所有的测试场景相关的配置文件进行一个分类
+
+**解决方案:**
+
+**1. 测试类型分析和Python学习指南**
+- **创建TEST_TYPES_AND_CONFIG_GUIDE.md** - 详细的测试类型说明
+  - AIOps测试 vs 传统测试的核心区别
+  - 测试分类：系统级测试、集成测试、性能测试、混沌工程
+  - Python初学者的学习路径和资源推荐
+  - 非Python用户的替代解决方案
+
+- **开发Run-AIOpsTest.ps1** - PowerShell封装脚本
+  - 为Windows用户提供友好的命令行接口
+  - 自动检查和安装Python环境
+  - 支持所有测试类型和参数
+  - 详细的帮助信息和错误处理
+
+**2. 配置文件管理系统**
+- **创建config_manager.py** - 统一配置管理工具
+  - 按功能分类：测试场景、应用配置、基础设施、容器编排、自愈系统
+  - 按环境分类：开发、测试、生产环境
+  - 按格式分类：JSON、YAML、INI格式
+  - 支持配置验证、备份、恢复、模板生成
+
+**配置文件分类结果:**
+- **测试场景配置** (test_scenario)
+  - test_config.json - 测试场景参数配置
+  - project_configs.json - 多项目负载测试配置
+
+- **应用配置** (application)
+  - ai-engine/config/default.yaml - AI引擎默认配置
+  - ai-engine/config/production.yaml - 生产环境配置
+  - ai-engine/config/test.yaml - 测试环境配置
+
+- **基础设施配置** (infrastructure)
+  - configs/elasticsearch/elasticsearch.yml - Elasticsearch配置
+  - configs/prometheus/prometheus.yml - Prometheus监控配置
+  - configs/grafana/grafana.ini - Grafana仪表板配置
+
+- **容器编排配置** (orchestration)
+  - docker-compose.yml - Docker Compose主配置
+  - helm/values.yaml - Kubernetes Helm配置
+
+- **自愈系统配置** (self_healing)
+  - self-healing/rules/system-rules.yaml - 系统自愈规则
+
+**实现效果:**
+- ✅ 创建了详细的测试类型对比指南
+- ✅ 为Python初学者提供了完整的学习路径
+- ✅ 开发了PowerShell封装脚本，降低使用门槛
+- ✅ 建立了统一的配置文件管理系统
+- ✅ 完成了所有配置文件的分类和索引
+- ✅ 提供了配置文件的验证、备份和模板生成功能
+
+**技术特点:**
+- 降低了非Python用户的使用门槛
+- 提供了完整的配置管理解决方案
+- 支持多环境配置切换
+- 包含配置文件的版本管理和备份机制
+
+---
+
 *本记录将持续更新，记录项目开发过程中的重要输入输出内容。*
