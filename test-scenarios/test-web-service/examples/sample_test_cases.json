@@ -1,0 +1,139 @@
+[
+  {
+    "name": "API健康检查测试",
+    "description": "验证系统健康检查API的响应时间和状态码",
+    "type": "api",
+    "runtime_type": "docker",
+    "tags": ["health", "api", "smoke"],
+    "config": {
+      "method": "GET",
+      "url": "/api/health",
+      "expected_status": 200,
+      "timeout": 5000,
+      "assertions": [
+        {
+          "type": "response_time",
+          "operator": "<",
+          "value": 1000,
+          "description": "响应时间应小于1秒"
+        },
+        {
+          "type": "json_path",
+          "path": "$.status",
+          "operator": "==",
+          "value": "healthy",
+          "description": "状态应为healthy"
+        }
+      ]
+    },
+    "script_content": "// API健康检查测试脚本\nconst response = await fetch('/api/health');\nconst data = await response.json();\n\n// 验证响应状态\nassert(response.status === 200, '状态码应为200');\nassert(data.status === 'healthy', '健康状态应为healthy');\n\n// 验证响应时间\nconst responseTime = performance.now() - startTime;\nassert(responseTime < 1000, '响应时间应小于1秒');"
+  },
+  {
+    "name": "用户登录功能测试",
+    "description": "测试用户登录API的正常流程和异常处理",
+    "type": "functional",
+    "runtime_type": "nodejs",
+    "tags": ["auth", "login", "functional"],
+    "config": {
+      "test_data": {
+        "valid_user": {
+          "username": "testuser",
+          "password": "testpass123"
+        },
+        "invalid_user": {
+          "username": "invalid",
+          "password": "wrongpass"
+        }
+      },
+      "endpoints": {
+        "login": "/api/auth/login",
+        "profile": "/api/auth/profile"
+      }
+    },
+    "script_content": "// 用户登录功能测试\n\n// 测试有效用户登录\nconst loginResponse = await fetch('/api/auth/login', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    username: 'testuser',\n    password: 'testpass123'\n  })\n});\n\nassert(loginResponse.status === 200, '有效用户登录应成功');\nconst loginData = await loginResponse.json();\nassert(loginData.token, '登录应返回token');\n\n// 测试无效用户登录\nconst invalidLoginResponse = await fetch('/api/auth/login', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    username: 'invalid',\n    password: 'wrongpass'\n  })\n});\n\nassert(invalidLoginResponse.status === 401, '无效用户登录应返回401');"
+  },
+  {
+    "name": "数据库连接性能测试",
+    "description": "测试数据库连接池的性能和并发处理能力",
+    "type": "performance",
+    "runtime_type": "rust",
+    "tags": ["database", "performance", "load"],
+    "config": {
+      "concurrent_users": 50,
+      "test_duration": 60,
+      "ramp_up_time": 10,
+      "database_operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "performance_thresholds": {
+        "avg_response_time": 100,
+        "max_response_time": 500,
+        "error_rate": 0.01
+      }
+    },
+    "script_content": "// 数据库性能测试脚本\nuse std::time::{Duration, Instant};\nuse tokio::time::sleep;\n\n#[tokio::test]\nasync fn test_database_performance() {\n    let start_time = Instant::now();\n    let mut tasks = vec![];\n    \n    // 创建50个并发任务\n    for i in 0..50 {\n        let task = tokio::spawn(async move {\n            let mut response_times = vec![];\n            \n            for _ in 0..100 {\n                let query_start = Instant::now();\n                \n                // 执行数据库查询\n                let result = execute_db_query().await;\n                \n                let query_time = query_start.elapsed();\n                response_times.push(query_time);\n                \n                assert!(result.is_ok(), \"数据库查询应成功\");\n                assert!(query_time < Duration::from_millis(500), \"查询时间应小于500ms\");\n            }\n            \n            response_times\n        });\n        \n        tasks.push(task);\n    }\n    \n    // 等待所有任务完成\n    let results = futures::future::join_all(tasks).await;\n    \n    // 计算性能指标\n    let total_time = start_time.elapsed();\n    println!(\"总测试时间: {:?}\", total_time);\n}"
+  },
+  {
+    "name": "系统资源监控测试",
+    "description": "监控系统CPU、内存、磁盘使用情况",
+    "type": "monitoring",
+    "runtime_type": "python",
+    "tags": ["system", "monitoring", "resources"],
+    "config": {
+      "monitoring_interval": 5,
+      "test_duration": 300,
+      "resource_thresholds": {
+        "cpu_usage": 80,
+        "memory_usage": 85,
+        "disk_usage": 90
+      },
+      "alert_conditions": [
+        "cpu_usage > 90",
+        "memory_usage > 95",
+        "disk_usage > 95"
+      ]
+    },
+    "script_content": "#!/usr/bin/env python3\n# 系统资源监控测试\n\nimport psutil\nimport time\nimport json\nfrom datetime import datetime\n\ndef monitor_system_resources():\n    \"\"\"监控系统资源使用情况\"\"\"\n    results = []\n    \n    for i in range(60):  # 监控5分钟\n        timestamp = datetime.now().isoformat()\n        \n        # 获取CPU使用率\n        cpu_percent = psutil.cpu_percent(interval=1)\n        \n        # 获取内存使用情况\n        memory = psutil.virtual_memory()\n        memory_percent = memory.percent\n        \n        # 获取磁盘使用情况\n        disk = psutil.disk_usage('/')\n        disk_percent = (disk.used / disk.total) * 100\n        \n        # 记录数据\n        data_point = {\n            'timestamp': timestamp,\n            'cpu_usage': cpu_percent,\n            'memory_usage': memory_percent,\n            'disk_usage': disk_percent\n        }\n        \n        results.append(data_point)\n        \n        # 检查阈值\n        assert cpu_percent < 90, f'CPU使用率过高: {cpu_percent}%'\n        assert memory_percent < 95, f'内存使用率过高: {memory_percent}%'\n        assert disk_percent < 95, f'磁盘使用率过高: {disk_percent}%'\n        \n        time.sleep(5)\n    \n    return results\n\nif __name__ == '__main__':\n    results = monitor_system_resources()\n    print(json.dumps(results, indent=2))"
+  },
+  {
+    "name": "微服务通信测试",
+    "description": "测试微服务间的通信延迟和可靠性",
+    "type": "integration",
+    "runtime_type": "docker",
+    "tags": ["microservices", "communication", "integration"],
+    "config": {
+      "services": [
+        {
+          "name": "user-service",
+          "url": "http://user-service:8080",
+          "health_endpoint": "/health"
+        },
+        {
+          "name": "order-service",
+          "url": "http://order-service:8081",
+          "health_endpoint": "/health"
+        },
+        {
+          "name": "payment-service",
+          "url": "http://payment-service:8082",
+          "health_endpoint": "/health"
+        }
+      ],
+      "test_scenarios": [
+        {
+          "name": "create_order_flow",
+          "steps": [
+            "authenticate_user",
+            "create_order",
+            "process_payment",
+            "confirm_order"
+          ]
+        }
+      ]
+    },
+    "script_content": "// 微服务通信测试\n\nconst services = [\n  { name: 'user-service', url: 'http://user-service:8080' },\n  { name: 'order-service', url: 'http://order-service:8081' },\n  { name: 'payment-service', url: 'http://payment-service:8082' }\n];\n\n// 测试所有服务健康状态\nfor (const service of services) {\n  const healthResponse = await fetch(`${service.url}/health`);\n  assert(healthResponse.status === 200, `${service.name} 应该健康`);\n}\n\n// 测试完整的订单流程\nasync function testOrderFlow() {\n  // 1. 用户认证\n  const authResponse = await fetch('http://user-service:8080/auth', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ username: 'testuser', password: 'testpass' })\n  });\n  \n  assert(authResponse.status === 200, '用户认证应成功');\n  const { token } = await authResponse.json();\n  \n  // 2. 创建订单\n  const orderResponse = await fetch('http://order-service:8081/orders', {\n    method: 'POST',\n    headers: { \n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${token}`\n    },\n    body: JSON.stringify({\n      items: [{ id: 1, quantity: 2 }],\n      total: 99.99\n    })\n  });\n  \n  assert(orderResponse.status === 201, '订单创建应成功');\n  const { orderId } = await orderResponse.json();\n  \n  // 3. 处理支付\n  const paymentResponse = await fetch('http://payment-service:8082/payments', {\n    method: 'POST',\n    headers: { \n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${token}`\n    },\n    body: JSON.stringify({\n      orderId,\n      amount: 99.99,\n      method: 'credit_card'\n    })\n  });\n  \n  assert(paymentResponse.status === 200, '支付处理应成功');\n}\n\nawait testOrderFlow();"
+  }
+]

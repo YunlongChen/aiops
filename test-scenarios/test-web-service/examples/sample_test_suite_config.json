@@ -1,0 +1,96 @@
+{
+  "name": "AIOps完整测试套件",
+  "description": "包含多种测试类型的完整测试套件，用于验证AIOps平台的各项功能",
+  "version": "1.0.0",
+  "author": "AIOps Team",
+  "created_at": "2025-01-11",
+  "tests": [
+    {
+      "type": "smoke",
+      "name": "系统冒烟测试",
+      "description": "验证系统基本功能是否正常运行"
+    },
+    {
+      "type": "api",
+      "name": "健康检查API测试",
+      "endpoint": "/api/health",
+      "method": "GET"
+    },
+    {
+      "type": "api",
+      "name": "测试用例管理API测试",
+      "endpoint": "/api/test-cases",
+      "method": "GET"
+    },
+    {
+      "type": "api",
+      "name": "创建测试用例API测试",
+      "endpoint": "/api/test-cases",
+      "method": "POST"
+    },
+    {
+      "type": "database",
+      "name": "数据库连接和CRUD测试",
+      "description": "验证数据库连接和基本的增删改查操作"
+    },
+    {
+      "type": "integration",
+      "name": "前后端集成测试",
+      "services": ["frontend", "backend", "database"]
+    },
+    {
+      "type": "security",
+      "name": "安全漏洞扫描测试",
+      "description": "检查常见的安全漏洞，如SQL注入、XSS等"
+    },
+    {
+      "type": "performance",
+      "name": "基础性能测试",
+      "duration": 120,
+      "concurrent_users": 20
+    },
+    {
+      "type": "load",
+      "name": "负载压力测试",
+      "description": "模拟高并发场景下的系统表现"
+    },
+    {
+      "type": "ui",
+      "name": "用户界面功能测试",
+      "description": "验证前端界面的各项功能和用户交互"
+    }
+  ],
+  "execution_order": [
+    "smoke",
+    "api",
+    "database",
+    "integration",
+    "security",
+    "performance",
+    "load",
+    "ui"
+  ],
+  "environment": {
+    "base_url": "http://localhost:3030",
+    "timeout": 30000,
+    "retry_count": 3,
+    "parallel_execution": false,
+    "stop_on_failure": false
+  },
+  "reporting": {
+    "formats": ["json", "html", "junit"],
+    "output_directory": "./test-reports",
+    "include_screenshots": true,
+    "include_logs": true
+  },
+  "notifications": {
+    "on_success": {
+      "enabled": true,
+      "message": "✅ AIOps测试套件执行成功"
+    },
+    "on_failure": {
+      "enabled": true,
+      "message": "❌ AIOps测试套件执行失败，请检查测试报告"
+    }
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "environments": {
+    "development": {
+      "name": "开发环境",
+      "description": "本地开发和调试环境",
+      "base_url": "http://localhost:3030",
+      "database_url": "sqlite://./dev.db",
+      "tags": ["dev", "local"],
+      "config": {
+        "timeout": 30000,
+        "retry_attempts": 3,
+        "parallel_execution": false,
+        "log_level": "debug"
+      },
+      "runtime_managers": [
+        {
+          "name": "本地Docker运行时",
+          "type": "docker",
+          "endpoint": "unix:///var/run/docker.sock",
+          "tags": ["docker", "local"]
+        },
+        {
+          "name": "本地Node.js运行时",
+          "type": "nodejs",
+          "version": "18.x",
+          "tags": ["nodejs", "local"]
+        }
+      ]
+    },
+    "testing": {
+      "name": "测试环境",
+      "description": "集成测试和QA验证环境",
+      "base_url": "https://test-api.aiops.example.com",
+      "database_url": "postgresql://test_user:test_pass@test-db:5432/aiops_test",
+      "tags": ["test", "qa", "integration"],
+      "config": {
+        "timeout": 60000,
+        "retry_attempts": 5,
+        "parallel_execution": true,
+        "max_parallel_tests": 10,
+        "log_level": "info"
+      },
+      "runtime_managers": [
+        {
+          "name": "测试环境Kubernetes",
+          "type": "kubernetes",
+          "namespace": "aiops-test",
+          "tags": ["k8s", "test"]
+        },
+        {
+          "name": "测试环境Docker Swarm",
+          "type": "docker_swarm",
+          "manager_node": "test-swarm-manager",
+          "tags": ["swarm", "test"]
+        }
+      ]
+    },
+    "staging": {
+      "name": "预发布环境",
+      "description": "生产前的最终验证环境",
+      "base_url": "https://staging-api.aiops.example.com",
+      "database_url": "postgresql://staging_user:staging_pass@staging-db:5432/aiops_staging",
+      "tags": ["staging", "pre-prod"],
+      "config": {
+        "timeout": 120000,
+        "retry_attempts": 3,
+        "parallel_execution": true,
+        "max_parallel_tests": 5,
+        "log_level": "warn",
+        "performance_monitoring": true
+      },
+      "runtime_managers": [
+        {
+          "name": "预发布Kubernetes集群",
+          "type": "kubernetes",
+          "namespace": "aiops-staging",
+          "tags": ["k8s", "staging"]
+        }
+      ]
+    },
+    "production": {
+      "name": "生产环境",
+      "description": "生产环境监控和健康检查",
+      "base_url": "https://api.aiops.example.com",
+      "database_url": "postgresql://prod_user:prod_pass@prod-db:5432/aiops_prod",
+      "tags": ["prod", "production", "critical"],
+      "config": {
+        "timeout": 180000,
+        "retry_attempts": 1,
+        "parallel_execution": false,
+        "log_level": "error",
+        "performance_monitoring": true,
+        "alerting_enabled": true,
+        "read_only_tests": true
+      },
+      "runtime_managers": [
+        {
+          "name": "生产Kubernetes集群",
+          "type": "kubernetes",
+          "namespace": "aiops-prod",
+          "tags": ["k8s", "prod", "critical"]
+        }
+      ]
+    }
+  },
+  "test_suites": {
+    "smoke_tests": {
+      "name": "冒烟测试套件",
+      "description": "快速验证系统基本功能",
+      "tags": ["smoke", "quick"],
+      "test_cases": [
+        "API健康检查测试",
+        "数据库连接测试",
+        "基础认证测试"
+      ],
+      "estimated_duration": "5分钟",
+      "environments": ["development", "testing", "staging", "production"]
+    },
+    "regression_tests": {
+      "name": "回归测试套件",
+      "description": "全面的功能回归测试",
+      "tags": ["regression", "comprehensive"],
+      "test_cases": [
+        "用户管理功能测试",
+        "运行时管理测试",
+        "测试用例管理测试",
+        "设置管理测试"
+      ],
+      "estimated_duration": "30分钟",
+      "environments": ["testing", "staging"]
+    },
+    "performance_tests": {
+      "name": "性能测试套件",
+      "description": "系统性能和负载测试",
+      "tags": ["performance", "load"],
+      "test_cases": [
+        "数据库连接性能测试",
+        "API响应时间测试",
+        "并发用户测试",
+        "系统资源监控测试"
+      ],
+      "estimated_duration": "60分钟",
+      "environments": ["testing", "staging"]
+    },
+    "integration_tests": {
+      "name": "集成测试套件",
+      "description": "系统间集成和端到端测试",
+      "tags": ["integration", "e2e"],
+      "test_cases": [
+        "微服务通信测试",
+        "数据流测试",
+        "外部API集成测试"
+      ],
+      "estimated_duration": "45分钟",
+      "environments": ["testing", "staging"]
+    }
+  },
+  "runtime_configurations": {
+    "docker": {
+      "image_registry": "registry.aiops.example.com",
+      "default_image": "aiops/test-runner:latest",
+      "resource_limits": {
+        "memory": "512Mi",
+        "cpu": "500m"
+      },
+      "environment_variables": {
+        "NODE_ENV": "test",
+        "LOG_LEVEL": "info"
+      }
+    },
+    "kubernetes": {
+      "default_namespace": "aiops-test",
+      "service_account": "test-runner",
+      "resource_limits": {
+        "memory": "1Gi",
+        "cpu": "1000m"
+      },
+      "node_selector": {
+        "node-type": "test-worker"
+      }
+    },
+    "nodejs": {
+      "version": "18.x",
+      "package_manager": "npm",
+      "test_framework": "jest",
+      "coverage_threshold": 80
+    },
+    "python": {
+      "version": "3.11",
+      "package_manager": "pip",
+      "test_framework": "pytest",
+      "virtual_env": true
+    },
+    "rust": {
+      "version": "1.70",
+      "package_manager": "cargo",
+      "test_framework": "built-in",
+      "release_mode": false
+    }
+  }
+}
