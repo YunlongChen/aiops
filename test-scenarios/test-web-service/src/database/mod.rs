@@ -93,6 +93,7 @@ impl Database {
                 runtime_type TEXT NOT NULL,
                 config TEXT,
                 status TEXT NOT NULL DEFAULT 'inactive',
+                tags TEXT,
                 last_heartbeat TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
@@ -101,6 +102,14 @@ impl Database {
         )
         .execute(&self.pool)
         .await?;
+
+        // 为已存在的runtime_managers表添加tags字段（如果不存在）
+        sqlx::query(
+            "ALTER TABLE runtime_managers ADD COLUMN tags TEXT"
+        )
+        .execute(&self.pool)
+        .await
+        .ok(); // 忽略错误，因为字段可能已存在
 
         // 测试结果表
         sqlx::query(

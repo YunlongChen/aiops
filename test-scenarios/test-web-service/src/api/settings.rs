@@ -131,9 +131,9 @@ pub async fn list_settings(
     ];
     
     let pagination = crate::models::PaginationInfo {
-        page: params.page.unwrap_or(1),
-        limit: params.limit.unwrap_or(10),
-        total: settings.len() as i64,
+        page: params.page,
+        limit: params.limit,
+        total: settings.len() as u64,
         total_pages: 1,
         has_next: false,
         has_prev: false,

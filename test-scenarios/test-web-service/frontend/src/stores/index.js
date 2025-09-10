@@ -339,6 +339,80 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
         throw error
       }
     },
+
+    /**
+     * 更新运行时管理器
+     * @param {string} id - 运行时管理器ID
+     * @param {Object} runtimeManager - 运行时管理器数据
+     */
+    async updateRuntimeManager(id, runtimeManager) {
+      try {
+        const response = await runtimeManagersAPI.update(id, runtimeManager)
+        const index = this.runtimeManagers.findIndex(rm => rm.id === id)
+        if (index !== -1) {
+          this.runtimeManagers[index] = response.data || response
+        }
+        return response.data || response
+      } catch (error) {
+        console.error('更新运行时管理器失败:', error)
+        throw error
+      }
+    },
+
+    /**
+     * 删除运行时管理器
+     * @param {string} id - 运行时管理器ID
+     */
+    async deleteRuntimeManager(id) {
+      try {
+        await runtimeManagersAPI.delete(id)
+        this.runtimeManagers = this.runtimeManagers.filter(rm => rm.id !== id)
+      } catch (error) {
+        console.error('删除运行时管理器失败:', error)
+        throw error
+      }
+    },
+
+    /**
+     * 获取平台信息
+     */
+    async getPlatformInfo() {
+      try {
+        const response = await runtimeManagersAPI.getPlatformInfo()
+        return response.data || response
+      } catch (error) {
+        console.error('获取平台信息失败:', error)
+        throw error
+      }
+    },
+
+    /**
+     * 获取设置指引
+     * @param {string} runtimeType - 运行时类型
+     */
+    async getSetupGuide(runtimeType) {
+      try {
+        const response = await runtimeManagersAPI.getSetupGuide(runtimeType)
+        return response.data || response
+      } catch (error) {
+        console.error('获取设置指引失败:', error)
+        throw error
+      }
+    },
+
+    /**
+     * 执行健康检查
+     * @param {string} id - 运行时管理器ID
+     */
+    async healthCheck(id) {
+      try {
+        const response = await runtimeManagersAPI.healthCheck(id)
+        return response.data || response
+      } catch (error) {
+        console.error('健康检查失败:', error)
+        throw error
+      }
+    },
   },
 })
 

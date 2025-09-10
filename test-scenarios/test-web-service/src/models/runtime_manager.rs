@@ -62,6 +62,7 @@ pub struct RuntimeManager {
     pub runtime_type: RuntimeType,
     pub config: Option<String>,
     pub status: String,
+    pub tags: Option<Vec<String>>,
     pub last_heartbeat: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -73,6 +74,7 @@ pub struct CreateRuntimeManagerRequest {
     pub name: String,
     pub runtime_type: RuntimeType,
     pub config: Option<serde_json::Value>,
+    pub tags: Option<Vec<String>>,
 }
 
 /// 更新运行时管理器请求
@@ -82,6 +84,7 @@ pub struct UpdateRuntimeManagerRequest {
     pub runtime_type: Option<RuntimeType>,
     pub config: Option<serde_json::Value>,
     pub status: Option<ManagerStatus>,
+    pub tags: Option<Vec<String>>,
 }
 
 /// 运行时管理器查询参数
@@ -92,6 +95,7 @@ pub struct RuntimeManagerQuery {
     pub runtime_type: Option<RuntimeType>,
     pub status: Option<ManagerStatus>,
     pub name: Option<String>,
+    pub tags: Option<String>, // 逗号分隔的标签列表
 }
 
 /// 运行时管理器查询结果
@@ -152,11 +156,12 @@ impl RuntimeManager {
         let now = Utc::now();
         let config_str = req.config.map(|c| serde_json::to_string(&c).unwrap_or_default());
         let runtime_type_str = req.runtime_type.to_string();
+        let tags_str = req.tags.map(|tags| serde_json::to_string(&tags).unwrap_or_default());
 
         sqlx::query(
             r#"
-            INSERT INTO runtime_managers (id, name, runtime_type, config, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO runtime_managers (id, name, runtime_type, config, status, tags, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&id)
@@ -164,6 +169,7 @@ impl RuntimeManager {
         .bind(&runtime_type_str)
         .bind(&config_str)
         .bind(ManagerStatus::Inactive.to_string())
+        .bind(&tags_str)
         .bind(&now)
         .bind(&now)
         .execute(pool)
@@ -189,12 +195,16 @@ impl RuntimeManager {
             _ => return Err(anyhow::anyhow!("未知的运行时类型: {}", runtime_type_str)),
         };
 
+        let tags_str: Option<String> = row.get("tags");
+        let tags = tags_str.and_then(|s| serde_json::from_str(&s).ok());
+
         let manager = RuntimeManager {
             id: row.get("id"),
             name: row.get("name"),
             runtime_type,
             config: row.get("config"),
             status: row.get("status"),
+            tags,
             last_heartbeat: row.get("last_heartbeat"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
@@ -221,12 +231,16 @@ impl RuntimeManager {
                 _ => return Err(anyhow::anyhow!("未知的运行时类型: {}", runtime_type_str)),
             };
 
+            let tags_str: Option<String> = row.get("tags");
+            let tags = tags_str.and_then(|s| serde_json::from_str(&s).ok());
+
             let manager = RuntimeManager {
                 id: row.get("id"),
                 name: row.get("name"),
                 runtime_type,
                 config: row.get("config"),
                 status: row.get("status"),
+                tags,
                 last_heartbeat: row.get("last_heartbeat"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -258,12 +272,16 @@ impl RuntimeManager {
                 _ => return Err(anyhow::anyhow!("未知的运行时类型: {}", runtime_type_str)),
             };
 
+            let tags_str: Option<String> = row.get("tags");
+            let tags = tags_str.and_then(|s| serde_json::from_str(&s).ok());
+
             let manager = RuntimeManager {
                 id: row.get("id"),
                 name: row.get("name"),
                 runtime_type,
                 config: row.get("config"),
                 status: row.get("status"),
+                tags,
                 last_heartbeat: row.get("last_heartbeat"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -304,6 +322,15 @@ impl RuntimeManager {
             params.push(format!("%{}%", name));
         }
 
+        if let Some(tags) = &query.tags {
+            let tag_list: Vec<&str> = tags.split(',').map(|s| s.trim()).collect();
+            for tag in tag_list {
+                sql.push_str(" AND tags LIKE ?");
+                count_sql.push_str(" AND tags LIKE ?");
+                params.push(format!("%{}%", tag));
+            }
+        }
+
         // 添加排序和分页
         sql.push_str(" ORDER BY created_at DESC LIMIT ? OFFSET ?");
 
@@ -335,12 +362,16 @@ impl RuntimeManager {
                 _ => continue,
             };
             
+            let tags_str: Option<String> = row.get("tags");
+            let tags = tags_str.and_then(|s| serde_json::from_str(&s).ok());
+            
             let manager = RuntimeManager {
                 id: row.get("id"),
                 name: row.get("name"),
                 runtime_type,
                 config: row.get("config"),
                 status: row.get("status"),
+                tags,
                 last_heartbeat: row.get("last_heartbeat"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -384,6 +415,11 @@ impl RuntimeManager {
         if let Some(status) = &req.status {
             updates.push("status = ?");
             params.push(status.to_string());
+        }
+
+        if let Some(tags) = &req.tags {
+            updates.push("tags = ?");
+            params.push(serde_json::to_string(tags).unwrap_or_default());
         }
 
         if updates.is_empty() {

@@ -171,9 +171,9 @@ pub async fn list_users(
     ];
     
     let pagination = crate::models::PaginationInfo {
-        page: params.page.unwrap_or(1),
-        limit: params.limit.unwrap_or(10),
-        total: users.len() as i64,
+        page: params.page,
+        limit: params.limit,
+        total: users.len() as u64,
         total_pages: 1,
         has_next: false,
         has_prev: false,

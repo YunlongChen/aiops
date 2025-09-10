@@ -15,13 +15,48 @@
           管理Docker、Kubernetes等运行时环境
         </p>
       </div>
-      <div class="mt-4 flex md:mt-0 md:ml-4">
+      <div class="mt-4 flex space-x-3 md:mt-0 md:ml-4">
+        <button
+          @click="showPlatformInfo = true"
+          class="btn-secondary"
+        >
+          平台信息
+        </button>
         <button
           @click="showCreateModal = true"
           class="btn-primary"
         >
           添加运行时
         </button>
+      </div>
+    </div>
+
+    <!-- 平台信息卡片 -->
+    <div v-if="platformInfo" class="card">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">平台能力检测</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-medium text-gray-900">系统信息</h4>
+            <p class="text-sm text-gray-600 mt-1">平台: {{ platformInfo.platform }}</p>
+            <p class="text-sm text-gray-600">架构: {{ platformInfo.arch }}</p>
+          </div>
+          <div v-for="(runtime, type) in platformInfo.runtimes" :key="type" class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-medium text-gray-900 capitalize">{{ type }}</h4>
+            <div class="flex items-center mt-1">
+              <span :class="runtime.available ? 'text-green-600' : 'text-red-600'" class="text-sm font-medium">
+                {{ runtime.available ? '可用' : '不可用' }}
+              </span>
+              <button
+                v-if="runtime.available"
+                @click="showSetupGuide(type)"
+                class="ml-2 text-xs text-blue-600 hover:text-blue-800"
+              >
+                设置指引
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -35,6 +70,7 @@
                 <th class="table-header">名称</th>
                 <th class="table-header">类型</th>
                 <th class="table-header">状态</th>
+                <th class="table-header">标签</th>
                 <th class="table-header">创建时间</th>
                 <th class="table-header">操作</th>
               </tr>
@@ -52,6 +88,18 @@
                     {{ getStatusText(manager.status) }}
                   </span>
                 </td>
+                <td class="table-cell">
+                  <div v-if="manager.tags && manager.tags.length > 0" class="flex flex-wrap gap-1">
+                    <span
+                      v-for="tag in manager.tags"
+                      :key="tag"
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
+                    >
+                      {{ tag }}
+                    </span>
+                  </div>
+                  <span v-else class="text-gray-400 text-sm">无标签</span>
+                </td>
                 <td class="table-cell">{{ formatDate(manager.created_at) }}</td>
                 <td class="table-cell">
                   <div class="flex space-x-2">
@@ -61,6 +109,13 @@
                       class="text-blue-600 hover:text-blue-900 text-sm"
                     >
                       {{ testingConnection === manager.id ? '测试中...' : '测试连接' }}
+                    </button>
+                    <button
+                      @click="performHealthCheck(manager.id)"
+                      :disabled="healthChecking === manager.id"
+                      class="text-green-600 hover:text-green-900 text-sm"
+                    >
+                      {{ healthChecking === manager.id ? '检查中...' : '健康检查' }}
                     </button>
                     <button
                       @click="editManager(manager)"
@@ -78,7 +133,7 @@
                 </td>
               </tr>
               <tr v-if="runtimeManagers.length === 0">
-                <td colspan="5" class="table-cell text-center text-gray-500">
+                <td colspan="6" class="table-cell text-center text-gray-500">
                   暂无运行时管理器
                 </td>
               </tr>
@@ -116,6 +171,33 @@
                   <option value="kubernetes">Kubernetes</option>
                   <option value="local">本地</option>
                 </select>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700">标签</label>
+                <input
+                  v-model="tagsInput"
+                  type="text"
+                  class="input-field"
+                  placeholder="输入标签，用逗号分隔，如：测试环境,生产环境"
+                  @input="updateTags"
+                >
+                <div v-if="form.tags && form.tags.length > 0" class="mt-2 flex flex-wrap gap-2">
+                  <span
+                    v-for="(tag, index) in form.tags"
+                    :key="index"
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    {{ tag }}
+                    <button
+                      type="button"
+                      @click="removeTag(index)"
+                      class="ml-1 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </div>
               </div>
               
               <!-- Docker配置 -->
@@ -218,6 +300,81 @@
       </div>
     </div>
   </div>
+
+  <!-- 设置指引模态框 -->
+  <div v-if="showSetupGuideModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-content">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-medium text-gray-900">
+            {{ currentGuideType }} 设置指引
+          </h3>
+          <button @click="closeSetupGuide" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="max-h-96 overflow-y-auto">
+          <div v-if="setupGuide" class="prose prose-sm max-w-none">
+            <div v-for="(step, index) in setupGuide.steps" :key="index" class="mb-4">
+              <h4 class="font-medium text-gray-900">{{ step.title }}</h4>
+              <p class="text-sm text-gray-600 mt-1">{{ step.description }}</p>
+              <div v-if="step.commands && step.commands.length > 0" class="mt-2">
+                <div v-for="(command, cmdIndex) in step.commands" :key="cmdIndex" class="bg-gray-100 p-2 rounded text-sm font-mono mb-1">
+                  {{ command }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end mt-6">
+          <button @click="closeSetupGuide" class="btn-secondary">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 健康检查结果模态框 -->
+  <div v-if="showHealthCheckModal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-content">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-medium text-gray-900">
+            健康检查结果
+          </h3>
+          <button @click="closeHealthCheck" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div v-if="healthCheckResult">
+          <div class="mb-4">
+            <div class="flex items-center">
+              <span :class="healthCheckResult.healthy ? 'text-green-600' : 'text-red-600'" class="font-medium">
+                {{ healthCheckResult.healthy ? '健康' : '不健康' }}
+              </span>
+            </div>
+            <p class="text-sm text-gray-600 mt-1">{{ healthCheckResult.message }}</p>
+          </div>
+          <div v-if="healthCheckResult.details" class="space-y-3">
+            <div v-for="(detail, key) in healthCheckResult.details" :key="key" class="bg-gray-50 p-3 rounded">
+              <h4 class="font-medium text-gray-900 capitalize">{{ key.replace('_', ' ') }}</h4>
+              <p class="text-sm text-gray-600 mt-1">{{ detail }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end mt-6">
+          <button @click="closeHealthCheck" class="btn-secondary">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -236,11 +393,21 @@ export default {
       editingManager: null,
       submitting: false,
       testingConnection: null,
+      healthChecking: null,
+      showPlatformInfo: false,
+      showSetupGuideModal: false,
+      showHealthCheckModal: false,
+      platformInfo: null,
+      setupGuide: null,
+      healthCheckResult: null,
+      currentGuideType: '',
       form: {
         name: '',
         runtime_type: '',
         config: {},
+        tags: [],
       },
+      tagsInput: '',
     }
   },
   
@@ -253,6 +420,7 @@ export default {
   
   async mounted() {
     await this.loadRuntimeManagers()
+    await this.loadPlatformInfo()
   },
   
   methods: {
@@ -306,13 +474,74 @@ export default {
     async deleteManager(id) {
       if (confirm('确定要删除这个运行时管理器吗？')) {
         try {
-          // TODO: 实现删除API调用
-          console.log('删除运行时管理器:', id)
+          const store = useRuntimeManagersStore()
+          await store.deleteRuntimeManager(id)
           await this.loadRuntimeManagers()
         } catch (error) {
           alert('删除失败: ' + error.message)
         }
       }
+    },
+
+    /**
+     * 加载平台信息
+     */
+    async loadPlatformInfo() {
+      try {
+        const store = useRuntimeManagersStore()
+        this.platformInfo = await store.getPlatformInfo()
+      } catch (error) {
+        console.error('加载平台信息失败:', error)
+      }
+    },
+
+    /**
+     * 显示设置指引
+     * @param {string} runtimeType - 运行时类型
+     */
+    async showSetupGuide(runtimeType) {
+      try {
+        const store = useRuntimeManagersStore()
+        this.setupGuide = await store.getSetupGuide(runtimeType)
+        this.currentGuideType = runtimeType
+        this.showSetupGuideModal = true
+      } catch (error) {
+        alert('获取设置指引失败: ' + error.message)
+      }
+    },
+
+    /**
+     * 关闭设置指引模态框
+     */
+    closeSetupGuide() {
+      this.showSetupGuideModal = false
+      this.setupGuide = null
+      this.currentGuideType = ''
+    },
+
+    /**
+     * 执行健康检查
+     * @param {string} id - 运行时管理器ID
+     */
+    async performHealthCheck(id) {
+      this.healthChecking = id
+      try {
+        const store = useRuntimeManagersStore()
+        this.healthCheckResult = await store.healthCheck(id)
+        this.showHealthCheckModal = true
+      } catch (error) {
+        alert('健康检查失败: ' + error.message)
+      } finally {
+        this.healthChecking = null
+      }
+    },
+
+    /**
+     * 关闭健康检查结果模态框
+     */
+    closeHealthCheck() {
+      this.showHealthCheckModal = false
+      this.healthCheckResult = null
     },
     
     /**
@@ -349,7 +578,9 @@ export default {
         name: '',
         runtime_type: '',
         config: {},
+        tags: [],
       }
+      this.tagsInput = ''
     },
     
     /**
@@ -415,6 +646,29 @@ export default {
      */
     formatDate(date) {
       return date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-'
+    },
+    
+    /**
+     * 更新标签
+     */
+    updateTags() {
+      if (this.tagsInput) {
+        this.form.tags = this.tagsInput
+          .split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag.length > 0)
+      } else {
+        this.form.tags = []
+      }
+    },
+    
+    /**
+     * 移除标签
+     * @param {number} index - 标签索引
+     */
+    removeTag(index) {
+      this.form.tags.splice(index, 1)
+      this.tagsInput = this.form.tags.join(', ')
     },
   },
 }

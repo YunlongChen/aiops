@@ -308,6 +308,24 @@ export const runtimeManagersAPI = {
    * @param {string} id - 运行时管理器ID
    */
   getResources: (id) => api.get(`/runtime-managers/${id}/resources`),
+  
+  /**
+   * 获取平台信息
+   * 检测当前平台支持的运行时类型和能力
+   */
+  getPlatformInfo: () => api.get('/runtime-managers/platform-info'),
+  
+  /**
+   * 获取设置指引
+   * @param {string} runtimeType - 运行时类型 (local|docker|kubernetes)
+   */
+  getSetupGuide: (runtimeType) => api.get(`/runtime-managers/setup-guide/${runtimeType}`),
+  
+  /**
+   * 执行健康检查
+   * @param {string} id - 运行时管理器ID
+   */
+  healthCheck: (id) => api.post(`/runtime-managers/${id}/health-check`),
 }
 
 /**
@@ -476,17 +494,6 @@ export const settingsAPI = {
    * @param {Object} preference - 偏好设置 {key, value}
    */
   updateUserPreference: (preference) => api.put('/preferences', preference),
-}
-
-// 导出所有API模块
-export {
-  systemAPI,
-  testCasesAPI,
-  testRunsAPI,
-  runtimeManagersAPI,
-  usersAPI,
-  filesAPI,
-  settingsAPI
 }
 
 export default api
