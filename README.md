@@ -42,12 +42,18 @@ AIOps-Platform 是一个基于人工智能的智能运维平台，通过AI自动
 ### 1. 边缘路由层
 - **Traefik**: 边缘路由和负载均衡器，提供SSL终止和服务发现
 
-### 2. 监控堆栈
+### 2. 测试脚本管理系统
+- **测试脚本管理**: 支持多语言测试脚本的创建、编辑和执行
+- **测试用例管理**: 完整的测试用例生命周期管理
+- **运行时管理**: Docker、Kubernetes等多种运行时环境支持
+- **执行引擎**: 分布式测试执行和结果收集
+
+### 3. 监控堆栈
 - **Prometheus**: 指标收集和存储
 - **Grafana**: 可视化仪表板
 - **Alertmanager**: 告警管理和通知
 
-### 3. 日志处理栈
+### 4. 日志处理栈
 - **Elasticsearch**: 日志存储和搜索引擎
 - **Logstash**: 日志处理和转换
 - **Kibana**: 日志可视化和分析
@@ -117,12 +123,29 @@ kubectl get pods -n aiops
 
 ### 访问地址
 - **主控制台**: https://localhost
+- **测试管理平台**: http://localhost:3001
+- **测试API服务**: http://localhost:3030
 - **Grafana**: https://localhost/grafana
 - **Kibana**: https://localhost/kibana
 - **Prometheus**: https://localhost/prometheus
 - **API文档**: https://localhost/api/docs
 
 ## 功能特性
+
+### 测试脚本管理
+- 多语言支持 (Python、JavaScript、Shell、Go等)
+- 可视化脚本编辑器
+- Docker容器化执行环境
+- 分布式测试执行
+- 实时执行结果监控
+- 测试报告生成和分析
+
+### 运行时管理
+- 多种运行时环境支持 (Docker、Kubernetes、本地)
+- 运行时健康检查和监控
+- 标签化运行时分类管理
+- 平台信息自动检测
+- 负载均衡和资源调度
 
 ### 监控能力
 - 实时系统指标监控 (CPU、内存、磁盘、网络)
@@ -149,6 +172,39 @@ kubectl get pods -n aiops
 - 安全补丁自动应用
 
 ## API接口
+
+### 测试脚本API
+- `GET /api/test-scripts` - 获取测试脚本列表
+- `POST /api/test-scripts` - 创建测试脚本
+- `GET /api/test-scripts/{id}` - 获取测试脚本详情
+- `PUT /api/test-scripts/{id}` - 更新测试脚本
+- `DELETE /api/test-scripts/{id}` - 删除测试脚本
+- `POST /api/test-scripts/{id}/execute` - 执行测试脚本
+- `POST /api/test-scripts/batch-execute` - 批量执行测试脚本
+- `GET /api/test-scripts/languages` - 获取支持的语言列表
+- `POST /api/test-scripts/validate` - 验证测试脚本
+
+### 测试用例API
+- `GET /api/test-cases` - 获取测试用例列表
+- `POST /api/test-cases` - 创建测试用例
+- `GET /api/test-cases/{id}` - 获取测试用例详情
+- `PUT /api/test-cases/{id}` - 更新测试用例
+- `DELETE /api/test-cases/{id}` - 删除测试用例
+
+### 运行时管理API
+- `GET /api/runtime-managers` - 获取运行时管理器列表
+- `POST /api/runtime-managers` - 创建运行时管理器
+- `GET /api/runtime-managers/{id}` - 获取运行时管理器详情
+- `PUT /api/runtime-managers/{id}` - 更新运行时管理器
+- `DELETE /api/runtime-managers/{id}` - 删除运行时管理器
+- `POST /api/runtime-managers/{id}/health-check` - 运行时健康检查
+
+### 测试运行API
+- `GET /api/test-runs` - 获取测试运行列表
+- `POST /api/test-runs` - 创建测试运行
+- `GET /api/test-runs/{id}` - 获取测试运行详情
+- `POST /api/test-runs/{id}/start` - 开始测试运行
+- `POST /api/test-runs/{id}/stop` - 停止测试运行
 
 ### 运维操作API
 - `POST /api/v1/services/{service}/restart` - 重启服务
