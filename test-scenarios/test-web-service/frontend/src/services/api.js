@@ -251,6 +251,66 @@ export const testRunsAPI = {
 }
 
 /**
+ * 测试脚本API
+ */
+export const testScriptsAPI = {
+  /**
+   * 获取测试脚本列表
+   * @param {Object} params - 查询参数
+   */
+  list: (params = {}) => api.get('/test-scripts', { params }),
+  
+  /**
+   * 获取单个测试脚本
+   * @param {string} id - 测试脚本ID
+   */
+  get: (id) => api.get(`/test-scripts/${id}`),
+  
+  /**
+   * 创建测试脚本
+   * @param {Object} data - 测试脚本数据
+   */
+  create: (data) => api.post('/test-scripts', data),
+  
+  /**
+   * 更新测试脚本
+   * @param {string} id - 测试脚本ID
+   * @param {Object} data - 更新数据
+   */
+  update: (id, data) => api.put(`/test-scripts/${id}`, data),
+  
+  /**
+   * 删除测试脚本
+   * @param {string} id - 测试脚本ID
+   */
+  delete: (id) => api.delete(`/test-scripts/${id}`),
+  
+  /**
+   * 执行测试脚本
+   * @param {string} id - 测试脚本ID
+   * @param {Object} params - 执行参数
+   */
+  execute: (id, params = {}) => api.post(`/test-scripts/${id}/execute`, params),
+  
+  /**
+   * 批量执行测试脚本
+   * @param {Object} data - 批量执行数据
+   */
+  batchExecute: (data) => api.post('/test-scripts/batch-execute', data),
+  
+  /**
+   * 获取支持的编程语言列表
+   */
+  getSupportedLanguages: () => api.get('/test-scripts/languages'),
+  
+  /**
+   * 验证测试脚本
+   * @param {Object} data - 脚本数据
+   */
+  validate: (data) => api.post('/test-scripts/validate', data),
+}
+
+/**
  * 运行时管理器API
  */
 export const runtimeManagersAPI = {

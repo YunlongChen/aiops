@@ -6,6 +6,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
 import TestCases from '../views/TestCases.vue'
+import TestScripts from '../views/TestScripts.vue'
 import TestRuns from '../views/TestRuns.vue'
 import RuntimeManagers from '../views/RuntimeManagers.vue'
 import Settings from '../views/Settings.vue'
@@ -31,6 +32,15 @@ const routes = [
     meta: {
       title: '测试用例',
       description: '管理和查看测试用例'
+    }
+  },
+  {
+    path: '/test-scripts',
+    name: 'TestScripts',
+    component: TestScripts,
+    meta: {
+      title: '测试脚本',
+      description: '管理多语言测试脚本'
     }
   },
   {

@@ -61,6 +61,7 @@ export default {
       navigation: [
         { name: '仪表板', href: '/' },
         { name: '测试用例', href: '/test-cases' },
+        { name: '测试脚本', href: '/test-scripts' },
         { name: '测试运行', href: '/test-runs' },
         { name: '运行时管理', href: '/runtime-managers' },
         { name: '系统设置', href: '/settings' },

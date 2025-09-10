@@ -63,9 +63,6 @@ param(
     [switch]$ShowHelp,
     
     [Parameter(Mandatory=$false)]
-    [switch]$Verbose,
-    
-    [Parameter(Mandatory=$false)]
     [switch]$DryRun
 )
 

@@ -192,13 +192,53 @@
               </div>
               
               <div>
+                <label class="block text-sm font-medium text-gray-700">脚本语言</label>
+                <select
+                  v-model="form.language"
+                  class="input-field"
+                  required
+                >
+                  <option value="">请选择脚本语言</option>
+                  <option value="python">Python</option>
+                  <option value="javascript">JavaScript</option>
+                  <option value="shell">Shell</option>
+                  <option value="go">Go</option>
+                  <option value="rust">Rust</option>
+                  <option value="java">Java</option>
+                  <option value="docker">Docker</option>
+                </select>
+              </div>
+              
+              <div>
                 <label class="block text-sm font-medium text-gray-700">测试脚本</label>
                 <textarea
                   v-model="form.script_content"
                   class="input-field font-mono text-sm"
                   rows="8"
-                  placeholder="输入测试脚本内容"
+                  :placeholder="getScriptPlaceholder()"
                 ></textarea>
+              </div>
+              
+              <div v-if="form.language === 'docker'">
+                <label class="block text-sm font-medium text-gray-700">Docker镜像</label>
+                <input
+                  v-model="form.docker_image"
+                  type="text"
+                  class="input-field"
+                  placeholder="例如: python:3.9-slim"
+                >
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700">超时时间（秒）</label>
+                <input
+                  v-model.number="form.timeout_seconds"
+                  type="number"
+                  class="input-field"
+                  placeholder="默认30秒"
+                  min="1"
+                  max="3600"
+                >
               </div>
             </div>
             
@@ -245,7 +285,10 @@ export default {
       form: {
         name: '',
         description: '',
+        language: '',
         script_content: '',
+        docker_image: '',
+        timeout_seconds: 30,
       },
     }
   },
@@ -272,6 +315,22 @@ export default {
   },
   
   methods: {
+    /**
+     * 获取脚本占位符文本
+     */
+    getScriptPlaceholder() {
+      const placeholders = {
+        python: 'print("Hello, World!")\n# 编写你的Python测试脚本',
+        javascript: 'console.log("Hello, World!");\n// 编写你的JavaScript测试脚本',
+        shell: 'echo "Hello, World!"\n# 编写你的Shell测试脚本',
+        go: 'package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}',
+        rust: 'fn main() {\n    println!("Hello, World!");\n}',
+        java: 'public class Test {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}',
+        docker: '# Docker命令或Dockerfile内容\necho "Hello, World!"'
+      }
+      return placeholders[this.form.language] || '输入测试脚本内容'
+    },
+
     /**
      * 加载测试用例列表
      */
@@ -320,7 +379,10 @@ export default {
       this.form = {
         name: testCase.name,
         description: testCase.description || '',
+        language: testCase.language || '',
         script_content: testCase.script_content || '',
+        docker_image: testCase.docker_image || '',
+        timeout_seconds: testCase.timeout_seconds || 30,
       }
       this.showCreateModal = true
     },
@@ -374,7 +436,10 @@ export default {
       this.form = {
         name: '',
         description: '',
+        language: '',
         script_content: '',
+        docker_image: '',
+        timeout_seconds: 30,
       }
     },
     
