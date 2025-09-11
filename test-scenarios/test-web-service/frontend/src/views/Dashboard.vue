@@ -17,13 +17,15 @@
       </div>
       <div class="mt-4 flex md:mt-0 md:ml-4">
         <button
-          @click="refreshData"
-          :disabled="loading"
-          class="btn-primary"
+            @click="refreshData"
+            :disabled="loading"
+            class="btn-primary"
         >
-          <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+               fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           {{ loading ? '刷新中...' : '刷新数据' }}
         </button>
@@ -37,7 +39,8 @@
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
             </div>
           </div>
@@ -59,7 +62,7 @@
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
               </svg>
             </div>
           </div>
@@ -81,7 +84,7 @@
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
               </svg>
             </div>
           </div>
@@ -103,7 +106,8 @@
           <div class="flex-shrink-0">
             <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
               </svg>
             </div>
           </div>
@@ -130,31 +134,32 @@
         <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
           <table class="min-w-full divide-y divide-gray-300">
             <thead class="bg-gray-50">
-              <tr>
-                <th class="table-header">测试用例</th>
-                <th class="table-header">状态</th>
-                <th class="table-header">运行时</th>
-                <th class="table-header">开始时间</th>
-                <th class="table-header">持续时间</th>
-              </tr>
+            <tr>
+              <th class="table-header">测试用例</th>
+              <th class="table-header">状态</th>
+              <th class="table-header">运行时</th>
+              <th class="table-header">开始时间</th>
+              <th class="table-header">持续时间</th>
+            </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white">
-              <tr v-for="run in recentTestRuns" :key="run.id">
-                <td class="table-cell font-medium">{{ run.test_case_name || '未知' }}</td>
-                <td class="table-cell">
-                  <span :class="getStatusClass(run.status)" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
+            <tr v-for="run in recentTestRuns" :key="run.id">
+              <td class="table-cell font-medium">{{ run.test_case_name || '未知' }}</td>
+              <td class="table-cell">
+                  <span :class="getStatusClass(run.status)"
+                        class="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
                     {{ getStatusText(run.status) }}
                   </span>
-                </td>
-                <td class="table-cell">{{ run.runtime_type || '未知' }}</td>
-                <td class="table-cell">{{ formatDate(run.created_at) }}</td>
-                <td class="table-cell">{{ run.duration || '-' }}</td>
-              </tr>
-              <tr v-if="recentTestRuns.length === 0">
-                <td colspan="5" class="table-cell text-center text-gray-500">
-                  暂无测试运行记录
-                </td>
-              </tr>
+              </td>
+              <td class="table-cell">{{ run.runtime_type || '未知' }}</td>
+              <td class="table-cell">{{ formatDate(run.created_at) }}</td>
+              <td class="table-cell">{{ run.duration || '-' }}</td>
+            </tr>
+            <tr v-if="recentTestRuns.length === 0">
+              <td colspan="5" class="table-cell text-center text-gray-500">
+                暂无测试运行记录
+              </td>
+            </tr>
             </tbody>
           </table>
         </div>
@@ -168,7 +173,7 @@
  * 仪表板页面组件逻辑
  * 负责显示系统统计信息和最近的测试运行
  */
-import { useAppStore, useTestCasesStore, useTestRunsStore, useRuntimeManagersStore } from '../stores'
+import {useAppStore, useTestCasesStore, useTestRunsStore, useRuntimeManagersStore} from '../stores'
 import dayjs from 'dayjs'
 
 export default {
@@ -185,7 +190,7 @@ export default {
       recentTestRuns: [],
     }
   },
-  
+
   async mounted() {
     try {
       await this.loadDashboardData()
@@ -195,7 +200,7 @@ export default {
       this.loading = false
     }
   },
-  
+
   methods: {
     /**
      * 加载仪表板数据
@@ -207,34 +212,34 @@ export default {
         const testCasesStore = useTestCasesStore()
         const testRunsStore = useTestRunsStore()
         const runtimeManagersStore = useRuntimeManagersStore()
-        
+
         // 并行加载所有数据
         await Promise.all([
-          testCasesStore.fetchTestCases({ limit: 1 }),
-          testRunsStore.fetchTestRuns({ limit: 10 }),
+          testCasesStore.fetchTestCases({limit: 1}),
+          testRunsStore.fetchTestRuns({limit: 10}),
           runtimeManagersStore.fetchRuntimeManagers(),
         ])
-        
+
         // 提取数据（处理响应格式）
         const testCases = Array.isArray(testCasesStore.testCases) ? testCasesStore.testCases : []
         const testRuns = Array.isArray(testRunsStore.testRuns) ? testRunsStore.testRuns : []
         const runtimeManagers = Array.isArray(runtimeManagersStore.runtimeManagers) ? runtimeManagersStore.runtimeManagers : []
-        
+
         // 更新统计信息
         this.stats.totalTestCases = testCasesStore.pagination?.total || testCases.length || 0
         this.stats.totalTestRuns = testRunsStore.pagination?.total || testRuns.length || 0
         this.stats.totalRuntimeManagers = runtimeManagers.length || 0
-        
+
         // 计算成功率
         const successfulRuns = testRuns.filter(run => run.status === 'completed' || run.status === 'success').length
         const totalRuns = testRuns.length
         this.stats.successRate = totalRuns > 0 ? `${Math.round((successfulRuns / totalRuns) * 100)}%` : '0%'
-        
+
         // 设置最近测试运行
         this.recentTestRuns = testRuns
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          .slice(0, 10)
-        
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 10)
+
       } catch (error) {
         console.error('加载仪表板数据失败:', error)
         // 错误已由API拦截器处理，这里不需要额外处理
@@ -242,14 +247,14 @@ export default {
         this.loading = false
       }
     },
-    
+
     /**
      * 刷新数据
      */
     async refreshData() {
       await this.loadDashboardData()
     },
-    
+
     /**
      * 获取状态样式类
      * @param {string} status - 状态值
@@ -265,13 +270,13 @@ export default {
       }
       return statusClasses[status] || 'bg-gray-100 text-gray-800'
     },
-    
+
     /**
      * 获取状态文本
      * @param {string} status - 状态值
      * @returns {string} 状态文本
      */
-    getStatusText(status) {
+     getStatusText(status) {
       const statusTexts = {
         'pending': '等待中',
         'running': '运行中',
@@ -281,7 +286,7 @@ export default {
       }
       return statusTexts[status] || '未知'
     },
-    
+
     /**
      * 格式化日期
      * @param {string} date - 日期字符串

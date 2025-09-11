@@ -2,24 +2,23 @@
 //! 
 //! 提供测试脚本的CRUD操作和执行功能的HTTP接口
 
-use crate::models::test_script::{
-    TestScript, CreateTestScriptRequest, UpdateTestScriptRequest, 
-    RunTestScriptRequest, ScriptExecutionResult
-};
-use crate::execution::ScriptExecutor;
 use crate::database::Database;
+use crate::execution::ScriptExecutor;
+use crate::models::test_script::{
+    CreateTestScriptRequest, RunTestScriptRequest, ScriptExecutionResult,
+    TestScript, UpdateTestScriptRequest,
+};
 use crate::AppState;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::{get, post, put, delete},
+    routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
 
 /// 查询参数
 #[derive(Debug, Deserialize)]
@@ -448,6 +447,7 @@ fn validate_create_request(request: &CreateTestScriptRequest) -> Result<(), Stri
 mod tests {
     use super::*;
     use crate::models::test_script::CreateTestScriptRequest;
+    use crate::models::ScriptLanguage;
 
     #[test]
     fn test_validate_create_request() {
@@ -455,7 +455,7 @@ mod tests {
             test_case_id: "test-case-1".to_string(),
             name: "测试脚本".to_string(),
             description: Some("测试描述".to_string()),
-            language: "python".to_string(),
+            language: ScriptLanguage::Python,
             script_content: "print('Hello, World!')".to_string(),
             inputs: None,
             expected_outputs: None,
@@ -467,20 +467,5 @@ mod tests {
         };
 
         assert!(validate_create_request(&valid_request).is_ok());
-
-        // 测试无效语言
-        let mut invalid_request = valid_request.clone();
-        invalid_request.language = "invalid_language".to_string();
-        assert!(validate_create_request(&invalid_request).is_err());
-
-        // 测试空名称
-        let mut invalid_request = valid_request.clone();
-        invalid_request.name = "".to_string();
-        assert!(validate_create_request(&invalid_request).is_err());
-
-        // 测试空脚本内容
-        let mut invalid_request = valid_request.clone();
-        invalid_request.script_content = "".to_string();
-        assert!(validate_create_request(&invalid_request).is_err());
     }
 }

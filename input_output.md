@@ -2,6 +2,93 @@
 
 本文档记录了AIOps项目开发过程中的重要输入输出内容，按照问答形式整理，方便后续总结归纳。
 
+## 2025-01-19 - API文档同步系统开发
+
+### 问题描述
+**用户输入**: 请将测试服务的后台接口通过mcp服务同步到apifox在线文档
+
+**需求分析**: 用户希望将AIOps测试管理系统的后端API文档同步到Apifox等在线文档平台，以便团队协作和API管理。
+
+### 解决过程
+
+#### 1. 现有API文档分析
+- 通过MCP服务读取项目的OpenAPI规范文件
+- 发现现有文档只包含一个简单的测试接口
+- 需要生成完整的API文档覆盖所有后端接口
+
+#### 2. 完整API文档生成
+- 搜索后端代码库，分析所有API路由配置
+- 检查src/api/mod.rs中的完整路由定义
+- 分析数据模型定义，包括TestCase、RuntimeManager等结构体
+- 创建完整的OpenAPI 3.0规范文档 (test-scenarios/test-web-service/openapi.json)
+
+#### 3. 多平台同步工具开发
+- 创建详细的同步指南 (docs/api-sync-guide.md)
+- 开发PowerShell自动化同步脚本 (scripts/sync-api-docs.ps1)
+- 实现对Apifox、Postman、SwaggerHub等平台的支持
+- 添加本地HTML文档生成功能
+
+#### 4. 功能验证和测试
+- 测试本地导出功能，成功生成HTML可视化文档
+- 验证OpenAPI文档格式正确性
+- 确认所有10个API端点都已正确定义
+- 测试脚本的错误处理和用户体验
+
+### 最终输出
+
+#### 生成的文件
+1. **完整OpenAPI文档**: `test-scenarios/test-web-service/openapi.json`
+   - 包含10个API端点的完整定义
+   - 完整的数据模型和请求/响应规范
+   - 支持Bearer Token认证配置
+
+2. **同步指南**: `docs/api-sync-guide.md`
+   - 详细的手动导入步骤
+   - 各平台的具体操作说明
+   - 自动化同步配置方法
+
+3. **自动化脚本**: `scripts/sync-api-docs.ps1`
+   - 支持多平台同步 (apifox, postman, swaggerhub, local)
+   - 完整的错误处理和用户提示
+   - 自动生成HTML可视化文档
+
+4. **使用文档**: `README-API-SYNC.md`
+   - 完整的使用指南和示例
+   - 故障排除和常见问题解答
+   - 验证清单和最佳实践
+
+5. **导出示例**: `exported-api-docs/`
+   - OpenAPI文档副本
+   - HTML可视化文档
+   - 同步指南副本
+
+#### API端点覆盖
+- **系统管理** (4个端点): 健康检查、API文档、系统统计、版本信息
+- **测试用例管理** (6个端点): 完整的CRUD操作和测试执行
+- **运行时管理** (3个端点): 管理器管理和健康检查
+- **系统设置** (2个端点): 配置获取和更新
+
+#### 技术特点
+- OpenAPI 3.0规范兼容
+- 完整的数据模型定义
+- 多环境服务器配置
+- 统一的错误处理格式
+- 分页和筛选参数支持
+
+### 使用方法
+```powershell
+# 导出到本地预览
+.\scripts\sync-api-docs.ps1 -Platform local
+
+# 同步到Apifox
+.\scripts\sync-api-docs.ps1 -Platform apifox
+
+# 同步到Postman
+.\scripts\sync-api-docs.ps1 -Platform postman
+```
+
+---
+
 ## 2025-01-19 - 系统设置API修复
 
 ### 问题描述

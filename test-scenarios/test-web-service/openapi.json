@@ -1,0 +1,1169 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AIOps测试管理系统API",
+    "description": "智能运维测试管理平台的后端API服务，提供测试用例管理、运行时管理、测试执行等功能",
+    "version": "1.0.0",
+    "contact": {
+      "name": "AIOps Team",
+      "email": "support@aiops.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8888/api/v1",
+      "description": "本地开发服务器"
+    },
+    {
+      "url": "https://api.aiops.com/v1",
+      "description": "生产环境服务器"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "健康检查",
+        "description": "检查服务运行状态",
+        "tags": ["系统管理"],
+        "responses": {
+          "200": {
+            "description": "服务正常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "get": {
+        "summary": "API文档",
+        "description": "获取完整的API文档信息",
+        "tags": ["系统管理"],
+        "responses": {
+          "200": {
+            "description": "API文档信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiDocsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "系统统计",
+        "description": "获取系统运行统计信息",
+        "tags": ["系统管理"],
+        "responses": {
+          "200": {
+            "description": "系统统计信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/version": {
+      "get": {
+        "summary": "版本信息",
+        "description": "获取系统版本信息",
+        "tags": ["系统管理"],
+        "responses": {
+          "200": {
+            "description": "版本信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/test-cases": {
+      "get": {
+        "summary": "获取测试用例列表",
+        "description": "分页获取测试用例列表，支持按名称、运行时类型、标签筛选",
+        "tags": ["测试用例管理"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码，从1开始",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "每页数量",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "按名称筛选",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runtime_type",
+            "in": "query",
+            "description": "按运行时类型筛选",
+            "schema": {
+              "$ref": "#/components/schemas/RuntimeType"
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "description": "按标签筛选，逗号分隔",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "测试用例列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "创建测试用例",
+        "description": "创建新的测试用例",
+        "tags": ["测试用例管理"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTestCaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "测试用例创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/test-cases/{id}": {
+      "get": {
+        "summary": "获取测试用例详情",
+        "description": "根据ID获取测试用例详细信息",
+        "tags": ["测试用例管理"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "测试用例ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "测试用例详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "测试用例不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新测试用例",
+        "description": "更新指定测试用例的信息",
+        "tags": ["测试用例管理"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "测试用例ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTestCaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "测试用例更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestCaseResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "测试用例不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "删除测试用例",
+        "description": "删除指定的测试用例",
+        "tags": ["测试用例管理"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "测试用例ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "测试用例删除成功"
+          },
+          "404": {
+            "description": "测试用例不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/test-cases/{id}/run": {
+      "post": {
+        "summary": "运行测试用例",
+        "description": "执行指定的测试用例",
+        "tags": ["测试用例管理"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "测试用例ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunTestCaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "测试用例执行成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestRunResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "测试用例不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runtime-managers": {
+      "get": {
+        "summary": "获取运行时管理器列表",
+        "description": "分页获取运行时管理器列表",
+        "tags": ["运行时管理"],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码，从1开始",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "description": "每页数量",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "runtime_type",
+            "in": "query",
+            "description": "按运行时类型筛选",
+            "schema": {
+              "$ref": "#/components/schemas/RuntimeType"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "按状态筛选",
+            "schema": {
+              "$ref": "#/components/schemas/ManagerStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "运行时管理器列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeManagerListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "创建运行时管理器",
+        "description": "创建新的运行时管理器",
+        "tags": ["运行时管理"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuntimeManagerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "运行时管理器创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeManagerResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runtime-managers/{id}/health-check": {
+      "post": {
+        "summary": "运行时健康检查",
+        "description": "执行运行时管理器的健康检查",
+        "tags": ["运行时管理"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "运行时管理器ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "健康检查结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthCheckResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/config": {
+      "get": {
+        "summary": "获取系统配置",
+        "description": "获取系统配置信息",
+        "tags": ["系统设置"],
+        "responses": {
+          "200": {
+            "description": "系统配置信息",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "更新系统配置",
+        "description": "更新系统配置信息",
+        "tags": ["系统设置"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSystemConfigRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "配置更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RuntimeType": {
+        "type": "string",
+        "enum": ["local", "docker", "kubernetes"],
+        "description": "运行时类型"
+      },
+      "TestStatus": {
+        "type": "string",
+        "enum": ["pending", "running", "success", "failed", "cancelled", "timeout"],
+        "description": "测试状态"
+      },
+      "ManagerStatus": {
+        "type": "string",
+        "enum": ["active", "inactive", "error", "unknown"],
+        "description": "管理器状态"
+      },
+      "TestCase": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "测试用例ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "测试用例名称"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "测试用例描述"
+          },
+          "script_path": {
+            "type": "string",
+            "description": "脚本路径"
+          },
+          "config_path": {
+            "type": "string",
+            "nullable": true,
+            "description": "配置文件路径"
+          },
+          "runtime_type": {
+            "$ref": "#/components/schemas/RuntimeType"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "标签列表"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "更新时间"
+          }
+        },
+        "required": ["id", "name", "script_path", "runtime_type", "created_at", "updated_at"]
+      },
+      "RuntimeManager": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "运行时管理器ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "管理器名称"
+          },
+          "runtime_type": {
+            "$ref": "#/components/schemas/RuntimeType"
+          },
+          "config": {
+            "type": "string",
+            "nullable": true,
+            "description": "配置信息（JSON字符串）"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ManagerStatus"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "标签列表"
+          },
+          "last_heartbeat": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "最后心跳时间"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "更新时间"
+          }
+        },
+        "required": ["id", "name", "runtime_type", "status", "created_at", "updated_at"]
+      },
+      "CreateTestCaseRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "测试用例名称"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "测试用例描述"
+          },
+          "script_path": {
+            "type": "string",
+            "description": "脚本路径"
+          },
+          "config_path": {
+            "type": "string",
+            "nullable": true,
+            "description": "配置文件路径"
+          },
+          "runtime_type": {
+            "$ref": "#/components/schemas/RuntimeType"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "标签列表"
+          }
+        },
+        "required": ["name", "script_path", "runtime_type"]
+      },
+      "UpdateTestCaseRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "description": "测试用例名称"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "测试用例描述"
+          },
+          "script_path": {
+            "type": "string",
+            "nullable": true,
+            "description": "脚本路径"
+          },
+          "config_path": {
+            "type": "string",
+            "nullable": true,
+            "description": "配置文件路径"
+          },
+          "runtime_type": {
+            "$ref": "#/components/schemas/RuntimeType",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "标签列表"
+          }
+        }
+      },
+      "RunTestCaseRequest": {
+        "type": "object",
+        "properties": {
+          "runtime_type": {
+            "$ref": "#/components/schemas/RuntimeType",
+            "nullable": true,
+            "description": "运行时类型覆盖"
+          },
+          "config_override": {
+            "type": "string",
+            "nullable": true,
+            "description": "配置覆盖"
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "description": "元数据"
+          }
+        }
+      },
+      "CreateRuntimeManagerRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "管理器名称"
+          },
+          "runtime_type": {
+            "$ref": "#/components/schemas/RuntimeType"
+          },
+          "config": {
+            "type": "string",
+            "nullable": true,
+            "description": "配置信息（JSON字符串）"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "标签列表"
+          }
+        },
+        "required": ["name", "runtime_type"]
+      },
+      "UpdateSystemConfigRequest": {
+        "type": "object",
+        "properties": {
+          "database_url": {
+            "type": "string",
+            "nullable": true,
+            "description": "数据库连接URL"
+          },
+          "log_level": {
+            "type": "string",
+            "enum": ["trace", "debug", "info", "warn", "error"],
+            "nullable": true,
+            "description": "日志级别"
+          },
+          "max_concurrent_tests": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true,
+            "description": "最大并发测试数"
+          },
+          "test_timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true,
+            "description": "测试超时时间（秒）"
+          }
+        }
+      },
+      "PaginationInfo": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "当前页码"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "每页数量"
+          },
+          "total": {
+            "type": "integer",
+            "description": "总记录数"
+          },
+          "total_pages": {
+            "type": "integer",
+            "description": "总页数"
+          }
+        },
+        "required": ["page", "per_page", "total", "total_pages"]
+      },
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "请求是否成功"
+          },
+          "message": {
+            "type": "string",
+            "description": "响应消息"
+          },
+          "data": {
+            "description": "响应数据"
+          }
+        },
+        "required": ["success", "message"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false,
+            "description": "请求是否成功"
+          },
+          "message": {
+            "type": "string",
+            "description": "错误消息"
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true,
+            "description": "错误代码"
+          },
+          "details": {
+            "type": "object",
+            "nullable": true,
+            "description": "错误详情"
+          }
+        },
+        "required": ["success", "message"]
+      },
+      "HealthResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "example": "healthy"
+                  },
+                  "version": {
+                    "type": "string",
+                    "example": "1.0.0"
+                  },
+                  "uptime": {
+                    "type": "integer",
+                    "description": "运行时间（秒）"
+                  },
+                  "database": {
+                    "type": "string",
+                    "example": "connected"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TestCaseResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/TestCase"
+              }
+            }
+          }
+        ]
+      },
+      "TestCaseListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TestCase"
+                }
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/PaginationInfo"
+              }
+            }
+          }
+        ]
+      },
+      "RuntimeManagerResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/RuntimeManager"
+              }
+            }
+          }
+        ]
+      },
+      "RuntimeManagerListResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RuntimeManager"
+                }
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/PaginationInfo"
+              }
+            }
+          }
+        ]
+      },
+      "TestRunResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "test_run_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "status": {
+                    "$ref": "#/components/schemas/TestStatus"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "HealthCheckResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["healthy", "unhealthy", "unknown"]
+                  },
+                  "response_time_ms": {
+                    "type": "integer"
+                  },
+                  "details": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SystemConfigResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "database_url": {
+                    "type": "string"
+                  },
+                  "log_level": {
+                    "type": "string"
+                  },
+                  "max_concurrent_tests": {
+                    "type": "integer"
+                  },
+                  "test_timeout_seconds": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ApiDocsResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "endpoints": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SystemStatsResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "total_test_cases": {
+                    "type": "integer"
+                  },
+                  "total_test_runs": {
+                    "type": "integer"
+                  },
+                  "active_runtime_managers": {
+                    "type": "integer"
+                  },
+                  "system_uptime": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "VersionResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string"
+                  },
+                  "build_time": {
+                    "type": "string"
+                  },
+                  "git_commit": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "系统管理",
+      "description": "系统健康检查、文档、统计等功能"
+    },
+    {
+      "name": "测试用例管理",
+      "description": "测试用例的增删改查和执行"
+    },
+    {
+      "name": "运行时管理",
+      "description": "运行时管理器的管理和监控"
+    },
+    {
+      "name": "系统设置",
+      "description": "系统配置和用户偏好设置"
+    }
+  ]
+}
