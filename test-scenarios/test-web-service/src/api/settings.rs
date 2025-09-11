@@ -384,3 +384,31 @@ pub async fn get_system_config(
     
     Ok(Json(ApiResponse::success(config)))
 }
+
+/// 更新系统配置
+pub async fn update_system_config(
+    State(_state): State<AppState>,
+    Json(config): Json<Value>,
+) -> Result<Json<ApiResponse<Value>>, StatusCode> {
+    // 这里应该验证配置并保存到数据库
+    // 目前返回成功响应，实际项目中需要实现配置持久化
+    
+    // 验证配置格式
+    if !config.is_object() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    
+    // 模拟保存配置到数据库的过程
+    // 在实际项目中，这里应该:
+    // 1. 验证配置项的有效性
+    // 2. 将配置保存到数据库
+    // 3. 可能需要重启某些服务以应用新配置
+    
+    let response_data = json!({
+        "message": "系统配置更新成功",
+        "updated_at": chrono::Utc::now().to_rfc3339(),
+        "config": config
+    });
+    
+    Ok(Json(ApiResponse::success(response_data)))
+}

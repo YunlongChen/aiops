@@ -78,6 +78,7 @@ pub fn routes() -> Router<AppState> {
         .route("/settings/batch", put(settings::batch_update_settings))
         .route("/settings/:key/reset", post(settings::reset_setting))
         .route("/settings/config", get(settings::get_system_config))
+        .route("/settings/config", put(settings::update_system_config))
         .route("/preferences", get(settings::get_user_preferences))
         .route("/preferences", put(settings::update_user_preference))
         
