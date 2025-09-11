@@ -87,10 +87,60 @@ impl std::fmt::Display for TestStatus {
 /// 分页请求参数
 #[derive(Debug, Deserialize)]
 pub struct PaginationParams {
-    #[serde(default = "default_page")]
+    #[serde(default = "default_page", deserialize_with = "deserialize_string_to_u32")]
     pub page: u32,
-    #[serde(default = "default_limit")]
+    #[serde(default = "default_limit", deserialize_with = "deserialize_string_to_u32")]
     pub limit: u32,
+}
+
+/// 将字符串反序列化为u32
+fn deserialize_string_to_u32<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    use std::fmt;
+
+    struct StringToU32Visitor;
+
+    impl<'de> Visitor<'de> for StringToU32Visitor {
+        type Value = u32;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string or number that can be converted to u32")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<u32, E>
+        where
+            E: de::Error,
+        {
+            value.parse().map_err(de::Error::custom)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<u32, E>
+        where
+            E: de::Error,
+        {
+            if value <= u32::MAX as u64 {
+                Ok(value as u32)
+            } else {
+                Err(de::Error::custom(format!("u32 out of range: {}", value)))
+            }
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<u32, E>
+        where
+            E: de::Error,
+        {
+            if value >= 0 && value <= u32::MAX as i64 {
+                Ok(value as u32)
+            } else {
+                Err(de::Error::custom(format!("u32 out of range: {}", value)))
+            }
+        }
+    }
+
+    deserializer.deserialize_any(StringToU32Visitor)
 }
 
 fn default_page() -> u32 {

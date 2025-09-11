@@ -25,8 +25,8 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            port: 8080,
-            database_url: "sqlite:./aiops_tests.db".to_string(),
+            port: 8888,
+            database_url: "sqlite:./data/aiops_tests.db".to_string(),
             log_level: "info".to_string(),
             test_scripts_dir: "../".to_string(),
             results_dir: "./results".to_string(),

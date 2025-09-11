@@ -99,7 +99,7 @@ async fn main() -> anyhow::Result<()> {
         .with_state(app_state);
 
     // 启动服务器
-    let addr = format!("0.0.0.0:{}", config.port);
+    let addr = format!("127.0.0.1:{}", config.port);
     let listener = TcpListener::bind(&addr).await?;
     
     info!("🚀 AIOps Web服务已启动: http://{}", addr);

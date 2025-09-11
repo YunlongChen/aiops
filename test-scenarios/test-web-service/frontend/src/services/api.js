@@ -4,23 +4,40 @@
  */
 
 import axios from 'axios'
+import errorHandler from './errorHandler'
 
 /**
  * API客户端配置
  */
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3030/api/v1',
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8888/api/v1',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
+  paramsSerializer: {
+    serialize: (params) => {
+      const searchParams = new URLSearchParams()
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== null && value !== undefined) {
+          // 对于数字类型的参数，直接转换为字符串但保持数字格式
+          if (typeof value === 'number') {
+            searchParams.append(key, value.toString())
+          } else {
+            searchParams.append(key, String(value))
+          }
+        }
+      }
+      return searchParams.toString()
+    }
+  }
 })
 
 /**
  * 请求拦截器
  * 添加认证token和请求日志
  */
-api.interceptors.request.use(
+apiClient.interceptors.request.use(
   (config) => {
     // 添加认证token（如果存在）
     const token = localStorage.getItem('auth_token')
@@ -28,13 +45,24 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
     
+    // 添加请求ID用于追踪
+    config.headers['X-Request-ID'] = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+
     // 请求日志
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data)
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+      params: config.params,
+      data: config.data
+    })
     
     return config
   },
   (error) => {
     console.error('[API Request Error]', error)
+    errorHandler.handleNetworkError(error, {
+      title: '请求发送失败',
+      message: '无法发送请求到服务器'
+    })
     return Promise.reject(error)
   }
 )
@@ -43,15 +71,47 @@ api.interceptors.request.use(
  * 响应拦截器
  * 统一处理响应和错误
  */
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => {
-    console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, response.data)
-    return response.data
+    console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url}`, {
+      status: response.status,
+      data: response.data
+    })
+    return response
   },
   (error) => {
-    console.error('[API Response Error]', error)
+    console.error('[API Response Error]', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data
+    })
     
-    // 统一错误处理
+    // 构造错误对象用于错误处理服务
+    const apiError = {
+      status: error.response?.status || 0,
+      message: error.response?.data?.message || error.message,
+      data: error.response?.data,
+      config: error.config
+    }
+    
+    // 使用错误处理服务处理错误
+    errorHandler.handleApiError(apiError, {
+      onRetry: error.config ? () => {
+        // 重试逻辑
+        return apiClient.request(error.config)
+      } : null
+    })
+    
+    // 处理特定错误状态
+    if (error.response?.status === 401) {
+      // 清除认证信息并重定向到登录页
+      localStorage.removeItem('auth_token')
+      window.location.href = '/login'
+    }
+    
+    return Promise.reject(apiError)
     if (error.response) {
       const { status, data } = error.response
       
@@ -107,27 +167,27 @@ export const systemAPI = {
   /**
    * 获取系统健康状态
    */
-  getHealth: () => api.get('/health'),
+  getHealth: () => apiClient.get('/health'),
   
   /**
    * 获取系统信息
    */
-  getSystemInfo: () => api.get('/system/info'),
+  getSystemInfo: () => apiClient.get('/system/info'),
   
   /**
    * 获取系统统计
    */
-  getSystemStats: () => api.get('/system/stats'),
+  getSystemStats: () => apiClient.get('/system/stats'),
   
   /**
    * 获取API文档
    */
-  getApiDocs: () => api.get('/docs'),
+  getApiDocs: () => apiClient.get('/docs'),
   
   /**
    * 获取版本信息
    */
-  getVersion: () => api.get('/version'),
+  getVersion: () => apiClient.get('/version'),
 }
 
 /**
@@ -138,45 +198,45 @@ export const testCasesAPI = {
    * 获取测试用例列表
    * @param {Object} params - 查询参数
    */
-  list: (params = {}) => api.get('/test-cases', { params }),
+  list: (params = {}) => apiClient.get('/test-cases', { params }),
   
   /**
    * 获取单个测试用例
    * @param {string} id - 测试用例ID
    */
-  get: (id) => api.get(`/test-cases/${id}`),
+  get: (id) => apiClient.get(`/test-cases/${id}`),
   
   /**
    * 创建测试用例
    * @param {Object} data - 测试用例数据
    */
-  create: (data) => api.post('/test-cases', data),
+  create: (data) => apiClient.post('/test-cases', data),
   
   /**
    * 更新测试用例
    * @param {string} id - 测试用例ID
    * @param {Object} data - 更新数据
    */
-  update: (id, data) => api.put(`/test-cases/${id}`, data),
+  update: (id, data) => apiClient.put(`/test-cases/${id}`, data),
   
   /**
    * 删除测试用例
    * @param {string} id - 测试用例ID
    */
-  delete: (id) => api.delete(`/test-cases/${id}`),
+  delete: (id) => apiClient.delete(`/test-cases/${id}`),
   
   /**
    * 运行测试用例
    * @param {string} id - 测试用例ID
    * @param {Object} params - 运行参数
    */
-  run: (id, params = {}) => api.post(`/test-cases/${id}/run`, params),
+  run: (id, params = {}) => apiClient.post(`/test-cases/${id}/run`, params),
   
   /**
    * 批量导入测试用例
    * @param {FormData} formData - 文件数据
    */
-  import: (formData) => api.post('/test-cases/import', formData, {
+  import: (formData) => apiClient.post('/test-cases/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   
@@ -184,7 +244,7 @@ export const testCasesAPI = {
    * 导出测试用例
    * @param {Array} ids - 测试用例ID列表
    */
-  export: (ids) => api.post('/test-cases/export', { ids }, {
+  export: (ids) => apiClient.post('/test-cases/export', { ids }, {
     responseType: 'blob'
   }),
 }
@@ -197,57 +257,73 @@ export const testRunsAPI = {
    * 获取测试运行列表
    * @param {Object} params - 查询参数
    */
-  list: (params = {}) => api.get('/test-runs', { params }),
+  list: (params = {}) => apiClient.get('/test-runs', { params }),
   
   /**
-   * 获取单个测试运行
+   * 获取测试运行详情
    * @param {string} id - 测试运行ID
    */
-  get: (id) => api.get(`/test-runs/${id}`),
+  get: (id) => apiClient.get(`/test-runs/${id}`),
+  
+  /**
+   * 取消测试运行
+   * @param {string} id - 测试运行ID
+   */
+  cancel: (id) => apiClient.post(`/test-runs/${id}/cancel`),
+  
+  /**
+   * 重新运行测试
+   * @param {string} testCaseId - 测试用例ID
+   * @param {string} runtimeManagerId - 运行时管理器ID
+   */
+  rerun: (testCaseId, runtimeManagerId) => apiClient.post('/test-runs/rerun', {
+    test_case_id: testCaseId,
+    runtime_manager_id: runtimeManagerId
+  }),
   
   /**
    * 创建测试运行
    * @param {Object} data - 测试运行数据
    */
-  create: (data) => api.post('/test-runs', data),
+  create: (data) => apiClient.post('/test-runs', data),
   
   /**
    * 更新测试运行
    * @param {string} id - 测试运行ID
    * @param {Object} data - 更新数据
    */
-  update: (id, data) => api.put(`/test-runs/${id}`, data),
+  update: (id, data) => apiClient.put(`/test-runs/${id}`, data),
   
   /**
    * 开始测试运行
    * @param {string} id - 测试运行ID
    */
-  start: (id) => api.post(`/test-runs/${id}/start`),
+  start: (id) => apiClient.post(`/test-runs/${id}/start`),
   
   /**
    * 停止测试运行
    * @param {string} id - 测试运行ID
    */
-  stop: (id) => api.post(`/test-runs/${id}/stop`),
+  stop: (id) => apiClient.post(`/test-runs/${id}/stop`),
   
   /**
    * 获取测试日志
    * @param {string} id - 测试运行ID
    * @param {Object} params - 查询参数
    */
-  getLogs: (id, params = {}) => api.get(`/test-runs/${id}/logs`, { params }),
+  getLogs: (id, params = {}) => apiClient.get(`/test-runs/${id}/logs`, { params }),
   
   /**
    * 获取测试统计
    * @param {Object} params - 查询参数
    */
-  getStats: (params = {}) => api.get('/test-runs/stats', { params }),
+  getStats: (params = {}) => apiClient.get('/test-runs/stats', { params }),
   
   /**
    * 重新运行测试
    * @param {string} id - 测试运行ID
    */
-  rerun: (id) => api.post(`/test-runs/${id}/rerun`),
+  rerun: (id) => apiClient.post(`/test-runs/${id}/rerun`),
 }
 
 /**
@@ -258,56 +334,56 @@ export const testScriptsAPI = {
    * 获取测试脚本列表
    * @param {Object} params - 查询参数
    */
-  list: (params = {}) => api.get('/test-scripts', { params }),
+  list: (params = {}) => apiClient.get('/test-scripts', { params }),
   
   /**
    * 获取单个测试脚本
    * @param {string} id - 测试脚本ID
    */
-  get: (id) => api.get(`/test-scripts/${id}`),
+  get: (id) => apiClient.get(`/test-scripts/${id}`),
   
   /**
    * 创建测试脚本
    * @param {Object} data - 测试脚本数据
    */
-  create: (data) => api.post('/test-scripts', data),
+  create: (data) => apiClient.post('/test-scripts', data),
   
   /**
    * 更新测试脚本
    * @param {string} id - 测试脚本ID
    * @param {Object} data - 更新数据
    */
-  update: (id, data) => api.put(`/test-scripts/${id}`, data),
+  update: (id, data) => apiClient.put(`/test-scripts/${id}`, data),
   
   /**
    * 删除测试脚本
    * @param {string} id - 测试脚本ID
    */
-  delete: (id) => api.delete(`/test-scripts/${id}`),
+  delete: (id) => apiClient.delete(`/test-scripts/${id}`),
   
   /**
    * 执行测试脚本
    * @param {string} id - 测试脚本ID
    * @param {Object} params - 执行参数
    */
-  execute: (id, params = {}) => api.post(`/test-scripts/${id}/execute`, params),
+  execute: (id, params = {}) => apiClient.post(`/test-scripts/${id}/execute`, params),
   
   /**
    * 批量执行测试脚本
    * @param {Object} data - 批量执行数据
    */
-  batchExecute: (data) => api.post('/test-scripts/batch-execute', data),
+  batchExecute: (data) => apiClient.post('/test-scripts/batch-execute', data),
   
   /**
    * 获取支持的编程语言列表
    */
-  getSupportedLanguages: () => api.get('/test-scripts/languages'),
+  getSupportedLanguages: () => apiClient.get('/test-scripts/languages'),
   
   /**
    * 验证测试脚本
    * @param {Object} data - 脚本数据
    */
-  validate: (data) => api.post('/test-scripts/validate', data),
+  validate: (data) => apiClient.post('/test-scripts/validate', data),
 }
 
 /**
@@ -318,74 +394,74 @@ export const runtimeManagersAPI = {
    * 获取运行时管理器列表
    * @param {Object} params - 查询参数
    */
-  list: (params = {}) => api.get('/runtime-managers', { params }),
+  list: (params = {}) => apiClient.get('/runtime-managers', { params }),
   
   /**
    * 获取单个运行时管理器
    * @param {string} id - 运行时管理器ID
    */
-  get: (id) => api.get(`/runtime-managers/${id}`),
+  get: (id) => apiClient.get(`/runtime-managers/${id}`),
   
   /**
    * 创建运行时管理器
    * @param {Object} data - 运行时管理器数据
    */
-  create: (data) => api.post('/runtime-managers', data),
+  create: (data) => apiClient.post('/runtime-managers', data),
   
   /**
    * 更新运行时管理器
    * @param {string} id - 运行时管理器ID
    * @param {Object} data - 更新数据
    */
-  update: (id, data) => api.put(`/runtime-managers/${id}`, data),
+  update: (id, data) => apiClient.put(`/runtime-managers/${id}`, data),
   
   /**
    * 删除运行时管理器
    * @param {string} id - 运行时管理器ID
    */
-  delete: (id) => api.delete(`/runtime-managers/${id}`),
+  delete: (id) => apiClient.delete(`/runtime-managers/${id}`),
   
   /**
    * 测试连接
    * @param {string} id - 运行时管理器ID
    */
-  testConnection: (id) => api.post(`/runtime-managers/${id}/test`),
+  testConnection: (id) => apiClient.post(`/runtime-managers/${id}/test`),
   
   /**
    * 心跳检测
    * @param {string} id - 运行时管理器ID
    */
-  heartbeat: (id) => api.post(`/runtime-managers/${id}/heartbeat`),
+  heartbeat: (id) => apiClient.post(`/runtime-managers/${id}/heartbeat`),
   
   /**
    * 获取运行时信息
    * @param {string} id - 运行时管理器ID
    */
-  getInfo: (id) => api.get(`/runtime-managers/${id}/info`),
+  getInfo: (id) => apiClient.get(`/runtime-managers/${id}/info`),
   
   /**
    * 获取运行时资源使用情况
    * @param {string} id - 运行时管理器ID
    */
-  getResources: (id) => api.get(`/runtime-managers/${id}/resources`),
+  getResources: (id) => apiClient.get(`/runtime-managers/${id}/resources`),
   
   /**
    * 获取平台信息
    * 检测当前平台支持的运行时类型和能力
    */
-  getPlatformInfo: () => api.get('/runtime-managers/platform-info'),
+  getPlatformInfo: () => apiClient.get('/runtime-managers/platform-info'),
   
   /**
    * 获取设置指引
    * @param {string} runtimeType - 运行时类型 (local|docker|kubernetes)
    */
-  getSetupGuide: (runtimeType) => api.get(`/runtime-managers/setup-guide/${runtimeType}`),
+  getSetupGuide: (runtimeType) => apiClient.get(`/runtime-managers/setup-guide/${runtimeType}`),
   
   /**
    * 执行健康检查
    * @param {string} id - 运行时管理器ID
    */
-  healthCheck: (id) => api.post(`/runtime-managers/${id}/health-check`),
+  healthCheck: (id) => apiClient.post(`/runtime-managers/${id}/health-check`),
 }
 
 /**
@@ -397,67 +473,67 @@ export const usersAPI = {
    * 用户登录
    * @param {Object} credentials - 登录凭据 {username, password}
    */
-  login: (credentials) => api.post('/auth/login', credentials),
+  login: (credentials) => apiClient.post('/auth/login', credentials),
   
   /**
    * 用户登出
    */
-  logout: () => api.post('/auth/logout'),
+  logout: () => apiClient.post('/auth/logout'),
   
   /**
    * 刷新令牌
    */
-  refreshToken: () => api.post('/auth/refresh'),
+  refreshToken: () => apiClient.post('/auth/refresh'),
   
   /**
    * 获取当前用户信息
    */
-  getCurrentUser: () => api.get('/auth/me'),
+  getCurrentUser: () => apiClient.get('/auth/me'),
   
   // 用户管理
   /**
    * 获取用户列表
    * @param {Object} params - 查询参数
    */
-  list: (params = {}) => api.get('/users', { params }),
+  list: (params = {}) => apiClient.get('/users', { params }),
   
   /**
    * 创建用户
    * @param {Object} data - 用户数据 {username, email, password, full_name}
    */
-  create: (data) => api.post('/users', data),
+  create: (data) => apiClient.post('/users', data),
   
   /**
    * 获取用户详情
    * @param {string} id - 用户ID
    */
-  get: (id) => api.get(`/users/${id}`),
+  get: (id) => apiClient.get(`/users/${id}`),
   
   /**
    * 更新用户
    * @param {string} id - 用户ID
    * @param {Object} data - 用户数据
    */
-  update: (id, data) => api.put(`/users/${id}`, data),
+  update: (id, data) => apiClient.put(`/users/${id}`, data),
   
   /**
    * 删除用户
    * @param {string} id - 用户ID
    */
-  delete: (id) => api.delete(`/users/${id}`),
+  delete: (id) => apiClient.delete(`/users/${id}`),
   
   // 密码管理
   /**
    * 修改密码
    * @param {Object} data - 密码数据 {old_password, new_password}
    */
-  changePassword: (data) => api.post('/users/change-password', data),
+  changePassword: (data) => apiClient.post('/users/change-password', data),
   
   /**
    * 重置用户密码
    * @param {string} id - 用户ID
    */
-  resetPassword: (id) => api.post(`/users/${id}/reset-password`),
+  resetPassword: (id) => apiClient.post(`/users/${id}/reset-password`),
 }
 
 /**
@@ -469,7 +545,7 @@ export const filesAPI = {
    * @param {FormData} formData - 文件数据
    * @param {Function} onProgress - 进度回调
    */
-  upload: (formData, onProgress) => api.post('/files/upload', formData, {
+  upload: (formData, onProgress) => apiClient.post('/files/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress: onProgress
   }),
@@ -478,7 +554,7 @@ export const filesAPI = {
    * 下载文件
    * @param {string} id - 文件ID
    */
-  download: (id) => api.get(`/files/${id}/download`, {
+  download: (id) => apiClient.get(`/files/${id}/download`, {
     responseType: 'blob'
   }),
   
@@ -486,13 +562,13 @@ export const filesAPI = {
    * 删除文件
    * @param {string} id - 文件ID
    */
-  delete: (id) => api.delete(`/files/${id}`),
+  delete: (id) => apiClient.delete(`/files/${id}`),
   
   /**
    * 获取文件列表
    * @param {Object} params - 查询参数
    */
-  list: (params = {}) => api.get('/files', { params }),
+  list: (params = {}) => apiClient.get('/files', { params }),
 }
 
 /**
@@ -504,57 +580,68 @@ export const settingsAPI = {
    * 获取设置列表
    * @param {Object} params - 查询参数
    */
-  list: (params) => api.get('/settings', { params }),
+  list: (params) => apiClient.get('/settings', { params }),
   
   /**
    * 根据分类获取设置
    * @param {string} category - 设置分类
    */
-  getByCategory: (category) => api.get(`/settings/category/${category}`),
+  getByCategory: (category) => apiClient.get(`/settings/category/${category}`),
   
   /**
    * 获取单个设置
    * @param {string} key - 设置键
    */
-  get: (key) => api.get(`/settings/${key}`),
+  get: (key) => apiClient.get(`/settings/${key}`),
   
   /**
    * 更新设置
    * @param {string} key - 设置键
    * @param {Object} data - 设置数据 {value, description}
    */
-  update: (key, data) => api.put(`/settings/${key}`, data),
+  update: (key, data) => apiClient.put(`/settings/${key}`, data),
   
   /**
    * 批量更新设置
    * @param {Object} settings - 设置对象 {key: value}
    */
-  batchUpdate: (settings) => api.put('/settings/batch', { settings }),
+  batchUpdate: (settings) => apiClient.put('/settings/batch', { settings }),
   
   /**
    * 重置设置为默认值
    * @param {string} key - 设置键
    */
-  reset: (key) => api.post(`/settings/${key}/reset`),
+  reset: (key) => apiClient.post(`/settings/${key}/reset`),
   
   // 系统配置
   /**
    * 获取系统配置概览
    */
-  getSystemConfig: () => api.get('/settings/config'),
+  getSystemConfig: () => apiClient.get('/settings/config'),
+  
+  /**
+   * 更新系统配置
+   * @param {Object} config - 系统配置对象
+   */
+  updateSystemConfig: (config) => apiClient.put('/settings/config', config),
+  
+  /**
+   * 重新生成API令牌
+   */
+  regenerateApiToken: () => apiClient.post('/settings/api-token/regenerate'),
   
   // 用户偏好
   /**
    * 获取用户偏好设置
    */
-  getUserPreferences: () => api.get('/preferences'),
+  getUserPreferences: () => apiClient.get('/preferences'),
   
   /**
    * 更新用户偏好设置
    * @param {Object} preference - 偏好设置 {key, value}
    */
-  updateUserPreference: (preference) => api.put('/preferences', preference),
+  updateUserPreference: (preference) => apiClient.put('/preferences', preference),
 }
 
-export default api
-export { api }
+export default apiClient
+export { apiClient }

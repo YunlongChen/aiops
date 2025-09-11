@@ -88,6 +88,132 @@
       </div>
     </div>
 
+    <!-- 测试设置 -->
+    <div v-if="activeTab === 'testing'" class="card">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">测试设置</h3>
+        
+        <div class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">默认测试环境</label>
+            <select
+              v-model="settings.testing.defaultEnvironment"
+              class="input-field"
+            >
+              <option value="development">开发环境</option>
+              <option value="testing">测试环境</option>
+              <option value="staging">预发布环境</option>
+              <option value="production">生产环境</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700">测试重试次数</label>
+            <input
+              v-model.number="settings.testing.retryCount"
+              type="number"
+              class="input-field"
+              min="0"
+              max="10"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700">测试报告格式</label>
+            <select
+              v-model="settings.testing.reportFormat"
+              class="input-field"
+            >
+              <option value="html">HTML</option>
+              <option value="json">JSON</option>
+              <option value="xml">XML</option>
+              <option value="pdf">PDF</option>
+            </select>
+          </div>
+          
+          <div class="flex items-center">
+            <input
+              v-model="settings.testing.enableParallelExecution"
+              type="checkbox"
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            >
+            <label class="ml-2 block text-sm text-gray-900">
+              启用并行执行
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 运行时设置 -->
+    <div v-if="activeTab === 'runtime'" class="card">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">运行时设置</h3>
+        
+        <div class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">默认运行时类型</label>
+            <select
+              v-model="settings.runtime.defaultType"
+              class="input-field"
+            >
+              <option value="docker">Docker</option>
+              <option value="kubernetes">Kubernetes</option>
+              <option value="local">本地进程</option>
+              <option value="remote">远程执行</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700">资源限制 - CPU核数</label>
+            <input
+              v-model.number="settings.runtime.cpuLimit"
+              type="number"
+              class="input-field"
+              min="0.1"
+              max="16"
+              step="0.1"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700">资源限制 - 内存(MB)</label>
+            <input
+              v-model.number="settings.runtime.memoryLimit"
+              type="number"
+              class="input-field"
+              min="128"
+              max="8192"
+            >
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700">运行时清理策略</label>
+            <select
+              v-model="settings.runtime.cleanupPolicy"
+              class="input-field"
+            >
+              <option value="always">总是清理</option>
+              <option value="on_success">成功时清理</option>
+              <option value="on_failure">失败时清理</option>
+              <option value="never">从不清理</option>
+            </select>
+          </div>
+          
+          <div class="flex items-center">
+            <input
+              v-model="settings.runtime.enableResourceMonitoring"
+              type="checkbox"
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            >
+            <label class="ml-2 block text-sm text-gray-900">
+              启用资源监控
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 存储设置 -->
     <div v-if="activeTab === 'storage'" class="card">
       <div class="px-4 py-5 sm:p-6">
@@ -204,7 +330,8 @@
  * 设置页面组件逻辑
  * 负责系统配置和用户设置管理
  */
-import { useAppStore } from '../stores'
+import { useAppStore, useSettingsStore } from '../stores'
+import { ElMessage } from 'element-plus'
 
 export default {
   name: 'Settings',
@@ -215,6 +342,8 @@ export default {
       showApiToken: false,
       tabs: [
         { id: 'general', name: '通用设置' },
+        { id: 'testing', name: '测试设置' },
+        { id: 'runtime', name: '运行时设置' },
         { id: 'storage', name: '存储设置' },
         { id: 'security', name: '安全设置' },
       ],
@@ -224,6 +353,19 @@ export default {
           defaultTimeout: 300,
           maxConcurrentTests: 10,
           enableNotifications: true,
+        },
+        testing: {
+          defaultEnvironment: 'testing',
+          retryCount: 3,
+          reportFormat: 'html',
+          enableParallelExecution: true,
+        },
+        runtime: {
+          defaultType: 'docker',
+          cpuLimit: 2,
+          memoryLimit: 1024,
+          cleanupPolicy: 'always',
+          enableResourceMonitoring: true,
         },
         storage: {
           retentionDays: 30,
@@ -240,7 +382,18 @@ export default {
   },
   
   async mounted() {
-    await this.loadSettings()
+    try {
+      await this.loadSettings()
+    } catch (error) {
+      console.error('Settings组件挂载失败:', error)
+      // 确保页面不会因为数据加载失败而空白
+    }
+  },
+  
+  computed: {
+    settingsStore() {
+      return useSettingsStore()
+    },
   },
   
   methods: {
@@ -249,10 +402,17 @@ export default {
      */
     async loadSettings() {
       try {
-        // TODO: 从API加载设置
-        console.log('加载设置')
+        const systemConfig = await this.settingsStore.fetchSystemConfig()
+        if (systemConfig) {
+          // 合并API返回的设置到本地设置
+          this.settings = {
+            ...this.settings,
+            ...systemConfig
+          }
+        }
       } catch (error) {
         console.error('加载设置失败:', error)
+        ElMessage.error('加载设置失败: ' + (error.message || '网络错误'))
       }
     },
     
@@ -262,15 +422,11 @@ export default {
     async saveSettings() {
       this.saving = true
       try {
-        // TODO: 保存设置到API
-        console.log('保存设置:', this.settings)
-        
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        alert('设置保存成功')
+        await this.settingsStore.updateSystemConfig(this.settings)
+        ElMessage.success('设置保存成功')
       } catch (error) {
-        alert('保存设置失败: ' + error.message)
+        console.error('保存设置失败:', error)
+        ElMessage.error('保存设置失败: ' + (error.message || '网络错误'))
       } finally {
         this.saving = false
       }
@@ -282,12 +438,13 @@ export default {
     async regenerateApiToken() {
       if (confirm('确定要重新生成API令牌吗？这将使现有令牌失效。')) {
         try {
-          // TODO: 调用API重新生成令牌
-          const newToken = 'sk-' + Math.random().toString(36).substring(2, 34)
-          this.settings.security.apiToken = newToken
-          alert('API令牌已重新生成')
+          // 调用API重新生成令牌
+          const response = await this.settingsStore.regenerateApiToken()
+          this.settings.security.apiToken = response.token
+          ElMessage.success('API令牌已重新生成')
         } catch (error) {
-          alert('重新生成令牌失败: ' + error.message)
+          console.error('重新生成令牌失败:', error)
+          ElMessage.error('重新生成令牌失败: ' + (error.message || '网络错误'))
         }
       }
     },

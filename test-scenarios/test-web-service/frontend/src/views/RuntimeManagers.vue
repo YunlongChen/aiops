@@ -419,8 +419,13 @@ export default {
   },
   
   async mounted() {
-    await this.loadRuntimeManagers()
-    await this.loadPlatformInfo()
+    try {
+      await this.loadRuntimeManagers()
+      await this.loadPlatformInfo()
+    } catch (error) {
+      console.error('RuntimeManagers组件挂载失败:', error)
+      // 确保页面不会因为数据加载失败而空白
+    }
   },
   
   methods: {
@@ -445,9 +450,13 @@ export default {
       try {
         const store = useRuntimeManagersStore()
         const result = await store.testConnection(id)
-        alert(`连接测试${result.success ? '成功' : '失败'}: ${result.message}`)
+        if (result.success) {
+          this.$message.success(`${this.runtimeManagers.find(rm => rm.id === id)?.name || '运行时管理器'} 连接测试成功`);
+        } else {
+          this.$message.error(`连接测试失败: ${result.message || '未知错误'}`);
+        }
       } catch (error) {
-        alert('连接测试失败: ' + error.message)
+        this.$message.error('连接测试失败: ' + (error.message || '网络错误'))
       } finally {
         this.testingConnection = null
       }
@@ -478,7 +487,7 @@ export default {
           await store.deleteRuntimeManager(id)
           await this.loadRuntimeManagers()
         } catch (error) {
-          alert('删除失败: ' + error.message)
+          this.$message.error('删除失败: ' + (error.message || '网络错误'))
         }
       }
     },
@@ -506,7 +515,7 @@ export default {
         this.currentGuideType = runtimeType
         this.showSetupGuideModal = true
       } catch (error) {
-        alert('获取设置指引失败: ' + error.message)
+        this.$message.error('获取设置指引失败: ' + (error.message || '网络错误'))
       }
     },
 
@@ -530,7 +539,7 @@ export default {
         this.healthCheckResult = await store.healthCheck(id)
         this.showHealthCheckModal = true
       } catch (error) {
-        alert('健康检查失败: ' + error.message)
+        this.$message.error('健康检查失败: ' + (error.message || '网络错误'))
       } finally {
         this.healthChecking = null
       }
@@ -553,16 +562,17 @@ export default {
         const store = useRuntimeManagersStore()
         
         if (this.editingManager) {
-          // TODO: 实现更新API调用
-          console.log('更新运行时管理器:', this.form)
+          await store.updateRuntimeManager(this.editingManager.id, this.form)
+          this.$message.success('运行时管理器更新成功')
         } else {
           await store.createRuntimeManager(this.form)
+          this.$message.success('运行时管理器创建成功')
         }
         
         this.closeModal()
         await this.loadRuntimeManagers()
       } catch (error) {
-        alert('操作失败: ' + error.message)
+        this.$message.error('操作失败: ' + (error.message || '网络错误'))
       } finally {
         this.submitting = false
       }

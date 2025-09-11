@@ -2,6 +2,69 @@
 
 本文档记录了AIOps项目的所有重要变更和更新。
 
+## 2025-01-18
+
+### 🔧 前端页面渲染错误修复
+
+#### 问题修复
+- **TestCases组件渲染错误**: 修复了TestCases.vue组件中缺失getStatusClass方法导致的页面渲染失败问题
+- **端口冲突解决**: 解决了后端服务端口冲突问题，将服务端口从3000/5000改为8888
+- **API连接配置**: 更新前端API配置，将baseURL从localhost:3030改为localhost:8888
+- **服务器绑定地址**: 将后端服务绑定地址从0.0.0.0改为127.0.0.1，提高安全性
+
+#### 技术改进
+- **状态样式统一**: 为TestCases组件添加了完整的getStatusClass方法，支持active、inactive、pending、running、completed、failed、cancelled等状态
+- **Composition API兼容**: 确保使用Composition API的组件正确导出所需方法
+- **前后端连接验证**: 通过健康检查和测试用例API验证前后端连接正常
+
+#### 服务状态
+- **后端服务**: 成功启动在http://127.0.0.1:8888
+- **前端服务**: 运行在http://localhost:3000
+- **API文档**: 可访问http://127.0.0.1:8888/api/v1/docs
+- **健康检查**: http://127.0.0.1:8888/health 返回正常
+
+---
+
+## 2025-01-17
+
+### 🔄 前端动态API集成完成
+
+#### 新增功能
+- **完整API集成**: 将所有前端页面的静态数据替换为真实的后端API调用
+- **运行时管理器API对接**: 完成了运行时管理器的创建、更新、删除、测试连接等功能的API集成
+- **测试用例管理API**: 实现了测试用例的完整CRUD操作API对接
+- **测试运行管理**: 添加了测试运行的取消、重新运行等功能的API支持
+- **系统设置增强**: 完善了系统设置模块，添加了测试设置和运行时设置选项卡
+- **设置API集成**: 实现了系统配置的获取、更新和API令牌重新生成功能
+
+#### 技术改进
+- **统一错误处理**: 将所有alert提示替换为更友好的ElMessage消息提示
+- **API方法完善**: 在各个API模块中添加了缺失的方法（如updateSystemConfig、regenerateApiToken等）
+- **Store状态管理**: 完善了Pinia store中的状态管理方法，确保数据同步
+- **用户体验优化**: 改进了加载状态、错误提示和成功反馈的用户体验
+- **API参数类型修复**: 解决了前端发送字符串参数但后端期望u32类型的反序列化错误
+- **依赖管理**: 添加了element-plus依赖，解决了前端组件导入问题
+
+#### 页面更新
+- **Dashboard.vue**: 使用真实API数据展示统计信息和最近测试运行
+- **RuntimeManagers.vue**: 完整集成运行时管理器的所有操作功能
+- **TestCases.vue**: 实现测试用例的创建、编辑、删除和运行功能
+- **TestRuns.vue**: 添加测试运行的取消和重新运行功能
+- **Settings.vue**: 增强系统设置，添加测试设置和运行时设置模块
+
+#### API接口完善
+- **settingsAPI**: 添加updateSystemConfig和regenerateApiToken方法
+- **testRunsAPI**: 添加cancel和rerun方法
+- **testCasesAPI**: 确保update和delete方法的完整实现
+- **runtimeManagersAPI**: 完善所有运行时管理相关的API方法
+
+#### Store状态管理
+- **settingsStore**: 添加regenerateApiToken方法
+- **testRunsStore**: 添加cancelTestRun和rerunTest方法
+- **testCasesStore**: 添加updateTestCase和deleteTestCase方法
+
+---
+
 ## 2025-01-16
 
 ### 🚀 测试脚本管理系统多语言支持扩展完成

@@ -1,27 +1,76 @@
 <!--
   AIOps测试管理平台 - 测试用例页面
-  管理和查看测试用例
+  管理和查看测试用例，集成列表、编辑器和详情组件
 -->
 
 <template>
-  <div class="space-y-6">
-    <!-- 页面标题和操作按钮 -->
-    <div class="md:flex md:items-center md:justify-between">
-      <div class="flex-1 min-w-0">
-        <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-          测试用例
-        </h2>
-        <p class="mt-1 text-sm text-gray-500">
-          管理和查看所有测试用例
-        </p>
+  <div class="test-cases-view">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-left">
+          <h1 class="page-title">
+            <svg class="title-icon" viewBox="0 0 24 24">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+            测试用例管理
+          </h1>
+          <p class="page-description">创建、编辑和管理自动化测试用例</p>
+        </div>
+        <div class="header-actions">
+          <button 
+            class="btn btn-primary"
+            @click="showCreateForm"
+            :disabled="loading"
+          >
+            <svg viewBox="0 0 24 24">
+              <path d="M12 4v16m8-8H4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            新建测试用例
+          </button>
+        </div>
       </div>
-      <div class="mt-4 flex md:mt-0 md:ml-4">
-        <button
-          @click="showCreateModal = true"
-          class="btn-primary"
-        >
-          创建测试用例
-        </button>
+    </div>
+
+    <!-- 主要内容区域 -->
+    <div class="main-content">
+      <!-- 测试用例列表视图 -->
+      <div v-if="currentView === 'list'" class="list-view">
+        <TestCaseList
+          :test-cases="testCases"
+          :loading="loading"
+          :pagination="pagination"
+          @edit="showEditForm"
+          @view="showDetail"
+          @delete="handleDelete"
+          @run="handleRun"
+          @page-change="handlePageChange"
+          @search="handleSearch"
+          @filter="handleFilter"
+        />
+      </div>
+
+      <!-- 测试用例编辑器视图 -->
+      <div v-else-if="currentView === 'editor'" class="editor-view">
+        <TestCaseEditor
+          :test-case="selectedTestCase"
+          :is-editing="isEditing"
+          @save="handleSave"
+          @cancel="showList"
+        />
+      </div>
+
+      <!-- 测试用例详情视图 -->
+      <div v-else-if="currentView === 'detail'" class="detail-view">
+        <TestCaseDetail
+          :test-case="selectedTestCase"
+          :run-history="runHistory"
+          :loading-history="loadingHistory"
+          @back="showList"
+          @edit="showEditForm"
+          @run="handleRun"
+          @refresh-history="loadRunHistory"
+        />
       </div>
     </div>
 
@@ -270,235 +319,408 @@
  * 测试用例页面组件逻辑
  * 负责管理和查看测试用例
  */
+import { ref, computed, onMounted, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useTestCasesStore } from '../stores'
+import TestCaseList from '../components/TestCaseList.vue'
+import TestCaseEditor from '../components/TestCaseEditor.vue'
+import TestCaseDetail from '../components/TestCaseDetail.vue'
 import dayjs from 'dayjs'
 
 export default {
   name: 'TestCases',
-  data() {
-    return {
-      searchQuery: '',
-      statusFilter: '',
-      showCreateModal: false,
-      editingTestCase: null,
-      submitting: false,
-      form: {
+  components: {
+    TestCaseList,
+    TestCaseEditor,
+    TestCaseDetail
+  },
+  setup() {
+    const store = useTestCasesStore()
+    
+    // 错误处理和成功提示函数
+    const handleError = (error, message) => {
+      console.error(error)
+      ElMessage.error(message || '操作失败')
+    }
+    
+    const showSuccess = (message) => {
+      ElMessage.success(message)
+    }
+    
+    // 响应式数据
+    const currentView = ref('list') // 'list', 'editor', 'detail'
+    const selectedTestCase = ref(null)
+    const isEditing = ref(false)
+    const loading = ref(false)
+    const loadingHistory = ref(false)
+    const runHistory = ref([])
+    const showCreateModal = ref(false)
+    const editingTestCase = ref(null)
+    const submitting = ref(false)
+    const form = ref({
+      name: '',
+      description: '',
+      language: '',
+      script_content: '',
+      docker_image: '',
+      timeout_seconds: 30,
+      status: 'active'
+    })
+    
+    // 计算属性
+    const testCases = computed(() => store.testCases)
+    const pagination = computed(() => store.pagination)
+    
+    // 视图切换方法
+    const showList = () => {
+      currentView.value = 'list'
+      selectedTestCase.value = null
+      isEditing.value = false
+    }
+    
+    const showCreateForm = () => {
+      showCreateModal.value = true
+      editingTestCase.value = null
+      form.value = {
         name: '',
         description: '',
         language: '',
         script_content: '',
         docker_image: '',
         timeout_seconds: 30,
-      },
-    }
-  },
-  
-  computed: {
-    testCases() {
-      const store = useTestCasesStore()
-      return store.testCases
-    },
-    
-    pagination() {
-      const store = useTestCasesStore()
-      return store.pagination
-    },
-    
-    totalPages() {
-      const store = useTestCasesStore()
-      return store.totalPages
-    },
-  },
-  
-  async mounted() {
-    await this.loadTestCases()
-  },
-  
-  methods: {
-    /**
-     * 获取脚本占位符文本
-     */
-    getScriptPlaceholder() {
-      const placeholders = {
-        python: 'print("Hello, World!")\n# 编写你的Python测试脚本',
-        javascript: 'console.log("Hello, World!");\n// 编写你的JavaScript测试脚本',
-        shell: 'echo "Hello, World!"\n# 编写你的Shell测试脚本',
-        go: 'package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Println("Hello, World!")\n}',
-        rust: 'fn main() {\n    println!("Hello, World!");\n}',
-        java: 'public class Test {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}',
-        docker: '# Docker命令或Dockerfile内容\necho "Hello, World!"'
+        status: 'active'
       }
-      return placeholders[this.form.language] || '输入测试脚本内容'
-    },
+    }
+    
+    const showEditForm = (testCase) => {
+      currentView.value = 'editor'
+      selectedTestCase.value = testCase
+      isEditing.value = true
+    }
+    
+    // 关闭模态框
+    const closeModal = () => {
+      showCreateModal.value = false
+      editingTestCase.value = null
+      form.value = {
+        name: '',
+        description: '',
+        language: '',
+        script_content: '',
+        docker_image: '',
+        timeout_seconds: 30,
+        status: 'active'
+      }
+    }
+    
+    // 提交表单
+    const submitForm = async () => {
+      if (!form.value.name || !form.value.language || !form.value.script_content) {
+        ElMessage.error('请填写必填字段')
+        return
+      }
 
-    /**
-     * 加载测试用例列表
-     */
-    async loadTestCases() {
+      submitting.value = true
       try {
-        const store = useTestCasesStore()
-        const params = {
-          page: this.pagination.page,
-          limit: this.pagination.limit,
+        if (editingTestCase.value) {
+          await store.updateTestCase(editingTestCase.value.id, form.value)
+          showSuccess('测试用例更新成功')
+        } else {
+          await store.createTestCase(form.value)
+          showSuccess('测试用例创建成功')
         }
-        
-        if (this.searchQuery) {
-          params.search = this.searchQuery
-        }
-        
-        if (this.statusFilter) {
-          params.status = this.statusFilter
-        }
-        
+        closeModal()
+        await loadTestCases()
+      } catch (error) {
+        handleError(error, editingTestCase.value ? '更新测试用例失败' : '创建测试用例失败')
+      } finally {
+        submitting.value = false
+      }
+    }
+    
+    // 获取脚本占位符
+    const getScriptPlaceholder = () => {
+      const placeholders = {
+        python: 'def test_function():\n    # 编写你的Python测试代码\n    assert True',
+        javascript: 'function test() {\n    // 编写你的JavaScript测试代码\n    console.log("测试通过");\n}',
+        shell: '#!/bin/bash\n# 编写你的Shell脚本\necho "测试通过"',
+        go: 'package main\n\nimport "fmt"\n\nfunc main() {\n    // 编写你的Go测试代码\n    fmt.Println("测试通过")\n}',
+        rust: 'fn main() {\n    // 编写你的Rust测试代码\n    println!("测试通过");\n}',
+        java: 'public class Test {\n    public static void main(String[] args) {\n        // 编写你的Java测试代码\n        System.out.println("测试通过");\n    }\n}',
+        docker: '# Dockerfile内容或docker命令\nFROM alpine:latest\nRUN echo "测试通过"'
+      }
+      return placeholders[form.value.language] || '请输入测试脚本内容'
+    }
+    
+    const showDetail = (testCase) => {
+      currentView.value = 'detail'
+      selectedTestCase.value = testCase
+      loadRunHistory(testCase.id)
+    }
+    
+    // 数据加载方法
+    const loadTestCases = async (params = {}) => {
+      loading.value = true
+      try {
         await store.fetchTestCases(params)
       } catch (error) {
-        console.error('加载测试用例失败:', error)
-      }
-    },
-    
-    /**
-     * 运行测试
-     * @param {Object} testCase - 测试用例对象
-     */
-    async runTest(testCase) {
-      try {
-        // TODO: 实现运行测试的逻辑
-        console.log('运行测试:', testCase)
-        alert('测试已开始运行，请在测试运行页面查看结果')
-      } catch (error) {
-        alert('运行测试失败: ' + error.message)
-      }
-    },
-    
-    /**
-     * 编辑测试用例
-     * @param {Object} testCase - 测试用例对象
-     */
-    editTestCase(testCase) {
-      this.editingTestCase = testCase
-      this.form = {
-        name: testCase.name,
-        description: testCase.description || '',
-        language: testCase.language || '',
-        script_content: testCase.script_content || '',
-        docker_image: testCase.docker_image || '',
-        timeout_seconds: testCase.timeout_seconds || 30,
-      }
-      this.showCreateModal = true
-    },
-    
-    /**
-     * 删除测试用例
-     * @param {string} id - 测试用例ID
-     */
-    async deleteTestCase(id) {
-      if (confirm('确定要删除这个测试用例吗？')) {
-        try {
-          // TODO: 实现删除API调用
-          console.log('删除测试用例:', id)
-          await this.loadTestCases()
-        } catch (error) {
-          alert('删除失败: ' + error.message)
-        }
-      }
-    },
-    
-    /**
-     * 提交表单
-     */
-    async submitForm() {
-      this.submitting = true
-      try {
-        const store = useTestCasesStore()
-        
-        if (this.editingTestCase) {
-          // TODO: 实现更新API调用
-          console.log('更新测试用例:', this.form)
-        } else {
-          await store.createTestCase(this.form)
-        }
-        
-        this.closeModal()
-        await this.loadTestCases()
-      } catch (error) {
-        alert('操作失败: ' + error.message)
+        handleError(error, '加载测试用例失败')
       } finally {
-        this.submitting = false
+        loading.value = false
       }
-    },
+    }
     
-    /**
-     * 关闭模态框
-     */
-    closeModal() {
-      this.showCreateModal = false
-      this.editingTestCase = null
-      this.form = {
-        name: '',
-        description: '',
-        language: '',
-        script_content: '',
-        docker_image: '',
-        timeout_seconds: 30,
+    const loadRunHistory = async (testCaseId) => {
+      loadingHistory.value = true
+      try {
+        // TODO: 实现获取运行历史的API调用
+        runHistory.value = []
+      } catch (error) {
+        handleError(error, '加载运行历史失败')
+      } finally {
+        loadingHistory.value = false
       }
-    },
+    }
     
-    /**
-     * 上一页
-     */
-    async previousPage() {
-      if (this.pagination.page > 1) {
-        const store = useTestCasesStore()
-        store.pagination.page--
-        await this.loadTestCases()
+    // 事件处理方法
+    const handleSave = async (testCaseData) => {
+      try {
+        if (isEditing.value) {
+          await store.updateTestCase(selectedTestCase.value.id, testCaseData)
+          showSuccess('测试用例更新成功')
+        } else {
+          await store.createTestCase(testCaseData)
+          showSuccess('测试用例创建成功')
+        }
+        showList()
+        await loadTestCases()
+      } catch (error) {
+        handleError(error, isEditing.value ? '更新测试用例失败' : '创建测试用例失败')
       }
-    },
+    }
     
-    /**
-     * 下一页
-     */
-    async nextPage() {
-      if (this.pagination.page < this.totalPages) {
-        const store = useTestCasesStore()
-        store.pagination.page++
-        await this.loadTestCases()
+    const handleDelete = async (testCase) => {
+      try {
+        await store.deleteTestCase(testCase.id)
+        showSuccess('测试用例删除成功')
+        await loadTestCases()
+      } catch (error) {
+        handleError(error, '删除测试用例失败')
       }
-    },
+    }
+    
+    const handleRun = async (testCase) => {
+      try {
+        // TODO: 实现运行测试用例的API调用
+        showSuccess(`测试用例 "${testCase.name}" 已开始运行`)
+      } catch (error) {
+        handleError(error, '运行测试用例失败')
+      }
+    }
+    
+    const handlePageChange = (page) => {
+      loadTestCases({ page })
+    }
+    
+    const handleSearch = (query) => {
+      loadTestCases({ search: query, page: 1 })
+    }
+    
+    const handleFilter = (filters) => {
+      loadTestCases({ ...filters, page: 1 })
+    }
     
     /**
      * 获取状态样式类
      * @param {string} status - 状态值
      * @returns {string} CSS类名
      */
-    getStatusClass(status) {
+    const getStatusClass = (status) => {
       const statusClasses = {
         'active': 'bg-green-100 text-green-800',
         'inactive': 'bg-gray-100 text-gray-800',
+        'pending': 'bg-yellow-100 text-yellow-800',
+        'running': 'bg-blue-100 text-blue-800',
+        'completed': 'bg-green-100 text-green-800',
+        'failed': 'bg-red-100 text-red-800',
+        'cancelled': 'bg-gray-100 text-gray-800',
       }
       return statusClasses[status] || 'bg-gray-100 text-gray-800'
-    },
+    }
     
-    /**
-     * 获取状态文本
-     * @param {string} status - 状态值
-     * @returns {string} 状态文本
-     */
-    getStatusText(status) {
-      const statusTexts = {
-        'active': '活跃',
-        'inactive': '不活跃',
+    // 生命周期
+    onMounted(async () => {
+      try {
+        await loadTestCases()
+      } catch (error) {
+        console.error('TestCases组件挂载失败:', error)
+        handleError(error, '加载测试用例失败')
+        // 确保页面不会因为数据加载失败而空白
+        loading.value = false
       }
-      return statusTexts[status] || '未知'
-    },
+    })
     
-    /**
-     * 格式化日期
-     * @param {string} date - 日期字符串
-     * @returns {string} 格式化后的日期
-     */
-    formatDate(date) {
-      return date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-'
-    },
-  },
-}
-</script>
+    return {
+      // 响应式数据
+      currentView,
+      selectedTestCase,
+      isEditing,
+      loading,
+      loadingHistory,
+      runHistory,
+      showCreateModal,
+      editingTestCase,
+      submitting,
+      form,
+      
+      // 计算属性
+      testCases,
+      pagination,
+      
+      // 方法
+      showList,
+      showCreateForm,
+      showEditForm,
+      showDetail,
+      closeModal,
+      submitForm,
+      getScriptPlaceholder,
+      loadTestCases,
+      loadRunHistory,
+      handleSave,
+      handleDelete,
+      handleRun,
+      handlePageChange,
+      handleSearch,
+      handleFilter,
+      getStatusClass
+    }
+  }
+ }
+ </script>
+ 
+ <style scoped>
+ /* 测试用例视图样式 */
+ .test-cases-view {
+   min-height: 100vh;
+   background-color: #f8fafc;
+ }
+ 
+ .page-header {
+   background: white;
+   border-bottom: 1px solid #e2e8f0;
+   padding: 1.5rem 0;
+   margin-bottom: 2rem;
+ }
+ 
+ .header-content {
+   max-width: 1200px;
+   margin: 0 auto;
+   padding: 0 1rem;
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+ }
+ 
+ .header-left {
+   flex: 1;
+ }
+ 
+ .page-title {
+   display: flex;
+   align-items: center;
+   gap: 0.75rem;
+   font-size: 1.875rem;
+   font-weight: 700;
+   color: #1a202c;
+   margin: 0;
+ }
+ 
+ .title-icon {
+   width: 2rem;
+   height: 2rem;
+   color: #3182ce;
+ }
+ 
+ .page-description {
+   margin: 0.5rem 0 0 0;
+   color: #718096;
+   font-size: 1rem;
+ }
+ 
+ .header-actions {
+   display: flex;
+   gap: 1rem;
+ }
+ 
+ .btn {
+   display: inline-flex;
+   align-items: center;
+   gap: 0.5rem;
+   padding: 0.75rem 1.5rem;
+   border-radius: 0.5rem;
+   font-weight: 500;
+   text-decoration: none;
+   transition: all 0.2s;
+   border: none;
+   cursor: pointer;
+   font-size: 0.875rem;
+ }
+ 
+ .btn svg {
+   width: 1rem;
+   height: 1rem;
+ }
+ 
+ .btn-primary {
+   background-color: #3182ce;
+   color: white;
+ }
+ 
+ .btn-primary:hover:not(:disabled) {
+   background-color: #2c5aa0;
+   transform: translateY(-1px);
+ }
+ 
+ .btn:disabled {
+   opacity: 0.6;
+   cursor: not-allowed;
+ }
+ 
+ .main-content {
+   max-width: 1200px;
+   margin: 0 auto;
+   padding: 0 1rem;
+ }
+ 
+ .list-view,
+ .editor-view,
+ .detail-view {
+   background: white;
+   border-radius: 0.75rem;
+   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+   overflow: hidden;
+ }
+ 
+ /* 响应式设计 */
+ @media (max-width: 768px) {
+   .header-content {
+     flex-direction: column;
+     gap: 1rem;
+     align-items: stretch;
+   }
+   
+   .header-actions {
+     justify-content: center;
+   }
+   
+   .page-title {
+     font-size: 1.5rem;
+     justify-content: center;
+   }
+   
+   .page-description {
+     text-align: center;
+   }
+ }
+ </style>

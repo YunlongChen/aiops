@@ -53,7 +53,7 @@ export const useAppStore = defineStore('app', {
       try {
         this.loading = true
         const response = await systemAPI.getSystemInfo()
-        this.systemInfo = response
+        this.systemInfo = response.data || response
       } catch (error) {
         this.setError(error.message)
       } finally {
@@ -215,7 +215,7 @@ export const useTestCasesStore = defineStore('testCases', {
       try {
         const response = await testCasesAPI.list(params)
         this.testCases = response.data || response
-        this.pagination = response.pagination || { total: response.length || 0 }
+        this.pagination = response.pagination || { total: (response.data || response).length || 0 }
       } catch (error) {
         console.error('获取测试用例失败:', error)
         throw error
@@ -229,10 +229,45 @@ export const useTestCasesStore = defineStore('testCases', {
     async createTestCase(testCase) {
       try {
         const response = await testCasesAPI.create(testCase)
-        this.testCases.unshift(response.data || response)
-        return response.data || response
+        const newTestCase = response.data || response
+        this.testCases.unshift(newTestCase)
+        return newTestCase
       } catch (error) {
         console.error('创建测试用例失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 更新测试用例
+     * @param {string} id - 测试用例ID
+     * @param {Object} testCase - 测试用例数据
+     */
+    async updateTestCase(id, testCase) {
+      try {
+        const response = await testCasesAPI.update(id, testCase)
+        const updatedTestCase = response.data || response
+        const index = this.testCases.findIndex(tc => tc.id === id)
+        if (index !== -1) {
+          this.testCases[index] = updatedTestCase
+        }
+        return updatedTestCase
+      } catch (error) {
+        console.error('更新测试用例失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 删除测试用例
+     * @param {string} id - 测试用例ID
+     */
+    async deleteTestCase(id) {
+      try {
+        await testCasesAPI.delete(id)
+        this.testCases = this.testCases.filter(tc => tc.id !== id)
+      } catch (error) {
+        console.error('删除测试用例失败:', error)
         throw error
       }
     },
@@ -262,10 +297,13 @@ export const useTestRunsStore = defineStore('testRuns', {
     async fetchTestRuns(params = {}) {
       try {
         const response = await testRunsAPI.list(params)
-        this.testRuns = response.data || response
-        this.pagination = response.pagination || { total: response.length || 0 }
+        const data = response.data || response
+        this.testRuns = Array.isArray(data) ? data : []
+        this.pagination = response.pagination || { total: this.testRuns.length }
       } catch (error) {
         console.error('获取测试运行失败:', error)
+        this.testRuns = []
+        this.pagination = { page: 1, limit: 10, total: 0 }
         throw error
       }
     },
@@ -284,6 +322,35 @@ export const useTestRunsStore = defineStore('testRuns', {
         throw error
       }
     },
+    
+    /**
+     * 取消测试运行
+     * @param {string} id - 测试运行ID
+     */
+    async cancelTestRun(id) {
+      try {
+        const response = await testRunsAPI.cancel(id)
+        return response.data || response
+      } catch (error) {
+        console.error('取消测试运行失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 重新运行测试
+     * @param {string} testCaseId - 测试用例ID
+     * @param {string} runtimeManagerId - 运行时管理器ID
+     */
+    async rerunTest(testCaseId, runtimeManagerId) {
+      try {
+        const response = await testRunsAPI.rerun(testCaseId, runtimeManagerId)
+        return response.data || response
+      } catch (error) {
+        console.error('重新运行测试失败:', error)
+        throw error
+      }
+    },
   },
 })
 
@@ -295,6 +362,7 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
   state: () => ({
     runtimeManagers: [],
     currentRuntimeManager: null,
+    loading: false,
   }),
   
   actions: {
@@ -303,11 +371,14 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
      */
     async fetchRuntimeManagers() {
       try {
+        this.loading = true
         const response = await runtimeManagersAPI.list()
-        this.runtimeManagers = response.data || response
+        this.runtimeManagers = response.data || response || []
       } catch (error) {
         console.error('获取运行时管理器失败:', error)
-        throw error
+        this.runtimeManagers = []
+      } finally {
+        this.loading = false
       }
     },
     
@@ -318,8 +389,9 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
     async createRuntimeManager(runtimeManager) {
       try {
         const response = await runtimeManagersAPI.create(runtimeManager)
-        this.runtimeManagers.push(response.data || response)
-        return response.data || response
+        const newManager = response.data || response
+        this.runtimeManagers.unshift(newManager)
+        return newManager
       } catch (error) {
         console.error('创建运行时管理器失败:', error)
         throw error
@@ -332,7 +404,7 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
      */
     async testConnection(id) {
       try {
-        const response = await runtimeManagersAPI.test(id)
+        const response = await runtimeManagersAPI.testConnection(id)
         return response.data || response
       } catch (error) {
         console.error('测试连接失败:', error)
@@ -413,6 +485,20 @@ export const useRuntimeManagersStore = defineStore('runtimeManagers', {
         throw error
       }
     },
+
+    /**
+     * 发送心跳信号
+     * @param {string} id - 运行时管理器ID
+     */
+    async heartbeat(id) {
+      try {
+        const response = await runtimeManagersAPI.heartbeat(id)
+        return response.data || response
+      } catch (error) {
+        console.error('发送心跳信号失败:', error)
+        throw error
+      }
+    },
   },
 })
 
@@ -445,7 +531,7 @@ export const useUsersStore = defineStore('users', {
       try {
         const response = await usersAPI.list(params)
         this.users = response.data || response
-        this.pagination = response.pagination || { total: response.length || 0 }
+        this.pagination = response.pagination || { total: (response.data || response).length || 0 }
       } catch (error) {
         console.error('获取用户列表失败:', error)
         throw error
@@ -540,7 +626,7 @@ export const useSettingsStore = defineStore('settings', {
       try {
         const response = await settingsAPI.list(params)
         this.settings = response.data || response
-        this.pagination = response.pagination || { total: response.length || 0 }
+        this.pagination = response.pagination || { total: (response.data || response).length || 0 }
       } catch (error) {
         console.error('获取设置列表失败:', error)
         throw error
@@ -601,6 +687,19 @@ export const useSettingsStore = defineStore('settings', {
         return response.data || response
       } catch (error) {
         console.error('更新用户偏好设置失败:', error)
+        throw error
+      }
+    },
+    
+    /**
+     * 重新生成API令牌
+     */
+    async regenerateApiToken() {
+      try {
+        const response = await settingsAPI.regenerateApiToken()
+        return response.data || response
+      } catch (error) {
+        console.error('重新生成API令牌失败:', error)
         throw error
       }
     },

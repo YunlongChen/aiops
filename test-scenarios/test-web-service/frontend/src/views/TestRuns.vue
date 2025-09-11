@@ -293,7 +293,12 @@ export default {
   },
   
   async mounted() {
-    await this.loadTestRuns()
+    try {
+      await this.loadTestRuns()
+    } catch (error) {
+      console.error('TestRuns组件挂载失败:', error)
+      // 确保页面不会因为数据加载失败而空白
+    }
   },
   
   methods: {
@@ -350,11 +355,12 @@ export default {
     async cancelRun(id) {
       if (confirm('确定要取消这个测试运行吗？')) {
         try {
-          // TODO: 实现取消运行API调用
-          console.log('取消测试运行:', id)
+          const store = useTestRunsStore()
+          await store.cancelTestRun(id)
+          this.$message.success('测试运行已取消')
           await this.loadTestRuns()
         } catch (error) {
-          alert('取消失败: ' + error.message)
+          this.$message.error('取消失败: ' + error.message)
         }
       }
     },
@@ -365,12 +371,12 @@ export default {
      */
     async rerunTest(run) {
       try {
-        // TODO: 实现重新运行测试的逻辑
-        console.log('重新运行测试:', run)
-        alert('测试已开始重新运行')
+        const store = useTestRunsStore()
+        await store.rerunTest(run.test_case_id, run.runtime_manager_id)
+        this.$message.success('测试已开始重新运行')
         await this.loadTestRuns()
       } catch (error) {
-        alert('重新运行失败: ' + error.message)
+        this.$message.error('重新运行失败: ' + error.message)
       }
     },
     

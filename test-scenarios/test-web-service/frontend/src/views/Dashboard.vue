@@ -187,7 +187,13 @@ export default {
   },
   
   async mounted() {
-    await this.loadDashboardData()
+    try {
+      await this.loadDashboardData()
+    } catch (error) {
+      console.error('Dashboard组件挂载失败:', error)
+      // 确保页面不会因为数据加载失败而空白
+      this.loading = false
+    }
   },
   
   methods: {
@@ -209,21 +215,29 @@ export default {
           runtimeManagersStore.fetchRuntimeManagers(),
         ])
         
+        // 提取数据（处理响应格式）
+        const testCases = Array.isArray(testCasesStore.testCases) ? testCasesStore.testCases : []
+        const testRuns = Array.isArray(testRunsStore.testRuns) ? testRunsStore.testRuns : []
+        const runtimeManagers = Array.isArray(runtimeManagersStore.runtimeManagers) ? runtimeManagersStore.runtimeManagers : []
+        
         // 更新统计信息
-        this.stats.totalTestCases = testCasesStore.pagination.total
-        this.stats.totalTestRuns = testRunsStore.pagination.total
-        this.stats.totalRuntimeManagers = runtimeManagersStore.runtimeManagers.length
+        this.stats.totalTestCases = testCasesStore.pagination?.total || testCases.length || 0
+        this.stats.totalTestRuns = testRunsStore.pagination?.total || testRuns.length || 0
+        this.stats.totalRuntimeManagers = runtimeManagers.length || 0
         
         // 计算成功率
-        const successfulRuns = testRunsStore.testRuns.filter(run => run.status === 'completed').length
-        const totalRuns = testRunsStore.testRuns.length
+        const successfulRuns = testRuns.filter(run => run.status === 'completed' || run.status === 'success').length
+        const totalRuns = testRuns.length
         this.stats.successRate = totalRuns > 0 ? `${Math.round((successfulRuns / totalRuns) * 100)}%` : '0%'
         
         // 设置最近测试运行
-        this.recentTestRuns = testRunsStore.testRuns
+        this.recentTestRuns = testRuns
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 10)
         
       } catch (error) {
         console.error('加载仪表板数据失败:', error)
+        // 错误已由API拦截器处理，这里不需要额外处理
       } finally {
         this.loading = false
       }

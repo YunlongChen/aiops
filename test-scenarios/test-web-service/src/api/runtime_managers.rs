@@ -264,6 +264,42 @@ pub async fn health_check(
     Ok(Json(ApiResponse::success(health_result)))
 }
 
+/// 获取运行时信息
+pub async fn get_runtime_info(
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<Json<ApiResponse<Value>>, StatusCode> {
+    let manager = match RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
+        Ok(Some(manager)) => manager,
+        Ok(None) => return Ok(Json(ApiResponse::error("运行时管理器不存在".to_string()))),
+        Err(e) => {
+            tracing::error!("获取运行时管理器失败: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let runtime_info = get_runtime_detailed_info(&manager).await;
+    Ok(Json(ApiResponse::success(runtime_info)))
+}
+
+/// 获取运行时资源使用情况
+pub async fn get_runtime_resources(
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<Json<ApiResponse<Value>>, StatusCode> {
+    let manager = match RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
+        Ok(Some(manager)) => manager,
+        Ok(None) => return Ok(Json(ApiResponse::error("运行时管理器不存在".to_string()))),
+        Err(e) => {
+            tracing::error!("获取运行时管理器失败: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    let resources = check_runtime_resources(&manager).await;
+    Ok(Json(ApiResponse::success(resources)))
+}
+
 /// 验证创建请求
 fn validate_create_request(request: &CreateRuntimeManagerRequest) -> Result<(), String> {
     if request.name.trim().is_empty() {
@@ -760,14 +796,7 @@ async fn perform_health_check(manager: &RuntimeManager) -> Value {
     health_status
 }
 
-/// 检查运行时资源
-async fn check_runtime_resources(manager: &RuntimeManager) -> Value {
-    match &manager.runtime_type {
-        RuntimeType::Local => check_local_resources().await,
-        RuntimeType::Docker => check_docker_resources().await,
-        RuntimeType::Kubernetes => check_k8s_resources().await,
-    }
-}
+
 
 /// 检查本地资源
 async fn check_local_resources() -> Value {
@@ -876,6 +905,70 @@ async fn check_runtime_permissions(manager: &RuntimeManager) -> Value {
     }
 }
 
+/// 获取运行时详细信息
+async fn get_runtime_detailed_info(manager: &RuntimeManager) -> Value {
+    let mut info = json!({
+        "id": manager.id,
+        "name": manager.name,
+        "runtime_type": manager.runtime_type,
+        "status": manager.status,
+        "config": manager.get_config(),
+        "tags": manager.tags,
+        "last_heartbeat": manager.last_heartbeat,
+        "created_at": manager.created_at,
+        "updated_at": manager.updated_at,
+        "is_online": manager.is_online(),
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    });
+
+    // 根据运行时类型获取特定信息
+    match &manager.runtime_type {
+        RuntimeType::Local => {
+            info["platform_info"] = get_local_platform_info().await;
+        }
+        RuntimeType::Docker => {
+            info["docker_info"] = get_docker_info().await;
+        }
+        RuntimeType::Kubernetes => {
+            info["k8s_info"] = get_k8s_info().await;
+        }
+    }
+
+    info
+}
+
+/// 检查运行时资源使用情况
+async fn check_runtime_resources(manager: &RuntimeManager) -> Value {
+    let mut resources = json!({
+        "runtime_id": manager.id,
+        "runtime_name": manager.name,
+        "runtime_type": manager.runtime_type,
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    });
+
+    // 根据运行时类型获取资源信息
+    match &manager.runtime_type {
+        RuntimeType::Local => {
+            resources["cpu"] = get_local_cpu_usage().await;
+            resources["memory"] = get_local_memory_usage().await;
+            resources["disk"] = get_local_disk_usage().await;
+            resources["network"] = get_local_network_usage().await;
+        }
+        RuntimeType::Docker => {
+            resources["containers"] = get_docker_container_resources().await;
+            resources["images"] = get_docker_image_usage().await;
+            resources["volumes"] = get_docker_volume_usage().await;
+        }
+        RuntimeType::Kubernetes => {
+            resources["pods"] = get_k8s_pod_resources().await;
+            resources["nodes"] = get_k8s_node_resources().await;
+            resources["namespaces"] = get_k8s_namespace_resources().await;
+        }
+    }
+
+    resources
+}
+
 /// 检查本地权限
 async fn check_local_permissions() -> Value {
     use std::fs;
@@ -950,6 +1043,333 @@ async fn check_k8s_permissions() -> Value {
         _ => json!({
             "success": false,
             "message": "无法检查Kubernetes权限"
+        })
+    }
+}
+
+/// 获取本地平台信息
+async fn get_local_platform_info() -> Value {
+    json!({
+        "platform": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "cpu_cores": std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1)
+    })
+}
+
+/// 获取Docker信息
+async fn get_docker_info() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("docker")
+        .arg("version")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            serde_json::from_slice(&output.stdout)
+                .unwrap_or_else(|_| json!({"available": true}))
+        },
+        _ => json!({
+            "available": false,
+            "reason": "Docker not available"
+        })
+    }
+}
+
+/// 获取K8s信息
+async fn get_k8s_info() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("kubectl")
+        .arg("version")
+        .arg("--client")
+        .arg("--output=json")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            serde_json::from_slice(&output.stdout)
+                .unwrap_or_else(|_| json!({"available": true}))
+        },
+        _ => json!({
+            "available": false,
+            "reason": "kubectl not available"
+        })
+    }
+}
+
+/// 获取本地CPU使用率
+async fn get_local_cpu_usage() -> Value {
+    use sysinfo::System;
+    
+    let mut sys = System::new_all();
+    sys.refresh_cpu();
+    
+    // 等待一小段时间以获取准确的CPU使用率
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+    sys.refresh_cpu();
+    
+    let cpu_usage: f32 = sys.cpus().iter().map(|cpu| cpu.cpu_usage()).sum::<f32>() / sys.cpus().len() as f32;
+    
+    json!({
+        "usage_percent": cpu_usage,
+        "cores": sys.cpus().len(),
+        "status": "success",
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    })
+}
+
+/// 获取本地内存使用情况
+async fn get_local_memory_usage() -> Value {
+    use sysinfo::System;
+    
+    let mut sys = System::new_all();
+    sys.refresh_memory();
+    
+    let total_memory = sys.total_memory();
+    let available_memory = sys.available_memory();
+    let used_memory = total_memory - available_memory;
+    let usage_percent = (used_memory as f64 / total_memory as f64) * 100.0;
+    
+    json!({
+        "total_bytes": total_memory,
+        "used_bytes": used_memory,
+        "available_bytes": available_memory,
+        "usage_percent": usage_percent,
+        "status": "success",
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    })
+}
+
+/// 获取本地磁盘使用情况
+async fn get_local_disk_usage() -> Value {
+    use sysinfo::Disks;
+    
+    let disks = Disks::new_with_refreshed_list();
+    
+    let disk_info: Vec<_> = disks.list().iter().map(|disk| {
+        let total_space = disk.total_space();
+        let available_space = disk.available_space();
+        let used_space = total_space - available_space;
+        let usage_percent = if total_space > 0 {
+            (used_space as f64 / total_space as f64) * 100.0
+        } else {
+            0.0
+        };
+        
+        json!({
+            "name": disk.name().to_string_lossy(),
+            "mount_point": disk.mount_point().to_string_lossy(),
+            "total_bytes": total_space,
+            "used_bytes": used_space,
+            "available_bytes": available_space,
+            "usage_percent": usage_percent,
+            "file_system": disk.file_system().to_string_lossy()
+        })
+    }).collect();
+    
+    json!({
+        "disks": disk_info,
+        "status": "success",
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    })
+}
+
+/// 获取本地网络使用情况
+async fn get_local_network_usage() -> Value {
+    use sysinfo::Networks;
+    
+    let networks = Networks::new_with_refreshed_list();
+    
+    let network_info: Vec<_> = networks.iter().map(|(interface_name, network)| {
+        json!({
+            "interface": interface_name,
+            "received_bytes": network.received(),
+            "transmitted_bytes": network.transmitted(),
+            "received_packets": network.packets_received(),
+            "transmitted_packets": network.packets_transmitted(),
+            "errors_received": network.errors_on_received(),
+            "errors_transmitted": network.errors_on_transmitted()
+        })
+    }).collect();
+    
+    json!({
+        "interfaces": network_info,
+        "status": "success",
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    })
+}
+
+/// 获取Docker容器资源使用情况
+async fn get_docker_container_resources() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("docker")
+        .arg("stats")
+        .arg("--no-stream")
+        .arg("--format")
+        .arg("table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            let stats_output = String::from_utf8_lossy(&output.stdout);
+            json!({
+                "container_stats": stats_output.trim(),
+                "status": "success",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })
+        },
+        _ => json!({
+            "status": "error",
+            "error": "Failed to get Docker container stats",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        })
+    }
+}
+
+/// 获取Docker镜像使用情况
+async fn get_docker_image_usage() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("docker")
+        .arg("images")
+        .arg("--format")
+        .arg("table {{.Repository}}\t{{.Tag}}\t{{.Size}}")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            let images_output = String::from_utf8_lossy(&output.stdout);
+            json!({
+                "images": images_output.trim(),
+                "status": "success",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })
+        },
+        _ => json!({
+            "status": "error",
+            "error": "Failed to get Docker images",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        })
+    }
+}
+
+/// 获取Docker卷使用情况
+async fn get_docker_volume_usage() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("docker")
+        .arg("volume")
+        .arg("ls")
+        .arg("--format")
+        .arg("table {{.Name}}\t{{.Driver}}")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            let volumes_output = String::from_utf8_lossy(&output.stdout);
+            json!({
+                "volumes": volumes_output.trim(),
+                "status": "success",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })
+        },
+        _ => json!({
+            "status": "error",
+            "error": "Failed to get Docker volumes",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        })
+    }
+}
+
+/// 获取K8s Pod资源使用情况
+async fn get_k8s_pod_resources() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("kubectl")
+        .arg("top")
+        .arg("pods")
+        .arg("--all-namespaces")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            let pods_output = String::from_utf8_lossy(&output.stdout);
+            json!({
+                "pod_resources": pods_output.trim(),
+                "status": "success",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })
+        },
+        _ => json!({
+            "status": "error",
+            "error": "Failed to get Kubernetes pod resources",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        })
+    }
+}
+
+/// 获取K8s节点资源使用情况
+async fn get_k8s_node_resources() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("kubectl")
+        .arg("top")
+        .arg("nodes")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            let nodes_output = String::from_utf8_lossy(&output.stdout);
+            json!({
+                "node_resources": nodes_output.trim(),
+                "status": "success",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })
+        },
+        _ => json!({
+            "status": "error",
+            "error": "Failed to get Kubernetes node resources",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        })
+    }
+}
+
+/// 获取K8s命名空间资源使用情况
+async fn get_k8s_namespace_resources() -> Value {
+    use tokio::process::Command;
+    
+    let output = Command::new("kubectl")
+        .arg("get")
+        .arg("namespaces")
+        .arg("-o")
+        .arg("wide")
+        .output()
+        .await;
+    
+    match output {
+        Ok(output) if output.status.success() => {
+            let namespaces_output = String::from_utf8_lossy(&output.stdout);
+            json!({
+                "namespaces": namespaces_output.trim(),
+                "status": "success",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            })
+        },
+        _ => json!({
+            "status": "error",
+            "error": "Failed to get Kubernetes namespaces",
+            "timestamp": chrono::Utc::now().to_rfc3339()
         })
     }
 }

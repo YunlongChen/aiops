@@ -45,16 +45,24 @@
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <router-view />
     </main>
+    
+    <!-- 全局错误提示组件 -->
+    <GlobalErrorToast />
   </div>
 </template>
 
 <script>
+import GlobalErrorToast from '@/components/GlobalErrorToast.vue'
+
 /**
  * 根组件逻辑
  * 管理全局导航和布局状态
  */
 export default {
   name: 'App',
+  components: {
+    GlobalErrorToast
+  },
   data() {
     return {
       // 导航菜单配置

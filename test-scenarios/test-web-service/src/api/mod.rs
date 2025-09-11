@@ -51,6 +51,11 @@ pub fn routes() -> Router<AppState> {
         .route("/runtime-managers/:id", delete(runtime_managers::delete_manager))
         .route("/runtime-managers/:id/heartbeat", post(runtime_managers::heartbeat))
         .route("/runtime-managers/:id/test", post(runtime_managers::test_connection))
+        .route("/runtime-managers/:id/info", get(runtime_managers::get_runtime_info))
+        .route("/runtime-managers/:id/resources", get(runtime_managers::get_runtime_resources))
+        .route("/runtime-managers/:id/health-check", post(runtime_managers::health_check))
+        .route("/runtime-managers/platform-info", get(runtime_managers::get_platform_info))
+        .route("/runtime-managers/setup-guide/:runtime_type", get(runtime_managers::get_setup_guide))
         
         // 用户管理路由
         .route("/auth/login", post(users::login))
