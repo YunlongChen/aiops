@@ -47,7 +47,7 @@ async fn health_check() -> Result<Json<Value>, StatusCode> {
 }
 
 /// 服务信息端点
-async fn service_info(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
+async fn service_info(State(_state): State<AppState>) -> Result<Json<Value>, StatusCode> {
     Ok(Json(json!({
         "name": "AIOps测试管理服务",
         "version": env!("CARGO_PKG_VERSION"),

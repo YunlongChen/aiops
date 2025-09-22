@@ -189,28 +189,27 @@ pub async fn test_connection(
     State(state): State<AppState>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     // 获取运行时管理器信息
-    let manager = match RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
-        Ok(Some(manager)) => manager,
-        Ok(None) => return Ok(Json(ApiResponse::error("运行时管理器不存在".to_string()))),
-        Err(e) => {
-            tracing::error!("获取运行时管理器失败: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
+    let manager = if let Ok(Some(manager)) = RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
+        manager
+    } else if let Ok(None) = RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
+        return Ok(Json(ApiResponse::error("运行时管理器不存在".to_string())))
+    } else if let Err(e) = RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
+        tracing::error!("获取运行时管理器失败: {}", e);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    } else {
+        unreachable!()
     };
 
     // 执行连接测试
-    let test_result = match test_runtime_connection(&manager).await {
-        Ok(result) => result,
-        Err(e) => {
-            tracing::error!("测试运行时连接失败: {}", e);
-            json!({
+    let test_result = test_runtime_connection(&manager).await.unwrap_or_else(|e| {
+        tracing::error!("测试运行时连接失败: {}", e);
+        json!({
                 "success": false,
                 "message": format!("连接测试失败: {}", e),
                 "timestamp": chrono::Utc::now().to_rfc3339(),
                 "details": null
             })
-        }
-    };
+    });
 
     // 根据测试结果更新管理器状态
     let new_status = if test_result["success"].as_bool().unwrap_or(false) {
