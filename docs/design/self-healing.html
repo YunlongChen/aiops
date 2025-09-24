@@ -1,0 +1,1274 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自愈系统 - AIOps 智能运维平台</title>
+    <link rel="stylesheet" href="styles/main.css">`n    <link rel="stylesheet" href="./components/navigation.css">
+    <link rel="stylesheet" href="styles/self-healing.css">
+    <link rel="stylesheet" href="./assets/fonts/fontawesome-all.min.css">
+    <link rel="stylesheet" href="./assets/fonts/inter.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-robot"></i>
+                <span>AIOps Platform</span>
+            </div>
+            
+            <div id="nav-container" data-nav-container data-current-page="self-healing"></div>
+            
+            <div class="nav-user">
+                <div class="user-info">
+                    <img src="./assets/images/user-avatar.svg" alt="用户头像" class="user-avatar">
+                    <span class="user-name">管理员</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h3>自愈系统</h3>
+        </div>
+        
+        <div class="sidebar-menu">
+            <div class="menu-group">
+                <div class="menu-title">系统概览</div>
+                <div class="menu-item active" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>自愈仪表板</span>
+                </div>
+                <div class="menu-item" data-tab="active-healing">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>活跃修复</span>
+                    <span class="badge">3</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">自动化管理</div>
+                <div class="menu-item" data-tab="scripts">
+                    <i class="fas fa-code"></i>
+                    <span>修复脚本</span>
+                </div>
+                <div class="menu-item" data-tab="workflows">
+                    <i class="fas fa-project-diagram"></i>
+                    <span>工作流程</span>
+                </div>
+                <div class="menu-item" data-tab="triggers">
+                    <i class="fas fa-bolt"></i>
+                    <span>触发器</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">规则配置</div>
+                <div class="menu-item" data-tab="rules">
+                    <i class="fas fa-list-ul"></i>
+                    <span>自愈规则</span>
+                </div>
+                <div class="menu-item" data-tab="policies">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>策略管理</span>
+                </div>
+                <div class="menu-item" data-tab="conditions">
+                    <i class="fas fa-filter"></i>
+                    <span>条件设置</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">历史记录</div>
+                <div class="menu-item" data-tab="history">
+                    <i class="fas fa-history"></i>
+                    <span>修复历史</span>
+                </div>
+                <div class="menu-item" data-tab="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>效果分析</span>
+                </div>
+                <div class="menu-item" data-tab="reports">
+                    <i class="fas fa-file-alt"></i>
+                    <span>报告中心</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+        <div class="content-header">
+            <div class="breadcrumb">
+                <span class="breadcrumb-item">自愈系统</span>
+                <i class="fas fa-chevron-right"></i>
+                <span class="breadcrumb-item active" id="current-tab">自愈仪表板</span>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="refresh-btn">
+                    <i class="fas fa-sync-alt"></i>
+                    刷新
+                </button>
+                <button class="btn btn-primary" id="create-script-btn">
+                    <i class="fas fa-plus"></i>
+                    创建脚本
+                </button>
+            </div>
+        </div>
+
+        <!-- 自愈系统内容容器 -->
+        <div class="healing-container">
+            <!-- 自愈仪表板标签页 -->
+            <div id="dashboard-tab" class="healing-tab active">
+                <!-- 自愈统计概览 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>自愈统计</h3>
+                        <div class="time-range-selector">
+                            <select id="time-range">
+                                <option value="1h">最近1小时</option>
+                                <option value="24h" selected>最近24小时</option>
+                                <option value="7d">最近7天</option>
+                                <option value="30d">最近30天</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card success">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>成功修复</h4>
+                                <span class="stat-value">47</span>
+                                <span class="stat-change positive">+8</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card running">
+                            <div class="stat-icon">
+                                <i class="fas fa-cog fa-spin"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>正在修复</h4>
+                                <span class="stat-value">3</span>
+                                <span class="stat-change neutral">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card failed">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>修复失败</h4>
+                                <span class="stat-value">2</span>
+                                <span class="stat-change negative">+1</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card rate">
+                            <div class="stat-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>成功率</h4>
+                                <span class="stat-value">94%</span>
+                                <span class="stat-change positive">+2%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 活跃修复任务 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>活跃修复任务</h3>
+                        <div class="section-actions">
+                            <button class="btn btn-secondary btn-sm" id="pause-all-btn">
+                                <i class="fas fa-pause"></i>
+                                暂停全部
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="active-tasks">
+                        <div class="task-card running">
+                            <div class="task-header">
+                                <div class="task-info">
+                                    <h4>CPU使用率过高自动修复</h4>
+                                    <span class="task-id">#HEAL-001</span>
+                                </div>
+                                <div class="task-status">
+                                    <span class="status-badge running">
+                                        <i class="fas fa-cog fa-spin"></i>
+                                        执行中
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="task-details">
+                                <div class="detail-item">
+                                    <span class="label">目标服务器:</span>
+                                    <span class="value">web-server-01</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">触发条件:</span>
+                                    <span class="value">CPU > 90% 持续5分钟</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">修复脚本:</span>
+                                    <span class="value">restart-high-cpu-processes.sh</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">开始时间:</span>
+                                    <span class="value">2024-01-15 14:35:20</span>
+                                </div>
+                            </div>
+                            
+                            <div class="task-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%"></div>
+                                </div>
+                                <span class="progress-text">65% - 正在重启高CPU进程</span>
+                            </div>
+                            
+                            <div class="task-actions">
+                                <button class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-pause"></i>
+                                    暂停
+                                </button>
+                                <button class="btn btn-danger btn-sm">
+                                    <i class="fas fa-stop"></i>
+                                    停止
+                                </button>
+                                <button class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                    详情
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="task-card running">
+                            <div class="task-header">
+                                <div class="task-info">
+                                    <h4>数据库连接池清理</h4>
+                                    <span class="task-id">#HEAL-002</span>
+                                </div>
+                                <div class="task-status">
+                                    <span class="status-badge running">
+                                        <i class="fas fa-cog fa-spin"></i>
+                                        执行中
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="task-details">
+                                <div class="detail-item">
+                                    <span class="label">目标数据库:</span>
+                                    <span class="value">mysql-primary</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">触发条件:</span>
+                                    <span class="value">连接数 > 80% 持续3分钟</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">修复脚本:</span>
+                                    <span class="value">cleanup-db-connections.py</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">开始时间:</span>
+                                    <span class="value">2024-01-15 14:32:15</span>
+                                </div>
+                            </div>
+                            
+                            <div class="task-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 40%"></div>
+                                </div>
+                                <span class="progress-text">40% - 正在清理空闲连接</span>
+                            </div>
+                            
+                            <div class="task-actions">
+                                <button class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-pause"></i>
+                                    暂停
+                                </button>
+                                <button class="btn btn-danger btn-sm">
+                                    <i class="fas fa-stop"></i>
+                                    停止
+                                </button>
+                                <button class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                    详情
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="task-card pending">
+                            <div class="task-header">
+                                <div class="task-info">
+                                    <h4>磁盘空间清理</h4>
+                                    <span class="task-id">#HEAL-003</span>
+                                </div>
+                                <div class="task-status">
+                                    <span class="status-badge pending">
+                                        <i class="fas fa-clock"></i>
+                                        等待中
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="task-details">
+                                <div class="detail-item">
+                                    <span class="label">目标服务器:</span>
+                                    <span class="value">log-server-01</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">触发条件:</span>
+                                    <span class="value">磁盘使用率 > 85%</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">修复脚本:</span>
+                                    <span class="value">cleanup-old-logs.sh</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">预计开始:</span>
+                                    <span class="value">2024-01-15 14:40:00</span>
+                                </div>
+                            </div>
+                            
+                            <div class="task-actions">
+                                <button class="btn btn-primary btn-sm">
+                                    <i class="fas fa-play"></i>
+                                    立即执行
+                                </button>
+                                <button class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-times"></i>
+                                    取消
+                                </button>
+                                <button class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye"></i>
+                                    详情
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近修复历史 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>最近修复历史</h3>
+                        <div class="section-actions">
+                            <button class="btn btn-secondary btn-sm" id="view-all-history">
+                                <i class="fas fa-list"></i>
+                                查看全部
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="history-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>任务ID</th>
+                                    <th>问题描述</th>
+                                    <th>修复方式</th>
+                                    <th>执行时间</th>
+                                    <th>耗时</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <tr class="history-row success">
+                                    <td>
+                                        <span class="task-id">#HEAL-098</span>
+                                    </td>
+                                    <td>
+                                        <div class="problem-info">
+                                            <div class="problem-title">内存使用率过高</div>
+                                            <div class="problem-target">app-server-02</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="script-name">restart-memory-intensive-services.sh</span>
+                                    </td>
+                                    <td>2024-01-15 14:20:30</td>
+                                    <td>
+                                        <span class="duration">2分30秒</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge success">
+                                            <i class="fas fa-check-circle"></i>
+                                            成功
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看日志">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="history-row success">
+                                    <td>
+                                        <span class="task-id">#HEAL-097</span>
+                                    </td>
+                                    <td>
+                                        <div class="problem-info">
+                                            <div class="problem-title">Nginx服务异常</div>
+                                            <div class="problem-target">web-server-03</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="script-name">restart-nginx-service.sh</span>
+                                    </td>
+                                    <td>2024-01-15 14:15:45</td>
+                                    <td>
+                                        <span class="duration">1分15秒</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge success">
+                                            <i class="fas fa-check-circle"></i>
+                                            成功
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看日志">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="history-row failed">
+                                    <td>
+                                        <span class="task-id">#HEAL-096</span>
+                                    </td>
+                                    <td>
+                                        <div class="problem-info">
+                                            <div class="problem-title">数据库锁等待超时</div>
+                                            <div class="problem-target">mysql-slave-01</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="script-name">kill-long-running-queries.py</span>
+                                    </td>
+                                    <td>2024-01-15 14:10:20</td>
+                                    <td>
+                                        <span class="duration">5分00秒</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge failed">
+                                            <i class="fas fa-times-circle"></i>
+                                            失败
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看日志">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="history-row success">
+                                    <td>
+                                        <span class="task-id">#HEAL-095</span>
+                                    </td>
+                                    <td>
+                                        <div class="problem-info">
+                                            <div class="problem-title">Redis连接数过多</div>
+                                            <div class="problem-target">cache-server-01</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="script-name">cleanup-redis-connections.py</span>
+                                    </td>
+                                    <td>2024-01-15 14:05:10</td>
+                                    <td>
+                                        <span class="duration">3分20秒</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge success">
+                                            <i class="fas fa-check-circle"></i>
+                                            成功
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看日志">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 自愈效果分析 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>自愈效果分析</h3>
+                    </div>
+                    
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>修复成功率趋势</h4>
+                                <span class="current-value">94%</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="success-rate-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>修复类型分布</h4>
+                                <span class="current-value">5类</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="repair-type-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>平均修复时间</h4>
+                                <span class="current-value">2.5min</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="repair-time-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>故障预防效果</h4>
+                                <span class="current-value">78%</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="prevention-effect-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 活跃修复标签页 -->
+            <div id="active-healing-tab" class="healing-tab">
+                <!-- 活跃修复任务 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>当前活跃修复任务</h3>
+                        <div class="section-actions">
+                            <button class="btn btn-secondary" id="pause-all-btn">
+                                <i class="fas fa-pause"></i>
+                                暂停全部
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="active-tasks-grid">
+                        <div class="task-card running">
+                            <div class="task-header">
+                                <div class="task-info">
+                                    <h4>数据库连接修复</h4>
+                                    <span class="task-id">#HT-2024-001</span>
+                                </div>
+                                <div class="task-status">
+                                    <span class="status-badge running">执行中</span>
+                                </div>
+                            </div>
+                            <div class="task-details">
+                                <div class="detail-item">
+                                    <span class="label">目标服务器:</span>
+                                    <span class="value">db-server-01</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">开始时间:</span>
+                                    <span class="value">2024-01-19 14:32:15</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">预计完成:</span>
+                                    <span class="value">2024-01-19 14:35:00</span>
+                                </div>
+                            </div>
+                            <div class="task-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%"></div>
+                                </div>
+                                <span class="progress-text">65% 完成</span>
+                            </div>
+                            <div class="task-actions">
+                                <button class="btn-icon" title="查看日志">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                                <button class="btn-icon" title="暂停任务">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                <button class="btn-icon danger" title="终止任务">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="task-card running">
+                            <div class="task-header">
+                                <div class="task-info">
+                                    <h4>磁盘空间清理</h4>
+                                    <span class="task-id">#HT-2024-002</span>
+                                </div>
+                                <div class="task-status">
+                                    <span class="status-badge running">执行中</span>
+                                </div>
+                            </div>
+                            <div class="task-details">
+                                <div class="detail-item">
+                                    <span class="label">目标服务器:</span>
+                                    <span class="value">web-server-03</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">开始时间:</span>
+                                    <span class="value">2024-01-19 14:28:42</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">预计完成:</span>
+                                    <span class="value">2024-01-19 14:40:00</span>
+                                </div>
+                            </div>
+                            <div class="task-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 45%"></div>
+                                </div>
+                                <span class="progress-text">45% 完成</span>
+                            </div>
+                            <div class="task-actions">
+                                <button class="btn-icon" title="查看日志">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                                <button class="btn-icon" title="暂停任务">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                <button class="btn-icon danger" title="终止任务">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="task-card pending">
+                            <div class="task-header">
+                                <div class="task-info">
+                                    <h4>服务重启</h4>
+                                    <span class="task-id">#HT-2024-003</span>
+                                </div>
+                                <div class="task-status">
+                                    <span class="status-badge pending">等待中</span>
+                                </div>
+                            </div>
+                            <div class="task-details">
+                                <div class="detail-item">
+                                    <span class="label">目标服务器:</span>
+                                    <span class="value">app-server-02</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">触发时间:</span>
+                                    <span class="value">2024-01-19 14:30:18</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="label">等待原因:</span>
+                                    <span class="value">依赖任务执行中</span>
+                                </div>
+                            </div>
+                            <div class="task-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 0%"></div>
+                                </div>
+                                <span class="progress-text">等待执行</span>
+                            </div>
+                            <div class="task-actions">
+                                <button class="btn-icon" title="查看详情">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button class="btn-icon" title="立即执行">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn-icon danger" title="取消任务">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 修复脚本标签页 -->
+            <div id="scripts-tab" class="healing-tab">
+                <!-- 脚本管理 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>修复脚本库</h3>
+                        <div class="section-actions">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" placeholder="搜索脚本..." id="script-search">
+                            </div>
+                            <select id="script-type-filter">
+                                <option value="">所有类型</option>
+                                <option value="shell">Shell脚本</option>
+                                <option value="python">Python脚本</option>
+                                <option value="powershell">PowerShell脚本</option>
+                                <option value="ansible">Ansible剧本</option>
+                            </select>
+                            <button class="btn btn-primary" id="create-script-btn">
+                                <i class="fas fa-plus"></i>
+                                新建脚本
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="scripts-grid">
+                        <div class="script-card">
+                            <div class="script-header">
+                                <div class="script-info">
+                                    <h4>数据库连接修复</h4>
+                                    <span class="script-type shell">Shell</span>
+                                </div>
+                                <div class="script-status">
+                                    <span class="status-badge active">活跃</span>
+                                </div>
+                            </div>
+                            <div class="script-description">
+                                自动检测并修复数据库连接问题，包括重启服务、清理连接池等操作
+                            </div>
+                            <div class="script-stats">
+                                <div class="stat-item">
+                                    <span class="label">执行次数:</span>
+                                    <span class="value">47</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="label">成功率:</span>
+                                    <span class="value success">94%</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="label">最后执行:</span>
+                                    <span class="value">2小时前</span>
+                                </div>
+                            </div>
+                            <div class="script-actions">
+                                <button class="btn-icon" title="查看代码">
+                                    <i class="fas fa-code"></i>
+                                </button>
+                                <button class="btn-icon" title="编辑脚本">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon" title="执行测试">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn-icon" title="查看日志">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="script-card">
+                            <div class="script-header">
+                                <div class="script-info">
+                                    <h4>磁盘空间清理</h4>
+                                    <span class="script-type python">Python</span>
+                                </div>
+                                <div class="script-status">
+                                    <span class="status-badge active">活跃</span>
+                                </div>
+                            </div>
+                            <div class="script-description">
+                                智能清理临时文件、日志文件和缓存，释放磁盘空间
+                            </div>
+                            <div class="script-stats">
+                                <div class="stat-item">
+                                    <span class="label">执行次数:</span>
+                                    <span class="value">23</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="label">成功率:</span>
+                                    <span class="value success">100%</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="label">最后执行:</span>
+                                    <span class="value">1天前</span>
+                                </div>
+                            </div>
+                            <div class="script-actions">
+                                <button class="btn-icon" title="查看代码">
+                                    <i class="fas fa-code"></i>
+                                </button>
+                                <button class="btn-icon" title="编辑脚本">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon" title="执行测试">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn-icon" title="查看日志">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="script-card">
+                            <div class="script-header">
+                                <div class="script-info">
+                                    <h4>服务健康检查</h4>
+                                    <span class="script-type ansible">Ansible</span>
+                                </div>
+                                <div class="script-status">
+                                    <span class="status-badge inactive">未激活</span>
+                                </div>
+                            </div>
+                            <div class="script-description">
+                                定期检查关键服务状态，自动重启异常服务
+                            </div>
+                            <div class="script-stats">
+                                <div class="stat-item">
+                                    <span class="label">执行次数:</span>
+                                    <span class="value">12</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="label">成功率:</span>
+                                    <span class="value warning">83%</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="label">最后执行:</span>
+                                    <span class="value">3天前</span>
+                                </div>
+                            </div>
+                            <div class="script-actions">
+                                <button class="btn-icon" title="查看代码">
+                                    <i class="fas fa-code"></i>
+                                </button>
+                                <button class="btn-icon" title="编辑脚本">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon" title="激活脚本">
+                                    <i class="fas fa-power-off"></i>
+                                </button>
+                                <button class="btn-icon" title="查看日志">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自愈规则标签页 -->
+            <div id="rules-tab" class="healing-tab">
+                <!-- 规则配置 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>自愈规则配置</h3>
+                        <div class="section-actions">
+                            <button class="btn btn-secondary" id="import-rules-btn">
+                                <i class="fas fa-upload"></i>
+                                导入规则
+                            </button>
+                            <button class="btn btn-primary" id="create-rule-btn">
+                                <i class="fas fa-plus"></i>
+                                新建规则
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="rules-table-container">
+                        <table class="rules-table">
+                            <thead>
+                                <tr>
+                                    <th>规则名称</th>
+                                    <th>触发条件</th>
+                                    <th>修复动作</th>
+                                    <th>优先级</th>
+                                    <th>状态</th>
+                                    <th>最后触发</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div class="rule-info">
+                                            <strong>数据库连接异常</strong>
+                                            <span class="rule-description">检测数据库连接失败并自动修复</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="condition-tag">连接失败 > 3次</span>
+                                    </td>
+                                    <td>
+                                        <span class="action-tag">重启数据库服务</span>
+                                    </td>
+                                    <td>
+                                        <span class="priority-badge high">高</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge active">启用</span>
+                                    </td>
+                                    <td>2小时前</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="编辑规则">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon" title="测试规则">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button class="btn-icon" title="禁用规则">
+                                                <i class="fas fa-pause"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="rule-info">
+                                            <strong>磁盘空间不足</strong>
+                                            <span class="rule-description">监控磁盘使用率并自动清理</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="condition-tag">磁盘使用率 > 85%</span>
+                                    </td>
+                                    <td>
+                                        <span class="action-tag">清理临时文件</span>
+                                    </td>
+                                    <td>
+                                        <span class="priority-badge medium">中</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge active">启用</span>
+                                    </td>
+                                    <td>1天前</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="编辑规则">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon" title="测试规则">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button class="btn-icon" title="禁用规则">
+                                                <i class="fas fa-pause"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="rule-info">
+                                            <strong>服务响应超时</strong>
+                                            <span class="rule-description">检测服务响应时间异常</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="condition-tag">响应时间 > 5秒</span>
+                                    </td>
+                                    <td>
+                                        <span class="action-tag">重启应用服务</span>
+                                    </td>
+                                    <td>
+                                        <span class="priority-badge high">高</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge inactive">禁用</span>
+                                    </td>
+                                    <td>3天前</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="编辑规则">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn-icon" title="启用规则">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            <button class="btn-icon danger" title="删除规则">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 修复历史标签页 -->
+            <div id="history-tab" class="healing-tab">
+                <!-- 执行历史 -->
+                <div class="healing-section">
+                    <div class="section-header">
+                        <h3>修复执行历史</h3>
+                        <div class="section-actions">
+                            <div class="date-range-picker">
+                                <input type="date" id="start-date" value="2024-01-12">
+                                <span>至</span>
+                                <input type="date" id="end-date" value="2024-01-19">
+                            </div>
+                            <select id="status-filter">
+                                <option value="">所有状态</option>
+                                <option value="success">成功</option>
+                                <option value="failed">失败</option>
+                                <option value="running">执行中</option>
+                            </select>
+                            <button class="btn btn-secondary" id="export-history-btn">
+                                <i class="fas fa-download"></i>
+                                导出
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="history-table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>执行时间</th>
+                                    <th>任务名称</th>
+                                    <th>目标服务器</th>
+                                    <th>执行脚本</th>
+                                    <th>执行时长</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2024-01-19 14:32:15</td>
+                                    <td>数据库连接修复</td>
+                                    <td>db-server-01</td>
+                                    <td>db_connection_fix.sh</td>
+                                    <td>2分35秒</td>
+                                    <td>
+                                        <span class="status-badge success">成功</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看日志">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-19 13:45:22</td>
+                                    <td>磁盘空间清理</td>
+                                    <td>web-server-03</td>
+                                    <td>disk_cleanup.py</td>
+                                    <td>5分12秒</td>
+                                    <td>
+                                        <span class="status-badge success">成功</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看日志">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-19 12:18:45</td>
+                                    <td>服务重启</td>
+                                    <td>app-server-02</td>
+                                    <td>service_restart.sh</td>
+                                    <td>1分8秒</td>
+                                    <td>
+                                        <span class="status-badge failed">失败</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看错误日志">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2024-01-19 11:30:12</td>
+                                    <td>内存清理</td>
+                                    <td>cache-server-01</td>
+                                    <td>memory_cleanup.py</td>
+                                    <td>3分45秒</td>
+                                    <td>
+                                        <span class="status-badge success">成功</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="查看日志">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            <button class="btn-icon" title="重新执行">
+                                                <i class="fas fa-redo"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 其他标签页保持占位符 -->
+            <div id="workflows-tab" class="healing-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-project-diagram"></i>
+                    <h2>工作流程</h2>
+                    <p>工作流程配置功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="triggers-tab" class="healing-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-bolt"></i>
+                    <h2>触发器</h2>
+                    <p>触发器管理功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="policies-tab" class="healing-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-shield-alt"></i>
+                    <h2>策略管理</h2>
+                    <p>策略管理功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="conditions-tab" class="healing-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-filter"></i>
+                    <h2>条件设置</h2>
+                    <p>条件设置功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="analytics-tab" class="healing-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-chart-bar"></i>
+                    <h2>效果分析</h2>
+                    <p>效果分析报告功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="reports-tab" class="healing-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-file-alt"></i>
+                    <h2>报告中心</h2>
+                    <p>报告中心功能正在开发中...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 创建脚本模态框 -->
+    <div id="create-script-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建修复脚本</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="create-script-form">
+                    <div class="form-group">
+                        <label for="script-name">脚本名称</label>
+                        <input type="text" id="script-name" name="scriptName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="script-description">脚本描述</label>
+                        <textarea id="script-description" name="scriptDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="script-type">脚本类型</label>
+                            <select id="script-type" name="scriptType" required>
+                                <option value="">请选择脚本类型</option>
+                                <option value="shell">Shell脚本</option>
+                                <option value="python">Python脚本</option>
+                                <option value="powershell">PowerShell脚本</option>
+                                <option value="ansible">Ansible剧本</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="target-type">目标类型</label>
+                            <select id="target-type" name="targetType" required>
+                                <option value="">请选择目标类型</option>
+                                <option value="server">服务器</option>
+                                <option value="service">服务</option>
+                                <option value="database">数据库</option>
+                                <option value="network">网络设备</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="script-content">脚本内容</label>
+                        <textarea id="script-content" name="scriptContent" rows="8" placeholder="请输入脚本内容..."></textarea>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-create">取消</button>
+                <button type="submit" class="btn btn-primary" form="create-script-form">创建脚本</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本文件 -->
+    <script src="./assets/js/chart.min.js"></script>`n    <script src="./components/navigation.js"></script>
+    <script src="scripts/main.js"></script>
+    <script src="scripts/charts.js"></script>
+    <script src="scripts/self-healing.js"></script>
+</body>
+</html>
+
+

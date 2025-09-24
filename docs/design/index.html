@@ -1,0 +1,609 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIOps 智能运维平台</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="./components/navigation.css">
+    <link rel="stylesheet" href="./assets/fonts/fontawesome-all.min.css">
+    <link rel="stylesheet" href="./assets/fonts/inter.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-robot"></i>
+                <span>AIOps Platform</span>
+            </div>
+            
+            <div id="nav-container" data-nav-container data-current-page="dashboard"></div>
+            
+            <div class="nav-user">
+                <div class="user-info">
+                    <img src="./assets/images/user-avatar.svg" alt="用户头像" class="user-avatar">
+                    <span class="user-name">管理员</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h3>快速导航</h3>
+        </div>
+        
+        <div class="sidebar-menu">
+            <div class="menu-group">
+                <div class="menu-title">监控概览</div>
+                <div class="menu-item" data-subpage="system-overview">
+                    <i class="fas fa-server"></i>
+                    <span>系统概览</span>
+                </div>
+                <div class="menu-item" data-subpage="infrastructure">
+                    <i class="fas fa-network-wired"></i>
+                    <span>基础设施</span>
+                </div>
+                <div class="menu-item" data-subpage="applications">
+                    <i class="fas fa-cube"></i>
+                    <span>应用服务</span>
+                </div>
+                <div class="menu-item" data-subpage="databases">
+                    <i class="fas fa-database"></i>
+                    <span>数据库</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">AI分析</div>
+                <div class="menu-item" data-subpage="anomaly-detection">
+                    <i class="fas fa-search"></i>
+                    <span>异常检测</span>
+                </div>
+                <div class="menu-item" data-subpage="prediction">
+                    <i class="fas fa-crystal-ball"></i>
+                    <span>预测分析</span>
+                </div>
+                <div class="menu-item" data-subpage="model-management">
+                    <i class="fas fa-cogs"></i>
+                    <span>模型管理</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">运维管理</div>
+                <div class="menu-item" data-subpage="alert-rules">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>告警规则</span>
+                </div>
+                <div class="menu-item" data-subpage="automation">
+                    <i class="fas fa-robot"></i>
+                    <span>自动化脚本</span>
+                </div>
+                <div class="menu-item" data-subpage="logs">
+                    <i class="fas fa-file-alt"></i>
+                    <span>日志分析</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+        <div class="content-header">
+            <div class="breadcrumb">
+                <span class="breadcrumb-item active">仪表板</span>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn btn-secondary">
+                    <i class="fas fa-download"></i>
+                    导出报告
+                </button>
+                <button class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                    新建监控
+                </button>
+            </div>
+        </div>
+
+        <!-- 页面内容容器 -->
+        <div class="page-container">
+            <!-- 仪表板页面 -->
+            <div id="dashboard-page" class="page active">
+                <!-- 子页面标签导航 -->
+                <div class="sub-tabs">
+                    <div class="sub-tab active" data-subtab="overview">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>系统概览</span>
+                    </div>
+                    <div class="sub-tab" data-subtab="monitoring">
+                        <i class="fas fa-chart-line"></i>
+                        <span>性能监控</span>
+                    </div>
+                    <div class="sub-tab" data-subtab="analysis">
+                        <i class="fas fa-analytics"></i>
+                        <span>性能分析</span>
+                    </div>
+                    <div class="sub-tab" data-subtab="logs">
+                        <i class="fas fa-file-alt"></i>
+                        <span>日志查看</span>
+                    </div>
+                </div>
+
+                <!-- 系统概览子页面 -->
+                <div id="overview-subtab" class="subtab-content active">
+                <!-- 系统状态卡片 -->
+                <div class="status-cards">
+                    <div class="status-card healthy">
+                        <div class="card-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>系统状态</h3>
+                            <p class="status-text">正常运行</p>
+                            <span class="status-detail">99.9% 可用性</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card warning">
+                        <div class="card-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>活跃告警</h3>
+                            <p class="status-number">3</p>
+                            <span class="status-detail">2个高优先级</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card info">
+                        <div class="card-icon">
+                            <i class="fas fa-server"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>监控节点</h3>
+                            <p class="status-number">24</p>
+                            <span class="status-detail">23个在线</span>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card success">
+                        <div class="card-icon">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>自愈事件</h3>
+                            <p class="status-number">12</p>
+                            <span class="status-detail">今日处理</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 关键指标图表 -->
+                <div class="dashboard-charts">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>系统性能趋势</h3>
+                            <div class="chart-controls">
+                                <select class="time-range">
+                                    <option value="1h">最近1小时</option>
+                                    <option value="6h">最近6小时</option>
+                                    <option value="24h" selected>最近24小时</option>
+                                    <option value="7d">最近7天</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-content">
+                            <canvas id="performance-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <h3>资源使用率</h3>
+                        </div>
+                        <div class="chart-content">
+                            <div class="resource-metrics">
+                                <div class="metric-item">
+                                    <div class="metric-label">CPU使用率</div>
+                                    <div class="metric-value">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 65%"></div>
+                                        </div>
+                                        <span>65%</span>
+                                    </div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-label">内存使用率</div>
+                                    <div class="metric-value">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 78%"></div>
+                                        </div>
+                                        <span>78%</span>
+                                    </div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-label">磁盘使用率</div>
+                                    <div class="metric-value">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 45%"></div>
+                                        </div>
+                                        <span>45%</span>
+                                    </div>
+                                </div>
+                                <div class="metric-item">
+                                    <div class="metric-label">网络带宽</div>
+                                    <div class="metric-value">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 32%"></div>
+                                        </div>
+                                        <span>32%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近事件和告警 -->
+                <div class="dashboard-tables">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>最近告警</h3>
+                            <a href="#" class="view-all">查看全部</a>
+                        </div>
+                        <div class="table-content">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>级别</th>
+                                        <th>服务</th>
+                                        <th>描述</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>14:32</td>
+                                        <td><span class="badge critical">严重</span></td>
+                                        <td>数据库服务</td>
+                                        <td>连接池耗尽</td>
+                                        <td><span class="status active">处理中</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>14:28</td>
+                                        <td><span class="badge warning">警告</span></td>
+                                        <td>Web服务</td>
+                                        <td>响应时间过长</td>
+                                        <td><span class="status resolved">已解决</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>14:15</td>
+                                        <td><span class="badge info">信息</span></td>
+                                        <td>缓存服务</td>
+                                        <td>内存使用率高</td>
+                                        <td><span class="status resolved">已解决</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>自愈操作记录</h3>
+                            <a href="#" class="view-all">查看全部</a>
+                        </div>
+                        <div class="table-content">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>触发事件</th>
+                                        <th>执行操作</th>
+                                        <th>结果</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>14:30</td>
+                                        <td>数据库连接异常</td>
+                                        <td>重启连接池</td>
+                                        <td><span class="status success">成功</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>13:45</td>
+                                        <td>磁盘空间不足</td>
+                                        <td>清理临时文件</td>
+                                        <td><span class="status success">成功</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>12:20</td>
+                                        <td>服务响应超时</td>
+                                        <td>重启服务实例</td>
+                                        <td><span class="status success">成功</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- 性能监控子页面 -->
+                <div id="monitoring-subtab" class="subtab-content">
+                    <div class="monitoring-grid">
+                        <div class="monitoring-card">
+                            <div class="card-header">
+                                <h3>实时性能指标</h3>
+                                <div class="refresh-btn">
+                                    <i class="fas fa-sync-alt"></i>
+                                </div>
+                            </div>
+                            <div class="metrics-grid">
+                                <div class="metric-box">
+                                    <div class="metric-icon cpu">
+                                        <i class="fas fa-microchip"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <div class="metric-value">65.2%</div>
+                                        <div class="metric-label">CPU使用率</div>
+                                        <div class="metric-trend up">+2.3%</div>
+                                    </div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="metric-icon memory">
+                                        <i class="fas fa-memory"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <div class="metric-value">78.9%</div>
+                                        <div class="metric-label">内存使用率</div>
+                                        <div class="metric-trend down">-1.2%</div>
+                                    </div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="metric-icon disk">
+                                        <i class="fas fa-hdd"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <div class="metric-value">45.6%</div>
+                                        <div class="metric-label">磁盘使用率</div>
+                                        <div class="metric-trend stable">0%</div>
+                                    </div>
+                                </div>
+                                <div class="metric-box">
+                                    <div class="metric-icon network">
+                                        <i class="fas fa-network-wired"></i>
+                                    </div>
+                                    <div class="metric-info">
+                                        <div class="metric-value">32.1%</div>
+                                        <div class="metric-label">网络带宽</div>
+                                        <div class="metric-trend up">+5.7%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="monitoring-card">
+                            <div class="card-header">
+                                <h3>服务健康状态</h3>
+                            </div>
+                            <div class="service-list">
+                                <div class="service-item healthy">
+                                    <div class="service-status"></div>
+                                    <div class="service-name">Web服务器</div>
+                                    <div class="service-metrics">
+                                        <span>响应时间: 120ms</span>
+                                        <span>QPS: 1,234</span>
+                                    </div>
+                                </div>
+                                <div class="service-item warning">
+                                    <div class="service-status"></div>
+                                    <div class="service-name">数据库</div>
+                                    <div class="service-metrics">
+                                        <span>响应时间: 350ms</span>
+                                        <span>连接数: 89/100</span>
+                                    </div>
+                                </div>
+                                <div class="service-item healthy">
+                                    <div class="service-status"></div>
+                                    <div class="service-name">缓存服务</div>
+                                    <div class="service-metrics">
+                                        <span>命中率: 95.2%</span>
+                                        <span>内存: 2.1GB/4GB</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 性能分析子页面 -->
+                <div id="analysis-subtab" class="subtab-content">
+                    <div class="analysis-dashboard">
+                        <div class="analysis-filters">
+                            <div class="filter-group">
+                                <label>时间范围:</label>
+                                <select class="time-selector">
+                                    <option value="1h">最近1小时</option>
+                                    <option value="6h">最近6小时</option>
+                                    <option value="24h" selected>最近24小时</option>
+                                    <option value="7d">最近7天</option>
+                                    <option value="30d">最近30天</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>服务类型:</label>
+                                <select class="service-selector">
+                                    <option value="all">全部服务</option>
+                                    <option value="web">Web服务</option>
+                                    <option value="database">数据库</option>
+                                    <option value="cache">缓存</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-charts">
+                            <div class="chart-card">
+                                <h4>性能趋势分析</h4>
+                                <canvas id="performance-trend-chart"></canvas>
+                            </div>
+                            <div class="chart-card">
+                                <h4>资源利用率分布</h4>
+                                <canvas id="resource-distribution-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-insights">
+                            <div class="insight-card">
+                                <div class="insight-icon">
+                                    <i class="fas fa-lightbulb"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <h4>性能洞察</h4>
+                                    <p>数据库查询响应时间在14:00-16:00期间显著增加，建议优化慢查询。</p>
+                                </div>
+                            </div>
+                            <div class="insight-card">
+                                <div class="insight-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="insight-content">
+                                    <h4>异常检测</h4>
+                                    <p>Web服务器CPU使用率出现异常峰值，可能存在内存泄漏问题。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 日志查看子页面 -->
+                <div id="logs-subtab" class="subtab-content">
+                    <div class="logs-dashboard">
+                        <div class="logs-toolbar">
+                            <div class="search-section">
+                                <div class="search-input">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" placeholder="搜索日志内容...">
+                                </div>
+                                <div class="log-filters">
+                                    <select class="log-level">
+                                        <option value="all">全部级别</option>
+                                        <option value="error">错误</option>
+                                        <option value="warning">警告</option>
+                                        <option value="info">信息</option>
+                                        <option value="debug">调试</option>
+                                    </select>
+                                    <select class="log-source">
+                                        <option value="all">全部来源</option>
+                                        <option value="web">Web服务</option>
+                                        <option value="api">API服务</option>
+                                        <option value="database">数据库</option>
+                                        <option value="system">系统</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="toolbar-actions">
+                                <button class="btn btn-secondary">
+                                    <i class="fas fa-download"></i>
+                                    导出日志
+                                </button>
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-sync-alt"></i>
+                                    刷新
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="logs-content">
+                            <div class="log-entry error">
+                                <div class="log-time">2025-01-19 14:32:15</div>
+                                <div class="log-level">ERROR</div>
+                                <div class="log-source">database</div>
+                                <div class="log-message">Connection pool exhausted: Unable to acquire connection from pool</div>
+                            </div>
+                            <div class="log-entry warning">
+                                <div class="log-time">2025-01-19 14:28:42</div>
+                                <div class="log-level">WARN</div>
+                                <div class="log-source">web</div>
+                                <div class="log-message">Response time exceeded threshold: 2.5s > 2.0s</div>
+                            </div>
+                            <div class="log-entry info">
+                                <div class="log-time">2025-01-19 14:25:33</div>
+                                <div class="log-level">INFO</div>
+                                <div class="log-source">api</div>
+                                <div class="log-message">User authentication successful: user_id=12345</div>
+                            </div>
+                            <div class="log-entry info">
+                                <div class="log-time">2025-01-19 14:22:18</div>
+                                <div class="log-level">INFO</div>
+                                <div class="log-source">system</div>
+                                <div class="log-message">Scheduled backup completed successfully</div>
+                            </div>
+                        </div>
+                        
+                        <div class="logs-pagination">
+                            <button class="btn btn-secondary">上一页</button>
+                            <span class="page-info">第 1 页，共 25 页</span>
+                            <button class="btn btn-secondary">下一页</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 其他页面占位符 -->
+            <div id="monitoring-page" class="page">
+                <div class="page-placeholder">
+                    <i class="fas fa-chart-line"></i>
+                    <h2>监控中心</h2>
+                    <p>监控页面正在加载中...</p>
+                </div>
+            </div>
+
+            <div id="ai-engine-page" class="page">
+                <div class="page-placeholder">
+                    <i class="fas fa-brain"></i>
+                    <h2>AI引擎</h2>
+                    <p>AI引擎页面正在加载中...</p>
+                </div>
+            </div>
+
+            <div id="alerting-page" class="page">
+                <div class="page-placeholder">
+                    <i class="fas fa-bell"></i>
+                    <h2>告警管理</h2>
+                    <p>告警管理页面正在加载中...</p>
+                </div>
+            </div>
+
+            <div id="self-healing-page" class="page">
+                <div class="page-placeholder">
+                    <i class="fas fa-magic"></i>
+                    <h2>自愈系统</h2>
+                    <p>自愈系统页面正在加载中...</p>
+                </div>
+            </div>
+
+            <div id="settings-page" class="page">
+                <div class="page-placeholder">
+                    <i class="fas fa-cog"></i>
+                    <h2>系统设置</h2>
+                    <p>系统设置页面正在加载中...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 脚本文件 -->
+    <script src="./assets/js/chart.min.js"></script>
+    <script src="./components/navigation.js"></script>
+    <script src="scripts/main.js"></script>
+    <script src="scripts/charts.js"></script>
+</body>
+</html>
+

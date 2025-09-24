@@ -1,0 +1,299 @@
+/**
+ * 主样式文件
+ * 导入全局样式和组件样式
+ * 
+ * @author AI Assistant
+ * @version 1.0.0
+ * @date 2025-01-23
+ */
+
+// 导入变量
+@import './variables.scss';
+
+// 重置样式
+@import './reset.scss';
+
+// 全局样式
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  color: $text-color-primary;
+  background-color: $bg-secondary;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: $bg-tertiary;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $text-color-tertiary;
+  border-radius: 3px;
+  
+  &:hover {
+    background: $text-color-secondary;
+  }
+}
+
+// 通用工具类
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-primary {
+  color: $primary-color;
+}
+
+.text-success {
+  color: $success-color;
+}
+
+.text-warning {
+  color: $warning-color;
+}
+
+.text-error {
+  color: $error-color;
+}
+
+.text-secondary {
+  color: $text-color-secondary;
+}
+
+.text-tertiary {
+  color: $text-color-tertiary;
+}
+
+// 间距工具类
+@for $i from 0 through 10 {
+  .m-#{$i} {
+    margin: #{$i * 4}px;
+  }
+  
+  .mt-#{$i} {
+    margin-top: #{$i * 4}px;
+  }
+  
+  .mb-#{$i} {
+    margin-bottom: #{$i * 4}px;
+  }
+  
+  .ml-#{$i} {
+    margin-left: #{$i * 4}px;
+  }
+  
+  .mr-#{$i} {
+    margin-right: #{$i * 4}px;
+  }
+  
+  .p-#{$i} {
+    padding: #{$i * 4}px;
+  }
+  
+  .pt-#{$i} {
+    padding-top: #{$i * 4}px;
+  }
+  
+  .pb-#{$i} {
+    padding-bottom: #{$i * 4}px;
+  }
+  
+  .pl-#{$i} {
+    padding-left: #{$i * 4}px;
+  }
+  
+  .pr-#{$i} {
+    padding-right: #{$i * 4}px;
+  }
+}
+
+// Flex布局工具类
+.flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-around {
+  justify-content: space-around;
+}
+
+.align-start {
+  align-items: flex-start;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.align-end {
+  align-items: flex-end;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+// 卡片样式
+.card {
+  background: $bg-primary;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-md;
+  border: 1px solid $border-color-light;
+  overflow: hidden;
+  
+  &-header {
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1px solid $border-color-light;
+    background: $bg-primary;
+    
+    .title {
+      font-size: $font-size-lg;
+      font-weight: 600;
+      color: $text-color-primary;
+      margin: 0;
+    }
+  }
+  
+  &-body {
+    padding: $spacing-lg;
+  }
+  
+  &-footer {
+    padding: $spacing-md $spacing-lg;
+    border-top: 1px solid $border-color-light;
+    background: $bg-secondary;
+  }
+}
+
+// 按钮样式
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid transparent;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all $transition-fast;
+  user-select: none;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  &-primary {
+    background: $primary-color;
+    color: white;
+    border-color: $primary-color;
+    
+    &:hover:not(:disabled) {
+      background: $primary-light;
+      border-color: $primary-light;
+    }
+  }
+  
+  &-secondary {
+    background: transparent;
+    color: $text-color-primary;
+    border-color: $border-color;
+    
+    &:hover:not(:disabled) {
+      color: $primary-color;
+      border-color: $primary-color;
+    }
+  }
+  
+  &-success {
+    background: $success-color;
+    color: white;
+    border-color: $success-color;
+  }
+  
+  &-warning {
+    background: $warning-color;
+    color: white;
+    border-color: $warning-color;
+  }
+  
+  &-error {
+    background: $error-color;
+    color: white;
+    border-color: $error-color;
+  }
+  
+  &-sm {
+    padding: $spacing-xs $spacing-sm;
+    font-size: $font-size-xs;
+  }
+  
+  &-lg {
+    padding: $spacing-md $spacing-lg;
+    font-size: $font-size-lg;
+  }
+}
+
+// 响应式设计
+@media (max-width: $breakpoint-md) {
+  .card {
+    margin: $spacing-sm;
+    border-radius: $border-radius-md;
+  }
+  
+  .card-body {
+    padding: $spacing-md;
+  }
+}

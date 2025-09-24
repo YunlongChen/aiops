@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIOps 智能运维平台 - 演示中心</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /**
+         * 演示页面样式
+         * 提供统一的功能模块访问入口
+         */
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #3b82f6;
+            --secondary-color: #1e40af;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #06b6d4;
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --hover-bg: #334155;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* 头部区域 */
+        .header {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 2rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            opacity: 0.1;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .logo i {
+            font-size: 3rem;
+            color: var(--primary-color);
+        }
+
+        .logo h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--primary-color), var(--info-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        /* 主要内容区域 */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .section {
+            margin-bottom: 4rem;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .section-description {
+            font-size: 1.125rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* 功能模块网格 */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .module-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), var(--info-color));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .module-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-color);
+        }
+
+        .module-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .module-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            margin-bottom: 1.5rem;
+        }
+
+        .module-icon.dashboard {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .module-icon.monitoring {
+            background: linear-gradient(45deg, var(--success-color), #059669);
+        }
+
+        .module-icon.ai {
+            background: linear-gradient(45deg, var(--info-color), #0891b2);
+        }
+
+        .module-icon.alerting {
+            background: linear-gradient(45deg, var(--warning-color), #d97706);
+        }
+
+        .module-icon.healing {
+            background: linear-gradient(45deg, var(--danger-color), #dc2626);
+        }
+
+        .module-icon.settings {
+            background: linear-gradient(45deg, var(--text-muted), #475569);
+        }
+
+        .module-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .module-description {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .module-features {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .module-features li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .module-features i {
+            color: var(--success-color);
+            font-size: 0.75rem;
+        }
+
+        .module-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-outline:hover {
+            background: var(--hover-bg);
+            color: var(--text-primary);
+            border-color: var(--primary-color);
+        }
+
+        /* 快速开始区域 */
+        .quick-start {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+        }
+
+        .quick-start-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .quick-start-description {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            font-size: 1.125rem;
+        }
+
+        .quick-actions {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* 技术栈展示 */
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .tech-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .tech-item:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary-color);
+        }
+
+        .tech-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .tech-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .tech-description {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* 页脚 */
+        .footer {
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .footer-text {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary-color);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 0 1rem;
+            }
+
+            .logo h1 {
+                font-size: 2rem;
+            }
+
+            .stats {
+                gap: 2rem;
+            }
+
+            .main-content {
+                padding: 2rem 1rem;
+            }
+
+            .modules-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .module-card {
+                padding: 1.5rem;
+            }
+
+            .quick-start {
+                padding: 2rem 1.5rem;
+            }
+
+            .quick-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 300px;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .logo i {
+                font-size: 2.5rem;
+            }
+
+            .logo h1 {
+                font-size: 1.75rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+            }
+
+            .section-description {
+                font-size: 1rem;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-indicator.online {
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.offline {
+            background: var(--text-muted);
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部区域 -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-brain"></i>
+                <h1>AIOps 智能运维平台</h1>
+            </div>
+            <p class="subtitle">
+                <span class="status-indicator online"></span>
+                全面的智能运维解决方案演示中心
+            </p>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-value">6</span>
+                    <span class="stat-label">核心模块</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">50+</span>
+                    <span class="stat-label">功能特性</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">100%</span>
+                    <span class="stat-label">响应式设计</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">24/7</span>
+                    <span class="stat-label">智能监控</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="main-content">
+        <!-- 功能模块展示 -->
+        <section class="section">
+            <div class="section-header">
+                <h2 class="section-title">核心功能模块</h2>
+                <p class="section-description">
+                    探索 AIOps 平台的六大核心功能模块，每个模块都提供完整的用户界面和交互体验
+                </p>
+            </div>
+
+            <div class="modules-grid">
+                <!-- 主仪表板 -->
+                <div class="module-card">
+                    <div class="module-icon dashboard">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <h3 class="module-title">主仪表板</h3>
+                    <p class="module-description">
+                        系统整体健康状态的统一视图，提供关键指标监控和快速操作入口
+                    </p>
+                    <ul class="module-features">
+                        <li><i class="fas fa-check"></i> 系统概览和健康状态</li>
+                        <li><i class="fas fa-check"></i> 关键性能指标监控</li>
+                        <li><i class="fas fa-check"></i> 实时告警摘要</li>
+                        <li><i class="fas fa-check"></i> 快速操作面板</li>
+                        <li><i class="fas fa-check"></i> 性能趋势分析</li>
+                    </ul>
+                    <div class="module-actions">
+                        <a href="index.html" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> 查看演示
+                        </a>
+                        <a href="#" class="btn btn-outline" onclick="showModuleInfo('dashboard')">
+                            <i class="fas fa-info-circle"></i> 详细信息
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 监控中心 -->
+                <div class="module-card">
+                    <div class="module-icon monitoring">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 class="module-title">监控中心</h3>
+                    <p class="module-description">
+                        全方位的系统监控，涵盖基础设施、应用、数据库和网络等各个层面
+                    </p>
+                    <ul class="module-features">
+                        <li><i class="fas fa-check"></i> 基础设施监控</li>
+                        <li><i class="fas fa-check"></i> 应用性能监控</li>
+                        <li><i class="fas fa-check"></i> 数据库监控</li>
+                        <li><i class="fas fa-check"></i> 网络流量分析</li>
+                        <li><i class="fas fa-check"></i> 容器监控</li>
+                    </ul>
+                    <div class="module-actions">
+                        <a href="monitoring.html" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> 查看演示
+                        </a>
+                        <a href="#" class="btn btn-outline" onclick="showModuleInfo('monitoring')">
+                            <i class="fas fa-info-circle"></i> 详细信息
+                        </a>
+                    </div>
+                </div>
+
+                <!-- AI引擎管理 -->
+                <div class="module-card">
+                    <div class="module-icon ai">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3 class="module-title">AI引擎管理</h3>
+                    <p class="module-description">
+                        智能化的运维决策支持，提供机器学习模型管理和智能分析功能
+                    </p>
+                    <ul class="module-features">
+                        <li><i class="fas fa-check"></i> 机器学习模型管理</li>
+                        <li><i class="fas fa-check"></i> 训练任务监控</li>
+                        <li><i class="fas fa-check"></i> 智能预测分析</li>
+                        <li><i class="fas fa-check"></i> 异常检测</li>
+                        <li><i class="fas fa-check"></i> 智能推荐</li>
+                    </ul>
+                    <div class="module-actions">
+                        <a href="ai-engine.html" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> 查看演示
+                        </a>
+                        <a href="#" class="btn btn-outline" onclick="showModuleInfo('ai')">
+                            <i class="fas fa-info-circle"></i> 详细信息
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 告警管理 -->
+                <div class="module-card">
+                    <div class="module-icon alerting">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h3 class="module-title">告警管理</h3>
+                    <p class="module-description">
+                        智能化的告警系统，支持多级别告警、多渠道通知和智能抑制
+                    </p>
+                    <ul class="module-features">
+                        <li><i class="fas fa-check"></i> 灵活的告警规则</li>
+                        <li><i class="fas fa-check"></i> 多渠道通知</li>
+                        <li><i class="fas fa-check"></i> 告警分级管理</li>
+                        <li><i class="fas fa-check"></i> 智能告警抑制</li>
+                        <li><i class="fas fa-check"></i> 历史记录追踪</li>
+                    </ul>
+                    <div class="module-actions">
+                        <a href="alerting.html" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> 查看演示
+                        </a>
+                        <a href="#" class="btn btn-outline" onclick="showModuleInfo('alerting')">
+                            <i class="fas fa-info-circle"></i> 详细信息
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 自愈系统 -->
+                <div class="module-card">
+                    <div class="module-icon healing">
+                        <i class="fas fa-magic"></i>
+                    </div>
+                    <h3 class="module-title">自愈系统</h3>
+                    <p class="module-description">
+                        自动化的故障修复系统，减少人工干预，提高系统可用性
+                    </p>
+                    <ul class="module-features">
+                        <li><i class="fas fa-check"></i> 自动化修复脚本</li>
+                        <li><i class="fas fa-check"></i> 修复历史记录</li>
+                        <li><i class="fas fa-check"></i> 自愈规则配置</li>
+                        <li><i class="fas fa-check"></i> 手动干预支持</li>
+                        <li><i class="fas fa-check"></i> 效果统计分析</li>
+                    </ul>
+                    <div class="module-actions">
+                        <a href="self-healing.html" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> 查看演示
+                        </a>
+                        <a href="#" class="btn btn-outline" onclick="showModuleInfo('healing')">
+                            <i class="fas fa-info-circle"></i> 详细信息
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 系统设置 -->
+                <div class="module-card">
+                    <div class="module-icon settings">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <h3 class="module-title">系统设置</h3>
+                    <p class="module-description">
+                        完整的系统管理功能，包括用户管理、权限控制和系统配置
+                    </p>
+                    <ul class="module-features">
+                        <li><i class="fas fa-check"></i> 用户账户管理</li>
+                        <li><i class="fas fa-check"></i> 角色权限控制</li>
+                        <li><i class="fas fa-check"></i> 系统参数配置</li>
+                        <li><i class="fas fa-check"></i> 安全策略设置</li>
+                        <li><i class="fas fa-check"></i> 数据备份管理</li>
+                    </ul>
+                    <div class="module-actions">
+                        <a href="settings.html" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> 查看演示
+                        </a>
+                        <a href="#" class="btn btn-outline" onclick="showModuleInfo('settings')">
+                            <i class="fas fa-info-circle"></i> 详细信息
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 快速开始 -->
+        <section class="section">
+            <div class="quick-start">
+                <h2 class="quick-start-title">开始探索 AIOps 平台</h2>
+                <p class="quick-start-description">
+                    选择一个功能模块开始体验，或者查看完整的项目文档了解更多详情
+                </p>
+                <div class="quick-actions">
+                    <a href="index.html" class="btn btn-primary">
+                        <i class="fas fa-rocket"></i> 开始演示
+                    </a>
+                    <a href="README.md" class="btn btn-outline" target="_blank">
+                        <i class="fas fa-book"></i> 查看文档
+                    </a>
+                    <a href="#" class="btn btn-outline" onclick="showTechStack()">
+                        <i class="fas fa-code"></i> 技术栈
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 技术栈展示 -->
+        <section class="section" id="techStackSection" style="display: none;">
+            <div class="section-header">
+                <h2 class="section-title">技术栈</h2>
+                <p class="section-description">
+                    基于现代 Web 技术构建的响应式 AIOps 平台界面
+                </p>
+            </div>
+
+            <div class="tech-stack">
+                <div class="tech-item">
+                    <div class="tech-icon">
+                        <i class="fab fa-html5"></i>
+                    </div>
+                    <div class="tech-name">HTML5</div>
+                    <div class="tech-description">语义化标记和现代 Web 标准</div>
+                </div>
+
+                <div class="tech-item">
+                    <div class="tech-icon">
+                        <i class="fab fa-css3-alt"></i>
+                    </div>
+                    <div class="tech-name">CSS3</div>
+                    <div class="tech-description">响应式设计和现代样式特性</div>
+                </div>
+
+                <div class="tech-item">
+                    <div class="tech-icon">
+                        <i class="fab fa-js-square"></i>
+                    </div>
+                    <div class="tech-name">JavaScript</div>
+                    <div class="tech-description">ES6+ 模块化和面向对象编程</div>
+                </div>
+
+                <div class="tech-item">
+                    <div class="tech-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="tech-name">Chart.js</div>
+                    <div class="tech-description">数据可视化图表库</div>
+                </div>
+
+                <div class="tech-item">
+                    <div class="tech-icon">
+                        <i class="fab fa-font-awesome"></i>
+                    </div>
+                    <div class="tech-name">Font Awesome</div>
+                    <div class="tech-description">图标字体库</div>
+                </div>
+
+                <div class="tech-item">
+                    <div class="tech-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="tech-name">响应式设计</div>
+                    <div class="tech-description">支持多种设备和屏幕尺寸</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="footer-content">
+            <p class="footer-text">
+                © 2024 AIOps 智能运维平台. 这是一个 UI 设计演示项目.
+            </p>
+            <div class="footer-links">
+                <a href="README.md" target="_blank">项目文档</a>
+                <a href="#" onclick="showContact()">联系我们</a>
+                <a href="#" onclick="showLicense()">许可证</a>
+                <a href="#" onclick="showChangelog()">更新日志</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * 演示页面交互脚本
+         */
+
+        // 显示模块详细信息
+        function showModuleInfo(moduleType) {
+            const moduleInfo = {
+                dashboard: {
+                    title: '主仪表板',
+                    description: '主仪表板是 AIOps 平台的核心入口，提供系统整体健康状态的统一视图。通过直观的图表和指标展示，帮助运维人员快速了解系统状态，及时发现和处理问题。',
+                    features: [
+                        '实时系统健康状态监控',
+                        '关键性能指标（KPI）展示',
+                        '最新告警信息汇总',
+                        '快速操作和导航面板',
+                        '系统资源使用趋势图',
+                        '服务状态概览',
+                        '性能基准对比'
+                    ]
+                },
+                monitoring: {
+                    title: '监控中心',
+                    description: '监控中心提供全方位的系统监控能力，涵盖基础设施、应用、数据库、网络等各个层面。支持多维度的数据可视化和实时监控。',
+                    features: [
+                        '服务器和基础设施监控',
+                        '应用性能监控（APM）',
+                        '数据库性能监控',
+                        '网络流量和延迟监控',
+                        '容器和微服务监控',
+                        '自定义监控指标',
+                        '历史数据分析'
+                    ]
+                },
+                ai: {
+                    title: 'AI引擎管理',
+                    description: 'AI引擎管理模块集成了机器学习和人工智能技术，为运维决策提供智能化支持。包括异常检测、预测分析、智能推荐等功能。',
+                    features: [
+                        '机器学习模型生命周期管理',
+                        '训练任务创建和监控',
+                        '智能异常检测',
+                        '性能预测分析',
+                        '根因分析',
+                        '智能运维建议',
+                        '模型性能评估'
+                    ]
+                },
+                alerting: {
+                    title: '告警管理',
+                    description: '告警管理系统提供灵活的告警规则配置和多渠道通知功能。支持告警分级、智能抑制和历史记录追踪。',
+                    features: [
+                        '灵活的告警规则配置',
+                        '多渠道通知（邮件、短信、钉钉等）',
+                        '告警分级和优先级管理',
+                        '智能告警抑制和去重',
+                        '告警升级机制',
+                        '告警历史记录和统计',
+                        '告警模板管理'
+                    ]
+                },
+                healing: {
+                    title: '自愈系统',
+                    description: '自愈系统通过自动化脚本和规则引擎，实现故障的自动检测和修复。减少人工干预，提高系统可用性和运维效率。',
+                    features: [
+                        '自动化修复脚本管理',
+                        '自愈规则配置和触发',
+                        '修复任务执行监控',
+                        '修复历史记录和分析',
+                        '手动干预和回滚机制',
+                        '自愈效果统计',
+                        '脚本版本管理'
+                    ]
+                },
+                settings: {
+                    title: '系统设置',
+                    description: '系统设置模块提供完整的平台管理功能，包括用户管理、权限控制、系统配置等。支持基于角色的访问控制（RBAC）。',
+                    features: [
+                        '用户账户创建和管理',
+                        '角色和权限配置',
+                        '系统参数设置',
+                        '安全策略配置',
+                        '数据备份和恢复',
+                        '审计日志管理',
+                        '系统维护工具'
+                    ]
+                }
+            };
+
+            const info = moduleInfo[moduleType];
+            if (info) {
+                alert(`${info.title}\n\n${info.description}\n\n主要功能：\n${info.features.map(f => `• ${f}`).join('\n')}`);
+            }
+        }
+
+        // 显示技术栈
+        function showTechStack() {
+            const techSection = document.getElementById('techStackSection');
+            if (techSection.style.display === 'none') {
+                techSection.style.display = 'block';
+                techSection.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                techSection.style.display = 'none';
+            }
+        }
+
+        // 显示联系信息
+        function showContact() {
+            alert('联系方式：\n\n邮箱：admin@example.com\n项目地址：GitHub Repository\n问题反馈：GitHub Issues');
+        }
+
+        // 显示许可证信息
+        function showLicense() {
+            alert('许可证信息：\n\n本项目采用 MIT 许可证\n\n您可以自由使用、修改和分发本项目的代码，但需要保留原始的许可证声明。');
+        }
+
+        // 显示更新日志
+        function showChangelog() {
+            alert('更新日志：\n\nv1.0.0 (2024-01-15)\n• 初始版本发布\n• 完整的 UI 设计和交互\n• 数据可视化功能\n• 响应式设计支持\n• 模块化架构');
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 添加页面加载动画
+            document.body.style.opacity = '0';
+            setTimeout(() => {
+                document.body.style.transition = 'opacity 0.5s ease';
+                document.body.style.opacity = '1';
+            }, 100);
+
+            // 统计数据动画
+            animateStats();
+        });
+
+        // 统计数据动画
+        function animateStats() {
+            const statValues = document.querySelectorAll('.stat-value');
+            statValues.forEach(stat => {
+                const finalValue = stat.textContent;
+                if (!isNaN(parseInt(finalValue))) {
+                    const finalNum = parseInt(finalValue);
+                    let currentNum = 0;
+                    const increment = finalNum / 50;
+                    const timer = setInterval(() => {
+                        currentNum += increment;
+                        if (currentNum >= finalNum) {
+                            stat.textContent = finalValue;
+                            clearInterval(timer);
+                        } else {
+                            stat.textContent = Math.floor(currentNum);
+                        }
+                    }, 30);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

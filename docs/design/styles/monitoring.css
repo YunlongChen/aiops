@@ -1,0 +1,478 @@
+/**
+ * 监控中心页面样式
+ * 包含服务器卡片、图表、表格等监控组件的样式定义
+ */
+
+/* 监控容器 */
+.monitoring-container {
+    padding: 0;
+}
+
+.monitoring-tab {
+    display: none;
+}
+
+.monitoring-tab.active {
+    display: block;
+}
+
+/* 监控区块 */
+.monitoring-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.section-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.search-input {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    width: 200px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* 服务器网格 */
+.server-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 24px;
+}
+
+/* 服务器卡片 */
+.server-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.server-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.server-card.healthy {
+    border-left: 4px solid #10b981;
+}
+
+.server-card.warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.server-card.critical {
+    border-left: 4px solid #ef4444;
+}
+
+.server-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.server-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.server-ip {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.server-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.healthy {
+    background: #10b981;
+}
+
+.status-indicator.warning {
+    background: #f59e0b;
+}
+
+.status-indicator.critical {
+    background: #ef4444;
+}
+
+.status-text {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.server-card.healthy .status-text {
+    color: #10b981;
+}
+
+.server-card.warning .status-text {
+    color: #f59e0b;
+}
+
+.server-card.critical .status-text {
+    color: #ef4444;
+}
+
+/* 服务器指标 */
+.server-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.metric {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.metric-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    min-width: 40px;
+}
+
+.metric-bar {
+    flex: 1;
+    height: 6px;
+    background: #f3f4f6;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.metric-fill {
+    height: 100%;
+    background: #10b981;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.metric-fill.warning {
+    background: #f59e0b;
+}
+
+.metric-fill.critical {
+    background: #ef4444;
+}
+
+.metric-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* 图表网格 */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 24px;
+}
+
+/* 图表卡片 */
+.chart-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.chart-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.current-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #4f46e5;
+}
+
+.chart-content {
+    flex: 1;
+    position: relative;
+}
+
+.chart-content canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* 表格容器 */
+.table-container {
+    overflow-x: auto;
+}
+
+/* 监控表格 */
+.monitoring-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.monitoring-table th {
+    background: #f9fafb;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.monitoring-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+
+.monitoring-table tr:hover {
+    background: #f9fafb;
+}
+
+/* 进程信息 */
+.process-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.process-info i {
+    color: #6b7280;
+    width: 16px;
+}
+
+/* 指标徽章 */
+.metric-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.metric-badge.normal {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.metric-badge.warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.metric-badge.critical {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* 状态徽章 */
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.running {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.stopped {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.status-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* 标签页占位符 */
+.tab-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.tab-placeholder i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    color: #d1d5db;
+}
+
+.tab-placeholder h2 {
+    margin: 0 0 12px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.tab-placeholder p {
+    margin: 0;
+    font-size: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .server-grid {
+        grid-template-columns: 1fr;
+        padding: 16px;
+    }
+    
+    .charts-grid {
+        grid-template-columns: 1fr;
+        padding: 16px;
+    }
+    
+    .chart-card {
+        height: 250px;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .section-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .search-input {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    .monitoring-table {
+        font-size: 12px;
+    }
+    
+    .monitoring-table th,
+    .monitoring-table td {
+        padding: 8px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .server-card {
+        padding: 16px;
+    }
+    
+    .chart-card {
+        padding: 16px;
+        height: 200px;
+    }
+    
+    .metric {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    
+    .metric-label {
+        min-width: auto;
+    }
+    
+    .metric-value {
+        min-width: auto;
+        text-align: left;
+    }
+}
+
+/* 动画效果 */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loading {
+    animation: pulse 2s infinite;
+}
+
+/* 滚动条样式 */
+.table-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

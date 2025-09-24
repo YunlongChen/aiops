@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>监控中心 - AIOps 智能运维平台</title>
+    <link rel="stylesheet" href="styles/main.css" />
+    <link rel="stylesheet" href="components/navigation.css" />
+    <link rel="stylesheet" href="styles/monitoring.css" />
+    <link
+      rel="stylesheet"
+      href="./assets/fonts/fontawesome-all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="./assets/fonts/inter.css"
+    />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="nav-brand">
+          <i class="fas fa-robot"></i>
+          <span>AIOps Platform</span>
+        </div>
+
+        <div id="nav-container" data-nav-container data-current-page="monitoring"></div>
+
+        <div class="nav-user">
+          <div class="user-info">
+            <img
+              src="./assets/images/user-avatar.svg"
+              alt="用户头像"
+              class="user-avatar"
+            />
+            <span class="user-name">管理员</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>监控分类</h3>
+      </div>
+
+      <div class="sidebar-menu">
+        <div class="menu-group">
+          <div class="menu-title">基础设施</div>
+          <div class="menu-item active" data-tab="infrastructure">
+            <i class="fas fa-server"></i>
+            <span>服务器监控</span>
+          </div>
+          <div class="menu-item" data-tab="network">
+            <i class="fas fa-network-wired"></i>
+            <span>网络监控</span>
+          </div>
+          <div class="menu-item" data-tab="storage">
+            <i class="fas fa-hdd"></i>
+            <span>存储监控</span>
+          </div>
+        </div>
+
+        <div class="menu-group">
+          <div class="menu-title">应用服务</div>
+          <div class="menu-item" data-tab="applications">
+            <i class="fas fa-cube"></i>
+            <span>应用监控</span>
+          </div>
+          <div class="menu-item" data-tab="containers">
+            <i class="fab fa-docker"></i>
+            <span>容器监控</span>
+          </div>
+          <div class="menu-item" data-tab="microservices">
+            <i class="fas fa-project-diagram"></i>
+            <span>微服务监控</span>
+          </div>
+        </div>
+
+        <div class="menu-group">
+          <div class="menu-title">数据层</div>
+          <div class="menu-item" data-tab="databases">
+            <i class="fas fa-database"></i>
+            <span>数据库监控</span>
+          </div>
+          <div class="menu-item" data-tab="cache">
+            <i class="fas fa-memory"></i>
+            <span>缓存监控</span>
+          </div>
+          <div class="menu-item" data-tab="message-queue">
+            <i class="fas fa-stream"></i>
+            <span>消息队列</span>
+          </div>
+        </div>
+
+        <div class="menu-group">
+          <div class="menu-title">业务监控</div>
+          <div class="menu-item" data-tab="business-metrics">
+            <i class="fas fa-chart-bar"></i>
+            <span>业务指标</span>
+          </div>
+          <div class="menu-item" data-tab="user-experience">
+            <i class="fas fa-user-clock"></i>
+            <span>用户体验</span>
+          </div>
+          <div class="menu-item" data-tab="logs">
+            <i class="fas fa-file-alt"></i>
+            <span>日志分析</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+      <div class="content-header">
+        <div class="breadcrumb">
+          <span class="breadcrumb-item">监控中心</span>
+          <i class="fas fa-chevron-right"></i>
+          <span class="breadcrumb-item active" id="current-tab"
+            >基础设施监控</span
+          >
+        </div>
+
+        <div class="header-actions">
+          <div class="time-selector">
+            <select id="time-range" class="time-range">
+              <option value="5m">最近5分钟</option>
+              <option value="15m">最近15分钟</option>
+              <option value="1h" selected>最近1小时</option>
+              <option value="6h">最近6小时</option>
+              <option value="24h">最近24小时</option>
+              <option value="7d">最近7天</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" id="refresh-btn">
+            <i class="fas fa-sync-alt"></i>
+            刷新
+          </button>
+          <button class="btn btn-primary" id="export-btn">
+            <i class="fas fa-download"></i>
+            导出报告
+          </button>
+        </div>
+      </div>
+
+      <!-- 监控内容容器 -->
+      <div class="monitoring-container">
+        <!-- 子标签页导航 -->
+        <div class="sub-tabs">
+          <div class="sub-tab active" data-target="infrastructure-content">
+            <i class="fas fa-server"></i>
+            基础设施
+          </div>
+          <div class="sub-tab" data-target="applications-content">
+            <i class="fas fa-cube"></i>
+            应用监控
+          </div>
+          <div class="sub-tab" data-target="databases-content">
+            <i class="fas fa-database"></i>
+            数据库
+          </div>
+          <div class="sub-tab" data-target="network-content">
+            <i class="fas fa-network-wired"></i>
+            网络监控
+          </div>
+        </div>
+
+        <!-- 基础设施监控 -->
+        <div id="infrastructure-content" class="subtab-content active">
+          <!-- 服务器概览 -->
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>服务器概览</h3>
+              <div class="section-actions">
+                <button class="btn-icon" title="添加服务器">
+                  <i class="fas fa-plus"></i>
+                </button>
+                <button class="btn-icon" title="设置">
+                  <i class="fas fa-cog"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="server-grid">
+              <div class="server-card healthy">
+                <div class="server-header">
+                  <div class="server-info">
+                    <h4>Web-Server-01</h4>
+                    <span class="server-ip">192.168.1.10</span>
+                  </div>
+                  <div class="server-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">正常</span>
+                  </div>
+                </div>
+                <div class="server-metrics">
+                  <div class="metric">
+                    <span class="metric-label">CPU</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill" style="width: 45%"></div>
+                    </div>
+                    <span class="metric-value">45%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">内存</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill" style="width: 67%"></div>
+                    </div>
+                    <span class="metric-value">67%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">磁盘</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill" style="width: 32%"></div>
+                    </div>
+                    <span class="metric-value">32%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="server-card warning">
+                <div class="server-header">
+                  <div class="server-info">
+                    <h4>DB-Server-01</h4>
+                    <span class="server-ip">192.168.1.20</span>
+                  </div>
+                  <div class="server-status">
+                    <span class="status-indicator warning"></span>
+                    <span class="status-text">警告</span>
+                  </div>
+                </div>
+                <div class="server-metrics">
+                  <div class="metric">
+                    <span class="metric-label">CPU</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill warning" style="width: 85%"></div>
+                    </div>
+                    <span class="metric-value">85%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">内存</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill warning" style="width: 78%"></div>
+                    </div>
+                    <span class="metric-value">78%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">磁盘</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill" style="width: 56%"></div>
+                    </div>
+                    <span class="metric-value">56%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="server-card healthy">
+                <div class="server-header">
+                  <div class="server-info">
+                    <h4>Cache-Server-01</h4>
+                    <span class="server-ip">192.168.1.30</span>
+                  </div>
+                  <div class="server-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">正常</span>
+                  </div>
+                </div>
+                <div class="server-metrics">
+                  <div class="metric">
+                    <span class="metric-label">CPU</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill" style="width: 23%"></div>
+                    </div>
+                    <span class="metric-value">23%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">内存</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill" style="width: 54%"></div>
+                    </div>
+                    <span class="metric-value">54%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">磁盘</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill" style="width: 18%"></div>
+                    </div>
+                    <span class="metric-value">18%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="server-card critical">
+                <div class="server-header">
+                  <div class="server-info">
+                    <h4>API-Server-01</h4>
+                    <span class="server-ip">192.168.1.40</span>
+                  </div>
+                  <div class="server-status">
+                    <span class="status-indicator critical"></span>
+                    <span class="status-text">严重</span>
+                  </div>
+                </div>
+                <div class="server-metrics">
+                  <div class="metric">
+                    <span class="metric-label">CPU</span>
+                    <div class="metric-bar">
+                      <div
+                        class="metric-fill critical"
+                        style="width: 95%"
+                      ></div>
+                    </div>
+                    <span class="metric-value">95%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">内存</span>
+                    <div class="metric-bar">
+                      <div
+                        class="metric-fill critical"
+                        style="width: 92%"
+                      ></div>
+                    </div>
+                    <span class="metric-value">92%</span>
+                  </div>
+                  <div class="metric">
+                    <span class="metric-label">磁盘</span>
+                    <div class="metric-bar">
+                      <div class="metric-fill warning" style="width: 76%"></div>
+                    </div>
+                    <span class="metric-value">76%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 实时性能图表 -->
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>实时性能监控</h3>
+            </div>
+
+            <div class="charts-grid">
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h4>CPU使用率</h4>
+                  <span class="current-value">65%</span>
+                </div>
+                <div class="chart-content">
+                  <canvas id="cpu-chart"></canvas>
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h4>内存使用率</h4>
+                  <span class="current-value">72%</span>
+                </div>
+                <div class="chart-content">
+                  <canvas id="memory-chart"></canvas>
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h4>网络流量</h4>
+                  <span class="current-value">45 MB/s</span>
+                </div>
+                <div class="chart-content">
+                  <canvas id="network-chart"></canvas>
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div class="chart-header">
+                  <h4>磁盘I/O</h4>
+                  <span class="current-value">1.2K IOPS</span>
+                </div>
+                <div class="chart-content">
+                  <canvas id="disk-chart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 系统进程监控 -->
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>系统进程监控</h3>
+              <div class="section-actions">
+                <input
+                  type="text"
+                  placeholder="搜索进程..."
+                  class="search-input"
+                />
+                <button class="btn-icon" title="刷新">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table class="monitoring-table">
+                <thead>
+                  <tr>
+                    <th>进程名称</th>
+                    <th>PID</th>
+                    <th>CPU %</th>
+                    <th>内存 %</th>
+                    <th>状态</th>
+                    <th>运行时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="process-info">
+                        <i class="fas fa-cog"></i>
+                        <span>nginx</span>
+                      </div>
+                    </td>
+                    <td>1234</td>
+                    <td><span class="metric-badge normal">12.5%</span></td>
+                    <td><span class="metric-badge normal">8.2%</span></td>
+                    <td><span class="status-badge running">运行中</span></td>
+                    <td>2天 14小时</td>
+                    <td>
+                      <button class="btn-icon" title="重启">
+                        <i class="fas fa-redo"></i>
+                      </button>
+                      <button class="btn-icon" title="停止">
+                        <i class="fas fa-stop"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="process-info">
+                        <i class="fas fa-database"></i>
+                        <span>mysql</span>
+                      </div>
+                    </td>
+                    <td>5678</td>
+                    <td><span class="metric-badge warning">45.8%</span></td>
+                    <td><span class="metric-badge warning">32.1%</span></td>
+                    <td><span class="status-badge running">运行中</span></td>
+                    <td>5天 8小时</td>
+                    <td>
+                      <button class="btn-icon" title="重启">
+                        <i class="fas fa-redo"></i>
+                      </button>
+                      <button class="btn-icon" title="停止">
+                        <i class="fas fa-stop"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="process-info">
+                        <i class="fas fa-memory"></i>
+                        <span>redis-server</span>
+                      </div>
+                    </td>
+                    <td>9012</td>
+                    <td><span class="metric-badge normal">3.2%</span></td>
+                    <td><span class="metric-badge normal">15.6%</span></td>
+                    <td><span class="status-badge running">运行中</span></td>
+                    <td>1天 22小时</td>
+                    <td>
+                      <button class="btn-icon" title="重启">
+                        <i class="fas fa-redo"></i>
+                      </button>
+                      <button class="btn-icon" title="停止">
+                        <i class="fas fa-stop"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 其他监控标签页占位符 -->
+        <div id="network-tab" class="monitoring-tab">
+          <div class="tab-placeholder">
+            <i class="fas fa-network-wired"></i>
+            <h2>网络监控</h2>
+            <p>网络监控功能正在开发中...</p>
+          </div>
+        </div>
+
+        <!-- 应用监控 -->
+        <div id="applications-content" class="subtab-content">
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>应用服务状态</h3>
+              <div class="section-actions">
+                <button class="btn-icon" title="添加应用">
+                  <i class="fas fa-plus"></i>
+                </button>
+                <button class="btn-icon" title="设置">
+                  <i class="fas fa-cog"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="app-grid">
+              <div class="app-card healthy">
+                <div class="app-header">
+                  <div class="app-icon">
+                    <i class="fas fa-globe"></i>
+                  </div>
+                  <div class="app-info">
+                    <h4>Web应用</h4>
+                    <span class="app-version">v2.1.3</span>
+                  </div>
+                  <div class="app-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">运行中</span>
+                  </div>
+                </div>
+                <div class="app-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">响应时间</span>
+                    <span class="metric-value">125ms</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">吞吐量</span>
+                    <span class="metric-value">1,234 req/min</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">错误率</span>
+                    <span class="metric-value">0.02%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="app-card warning">
+                <div class="app-header">
+                  <div class="app-icon">
+                    <i class="fas fa-cogs"></i>
+                  </div>
+                  <div class="app-info">
+                    <h4>API服务</h4>
+                    <span class="app-version">v1.8.2</span>
+                  </div>
+                  <div class="app-status">
+                    <span class="status-indicator warning"></span>
+                    <span class="status-text">警告</span>
+                  </div>
+                </div>
+                <div class="app-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">响应时间</span>
+                    <span class="metric-value">850ms</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">吞吐量</span>
+                    <span class="metric-value">567 req/min</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">错误率</span>
+                    <span class="metric-value">2.1%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="app-card healthy">
+                <div class="app-header">
+                  <div class="app-icon">
+                    <i class="fas fa-mobile-alt"></i>
+                  </div>
+                  <div class="app-info">
+                    <h4>移动端API</h4>
+                    <span class="app-version">v3.0.1</span>
+                  </div>
+                  <div class="app-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">运行中</span>
+                  </div>
+                </div>
+                <div class="app-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">响应时间</span>
+                    <span class="metric-value">89ms</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">吞吐量</span>
+                    <span class="metric-value">2,156 req/min</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">错误率</span>
+                    <span class="metric-value">0.01%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 应用性能图表 -->
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>应用性能趋势</h3>
+            </div>
+            <div class="chart-container">
+              <canvas
+                id="app-performance-chart"
+                width="800"
+                height="300"
+              ></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 数据库监控 -->
+        <div id="databases-content" class="subtab-content">
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>数据库实例</h3>
+              <div class="section-actions">
+                <button class="btn-icon" title="添加数据库">
+                  <i class="fas fa-plus"></i>
+                </button>
+                <button class="btn-icon" title="设置">
+                  <i class="fas fa-cog"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="db-grid">
+              <div class="db-card healthy">
+                <div class="db-header">
+                  <div class="db-icon">
+                    <i class="fas fa-database"></i>
+                  </div>
+                  <div class="db-info">
+                    <h4>MySQL主库</h4>
+                    <span class="db-version">MySQL 8.0.28</span>
+                  </div>
+                  <div class="db-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">正常</span>
+                  </div>
+                </div>
+                <div class="db-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">连接数</span>
+                    <span class="metric-value">45/200</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">QPS</span>
+                    <span class="metric-value">1,234</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">慢查询</span>
+                    <span class="metric-value">2</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">复制延迟</span>
+                    <span class="metric-value">0.1s</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="db-card warning">
+                <div class="db-header">
+                  <div class="db-icon">
+                    <i class="fas fa-database"></i>
+                  </div>
+                  <div class="db-info">
+                    <h4>Redis缓存</h4>
+                    <span class="db-version">Redis 6.2.6</span>
+                  </div>
+                  <div class="db-status">
+                    <span class="status-indicator warning"></span>
+                    <span class="status-text">警告</span>
+                  </div>
+                </div>
+                <div class="db-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">内存使用</span>
+                    <span class="metric-value">85%</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">命中率</span>
+                    <span class="metric-value">92.5%</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">连接数</span>
+                    <span class="metric-value">156/500</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">键数量</span>
+                    <span class="metric-value">1.2M</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="db-card healthy">
+                <div class="db-header">
+                  <div class="db-icon">
+                    <i class="fas fa-leaf"></i>
+                  </div>
+                  <div class="db-info">
+                    <h4>MongoDB</h4>
+                    <span class="db-version">MongoDB 5.0.9</span>
+                  </div>
+                  <div class="db-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">正常</span>
+                  </div>
+                </div>
+                <div class="db-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">连接数</span>
+                    <span class="metric-value">23/100</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">操作数</span>
+                    <span class="metric-value">567/s</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">存储大小</span>
+                    <span class="metric-value">2.3GB</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">索引大小</span>
+                    <span class="metric-value">456MB</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 数据库性能图表 -->
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>数据库性能指标</h3>
+            </div>
+            <div class="chart-grid">
+              <div class="chart-card">
+                <h4>查询性能</h4>
+                <canvas id="db-query-chart" width="400" height="200"></canvas>
+              </div>
+              <div class="chart-card">
+                <h4>连接池状态</h4>
+                <canvas
+                  id="db-connection-chart"
+                  width="400"
+                  height="200"
+                ></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 网络监控 -->
+        <div id="network-content" class="subtab-content">
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>网络设备状态</h3>
+              <div class="section-actions">
+                <button class="btn-icon" title="添加设备">
+                  <i class="fas fa-plus"></i>
+                </button>
+                <button class="btn-icon" title="网络拓扑">
+                  <i class="fas fa-project-diagram"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="network-grid">
+              <div class="network-card healthy">
+                <div class="network-header">
+                  <div class="network-icon">
+                    <i class="fas fa-router"></i>
+                  </div>
+                  <div class="network-info">
+                    <h4>核心路由器</h4>
+                    <span class="network-ip">192.168.1.1</span>
+                  </div>
+                  <div class="network-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">正常</span>
+                  </div>
+                </div>
+                <div class="network-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">上行带宽</span>
+                    <span class="metric-value">45%</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">下行带宽</span>
+                    <span class="metric-value">32%</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">延迟</span>
+                    <span class="metric-value">2.3ms</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">丢包率</span>
+                    <span class="metric-value">0.01%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="network-card warning">
+                <div class="network-header">
+                  <div class="network-icon">
+                    <i class="fas fa-ethernet"></i>
+                  </div>
+                  <div class="network-info">
+                    <h4>交换机-01</h4>
+                    <span class="network-ip">192.168.1.2</span>
+                  </div>
+                  <div class="network-status">
+                    <span class="status-indicator warning"></span>
+                    <span class="status-text">警告</span>
+                  </div>
+                </div>
+                <div class="network-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">端口利用率</span>
+                    <span class="metric-value">87%</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">错误包</span>
+                    <span class="metric-value">156</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">广播风暴</span>
+                    <span class="metric-value">否</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">温度</span>
+                    <span class="metric-value">68°C</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="network-card healthy">
+                <div class="network-header">
+                  <div class="network-icon">
+                    <i class="fas fa-wifi"></i>
+                  </div>
+                  <div class="network-info">
+                    <h4>无线AP-01</h4>
+                    <span class="network-ip">192.168.1.100</span>
+                  </div>
+                  <div class="network-status">
+                    <span class="status-indicator healthy"></span>
+                    <span class="status-text">正常</span>
+                  </div>
+                </div>
+                <div class="network-metrics">
+                  <div class="metric-row">
+                    <span class="metric-label">连接设备</span>
+                    <span class="metric-value">23/50</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">信号强度</span>
+                    <span class="metric-value">-45dBm</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">信道利用率</span>
+                    <span class="metric-value">34%</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-label">干扰水平</span>
+                    <span class="metric-value">低</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 网络流量图表 -->
+          <div class="monitoring-section">
+            <div class="section-header">
+              <h3>网络流量分析</h3>
+            </div>
+            <div class="chart-container">
+              <canvas
+                id="network-traffic-chart"
+                width="800"
+                height="300"
+              ></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div id="logs-tab" class="monitoring-tab">
+          <div class="tab-placeholder">
+            <i class="fas fa-file-alt"></i>
+            <h2>日志分析</h2>
+            <p>日志分析功能正在开发中...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 脚本文件 -->
+    <script src="./assets/js/chart.min.js"></script>`n    <script src="./components/navigation.js"></script>
+    <script src="scripts/main.js"></script>
+    <script src="scripts/charts.js"></script>
+    <script src="scripts/monitoring.js"></script>
+    <script src="monitoring.js"></script>
+  </body>
+</html>
+
+
+

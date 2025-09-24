@@ -1,0 +1,442 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - AIOps 智能运维平台</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="./components/navigation.css">
+    <link rel="stylesheet" href="styles/settings.css">
+    <link rel="stylesheet" href="./assets/fonts/fontawesome-all.min.css">
+    <link rel="stylesheet" href="./assets/fonts/inter.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-robot"></i>
+                <span>AIOps Platform</span>
+            </div>
+            
+            <div id="nav-container" data-nav-container data-current-page="settings"></div>
+            
+            <div class="nav-user">
+                <div class="user-info">
+                    <img src="./assets/images/user-avatar.svg" alt="用户头像" class="user-avatar">
+                    <span class="user-name">管理员</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h3>设置导航</h3>
+        </div>
+        
+        <div class="sidebar-menu">
+            <div class="menu-group">
+                <div class="menu-title">基础设置</div>
+                <div class="menu-item active" data-subpage="general">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>常规设置</span>
+                </div>
+                <div class="menu-item" data-subpage="appearance">
+                    <i class="fas fa-palette"></i>
+                    <span>外观主题</span>
+                </div>
+                <div class="menu-item" data-subpage="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span>通知设置</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">系统配置</div>
+                <div class="menu-item" data-subpage="monitoring">
+                    <i class="fas fa-chart-line"></i>
+                    <span>监控配置</span>
+                </div>
+                <div class="menu-item" data-subpage="ai-models">
+                    <i class="fas fa-brain"></i>
+                    <span>AI模型配置</span>
+                </div>
+                <div class="menu-item" data-subpage="data-sources">
+                    <i class="fas fa-database"></i>
+                    <span>数据源管理</span>
+                </div>
+                <div class="menu-item" data-subpage="integrations">
+                    <i class="fas fa-plug"></i>
+                    <span>集成配置</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">安全管理</div>
+                <div class="menu-item" data-subpage="users">
+                    <i class="fas fa-users"></i>
+                    <span>用户管理</span>
+                </div>
+                <div class="menu-item" data-subpage="roles">
+                    <i class="fas fa-user-shield"></i>
+                    <span>角色权限</span>
+                </div>
+                <div class="menu-item" data-subpage="audit">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>审计日志</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">系统维护</div>
+                <div class="menu-item" data-subpage="backup">
+                    <i class="fas fa-save"></i>
+                    <span>备份恢复</span>
+                </div>
+                <div class="menu-item" data-subpage="maintenance">
+                    <i class="fas fa-tools"></i>
+                    <span>系统维护</span>
+                </div>
+                <div class="menu-item" data-subpage="about">
+                    <i class="fas fa-info-circle"></i>
+                    <span>关于系统</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+        <div class="content-header">
+            <div class="breadcrumb">
+                <span class="breadcrumb-item">系统设置</span>
+                <i class="fas fa-chevron-right"></i>
+                <span class="breadcrumb-item active">常规设置</span>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="resetBtn">
+                    <i class="fas fa-undo"></i>
+                    重置设置
+                </button>
+                <button class="btn btn-primary" id="saveBtn">
+                    <i class="fas fa-save"></i>
+                    保存设置
+                </button>
+            </div>
+        </div>
+
+        <!-- 页面内容容器 -->
+        <div class="page-container">
+            <!-- 常规设置页面 -->
+            <div id="general-page" class="settings-page active">
+                <div class="settings-section">
+                    <div class="section-header">
+                        <h2>基本信息</h2>
+                        <p>配置系统的基本信息和运行参数</p>
+                    </div>
+                    
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="systemName">系统名称</label>
+                            <input type="text" id="systemName" value="AIOps 智能运维平台" class="form-input">
+                            <small>显示在页面标题和导航栏中的系统名称</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label for="systemVersion">系统版本</label>
+                            <input type="text" id="systemVersion" value="v2.1.0" class="form-input" readonly>
+                            <small>当前系统版本号</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label for="timezone">时区设置</label>
+                            <select id="timezone" class="form-select">
+                                <option value="Asia/Shanghai" selected>Asia/Shanghai (UTC+8)</option>
+                                <option value="UTC">UTC (UTC+0)</option>
+                                <option value="America/New_York">America/New_York (UTC-5)</option>
+                                <option value="Europe/London">Europe/London (UTC+0)</option>
+                            </select>
+                            <small>系统默认时区</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label for="language">界面语言</label>
+                            <select id="language" class="form-select">
+                                <option value="zh-CN" selected>简体中文</option>
+                                <option value="en-US">English</option>
+                                <option value="ja-JP">日本語</option>
+                            </select>
+                            <small>系统界面显示语言</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-header">
+                        <h2>性能配置</h2>
+                        <p>调整系统性能相关参数</p>
+                    </div>
+                    
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="refreshInterval">数据刷新间隔</label>
+                            <select id="refreshInterval" class="form-select">
+                                <option value="5">5秒</option>
+                                <option value="10" selected>10秒</option>
+                                <option value="30">30秒</option>
+                                <option value="60">1分钟</option>
+                            </select>
+                            <small>监控数据自动刷新间隔</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label for="dataRetention">数据保留期</label>
+                            <select id="dataRetention" class="form-select">
+                                <option value="7">7天</option>
+                                <option value="30" selected>30天</option>
+                                <option value="90">90天</option>
+                                <option value="365">1年</option>
+                            </select>
+                            <small>历史数据保留时间</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label for="maxConcurrent">最大并发连接</label>
+                            <input type="number" id="maxConcurrent" value="1000" min="100" max="10000" class="form-input">
+                            <small>系统支持的最大并发连接数</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label class="switch-label">
+                                <span>启用缓存</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="enableCache" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </label>
+                            <small>启用数据缓存以提高性能</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-header">
+                        <h2>安全设置</h2>
+                        <p>配置系统安全相关选项</p>
+                    </div>
+                    
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label for="sessionTimeout">会话超时</label>
+                            <select id="sessionTimeout" class="form-select">
+                                <option value="30">30分钟</option>
+                                <option value="60" selected>1小时</option>
+                                <option value="240">4小时</option>
+                                <option value="480">8小时</option>
+                            </select>
+                            <small>用户会话自动过期时间</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label for="passwordPolicy">密码策略</label>
+                            <select id="passwordPolicy" class="form-select">
+                                <option value="simple">简单</option>
+                                <option value="medium" selected>中等</option>
+                                <option value="strong">强</option>
+                            </select>
+                            <small>用户密码复杂度要求</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label class="switch-label">
+                                <span>启用双因子认证</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="enable2FA">
+                                    <span class="slider"></span>
+                                </div>
+                            </label>
+                            <small>为用户账户启用双因子认证</small>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <label class="switch-label">
+                                <span>记录审计日志</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="enableAudit" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </label>
+                            <small>记录用户操作和系统事件</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 外观主题页面 -->
+            <div id="appearance-page" class="settings-page">
+                <div class="settings-section">
+                    <div class="section-header">
+                        <h2>主题设置</h2>
+                        <p>自定义系统外观和主题</p>
+                    </div>
+                    
+                    <div class="theme-selector">
+                        <div class="theme-option active" data-theme="light">
+                            <div class="theme-preview light-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-sidebar"></div>
+                                <div class="preview-content"></div>
+                            </div>
+                            <span>浅色主题</span>
+                        </div>
+                        
+                        <div class="theme-option" data-theme="dark">
+                            <div class="theme-preview dark-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-sidebar"></div>
+                                <div class="preview-content"></div>
+                            </div>
+                            <span>深色主题</span>
+                        </div>
+                        
+                        <div class="theme-option" data-theme="auto">
+                            <div class="theme-preview auto-theme">
+                                <div class="preview-header"></div>
+                                <div class="preview-sidebar"></div>
+                                <div class="preview-content"></div>
+                            </div>
+                            <span>跟随系统</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-header">
+                        <h2>颜色配置</h2>
+                        <p>自定义系统主色调</p>
+                    </div>
+                    
+                    <div class="color-palette">
+                        <div class="color-option active" data-color="#4F46E5" style="background-color: #4F46E5;"></div>
+                        <div class="color-option" data-color="#059669" style="background-color: #059669;"></div>
+                        <div class="color-option" data-color="#DC2626" style="background-color: #DC2626;"></div>
+                        <div class="color-option" data-color="#7C3AED" style="background-color: #7C3AED;"></div>
+                        <div class="color-option" data-color="#EA580C" style="background-color: #EA580C;"></div>
+                        <div class="color-option" data-color="#0891B2" style="background-color: #0891B2;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 通知设置页面 -->
+            <div id="notifications-page" class="settings-page">
+                <div class="settings-section">
+                    <div class="section-header">
+                        <h2>通知配置</h2>
+                        <p>管理系统通知和告警设置</p>
+                    </div>
+                    
+                    <div class="notification-settings">
+                        <div class="notification-group">
+                            <h3>系统通知</h3>
+                            <div class="notification-item">
+                                <span>系统启动/停止</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="systemStartStop" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                            <div class="notification-item">
+                                <span>系统更新</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="systemUpdate" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                            <div class="notification-item">
+                                <span>配置变更</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="configChange">
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="notification-group">
+                            <h3>监控告警</h3>
+                            <div class="notification-item">
+                                <span>高优先级告警</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="highPriorityAlert" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                            <div class="notification-item">
+                                <span>中优先级告警</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="mediumPriorityAlert" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                            <div class="notification-item">
+                                <span>低优先级告警</span>
+                                <div class="switch">
+                                    <input type="checkbox" id="lowPriorityAlert">
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 保存确认模态框 -->
+    <div id="saveModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>保存设置</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>确定要保存当前设置吗？某些设置可能需要重启系统才能生效。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelSave">取消</button>
+                <button class="btn btn-primary" id="confirmSave">确认保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重置确认模态框 -->
+    <div id="resetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>重置设置</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>确定要重置所有设置到默认值吗？此操作不可撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelReset">取消</button>
+                <button class="btn btn-danger" id="confirmReset">确认重置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成功提示 -->
+    <div id="successToast" class="toast success">
+        <i class="fas fa-check-circle"></i>
+        <span>设置保存成功！</span>
+    </div>
+
+    <script src="./components/navigation.js"></script>
+    <script src="./scripts/settings.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,1017 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI引擎 - AIOps 智能运维平台</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="./components/navigation.css">
+    <link rel="stylesheet" href="styles/ai-engine.css">
+    <link rel="stylesheet" href="./assets/fonts/fontawesome-all.min.css">
+    <link rel="stylesheet" href="./assets/fonts/inter.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-robot"></i>
+                <span>AIOps Platform</span>
+            </div>
+            
+            <div id="nav-container" data-nav-container data-current-page="ai-engine"></div>
+            
+            <div class="nav-user">
+                <div class="user-info">
+                    <img src="./assets/images/user-avatar.svg" alt="用户头像" class="user-avatar">
+                    <span class="user-name">管理员</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h3>AI引擎模块</h3>
+        </div>
+        
+        <div class="sidebar-menu">
+            <div class="menu-group">
+                <div class="menu-title">模型管理</div>
+                <div class="menu-item active" data-tab="models">
+                    <i class="fas fa-cube"></i>
+                    <span>模型库</span>
+                </div>
+                <div class="menu-item" data-tab="training">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>模型训练</span>
+                </div>
+                <div class="menu-item" data-tab="deployment">
+                    <i class="fas fa-rocket"></i>
+                    <span>模型部署</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">预测分析</div>
+                <div class="menu-item" data-tab="anomaly-detection">
+                    <i class="fas fa-search"></i>
+                    <span>异常检测</span>
+                </div>
+                <div class="menu-item" data-tab="capacity-planning">
+                    <i class="fas fa-chart-area"></i>
+                    <span>容量规划</span>
+                </div>
+                <div class="menu-item" data-tab="performance-prediction">
+                    <i class="fas fa-crystal-ball"></i>
+                    <span>性能预测</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">决策引擎</div>
+                <div class="menu-item" data-tab="decision-rules">
+                    <i class="fas fa-sitemap"></i>
+                    <span>决策规则</span>
+                </div>
+                <div class="menu-item" data-tab="automation-policies">
+                    <i class="fas fa-cogs"></i>
+                    <span>自动化策略</span>
+                </div>
+                <div class="menu-item" data-tab="knowledge-base">
+                    <i class="fas fa-book"></i>
+                    <span>知识库</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">AI洞察</div>
+                <div class="menu-item" data-tab="insights">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>智能洞察</span>
+                </div>
+                <div class="menu-item" data-tab="recommendations">
+                    <i class="fas fa-thumbs-up"></i>
+                    <span>优化建议</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+        <div class="content-header">
+            <div class="breadcrumb">
+                <span class="breadcrumb-item">AI引擎</span>
+                <i class="fas fa-chevron-right"></i>
+                <span class="breadcrumb-item active" id="current-tab">模型库</span>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="refresh-btn">
+                    <i class="fas fa-sync-alt"></i>
+                    刷新
+                </button>
+                <button class="btn btn-primary" id="create-model-btn">
+                    <i class="fas fa-plus"></i>
+                    创建模型
+                </button>
+            </div>
+        </div>
+
+        <!-- AI引擎内容容器 -->
+        <div class="ai-engine-container">
+            <!-- 模型库标签页 -->
+            <div id="models-tab" class="ai-tab active">
+                <!-- AI引擎状态概览 -->
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>AI引擎状态</h3>
+                    </div>
+                    
+                    <div class="status-grid">
+                        <div class="status-card">
+                            <div class="status-icon">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <div class="status-info">
+                                <h4>活跃模型</h4>
+                                <span class="status-value">12</span>
+                                <span class="status-change positive">+2</span>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card">
+                            <div class="status-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="status-info">
+                                <h4>预测准确率</h4>
+                                <span class="status-value">94.2%</span>
+                                <span class="status-change positive">+1.5%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card">
+                            <div class="status-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="status-info">
+                                <h4>平均响应时间</h4>
+                                <span class="status-value">125ms</span>
+                                <span class="status-change negative">+15ms</span>
+                            </div>
+                        </div>
+                        
+                        <div class="status-card">
+                            <div class="status-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="status-info">
+                                <h4>异常检测率</h4>
+                                <span class="status-value">98.7%</span>
+                                <span class="status-change positive">+0.3%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 模型列表 -->
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>模型列表</h3>
+                        <div class="section-actions">
+                            <div class="filter-group">
+                                <select class="filter-select" id="model-type-filter">
+                                    <option value="">所有类型</option>
+                                    <option value="anomaly">异常检测</option>
+                                    <option value="prediction">性能预测</option>
+                                    <option value="classification">分类模型</option>
+                                    <option value="regression">回归模型</option>
+                                </select>
+                                <select class="filter-select" id="model-status-filter">
+                                    <option value="">所有状态</option>
+                                    <option value="active">运行中</option>
+                                    <option value="training">训练中</option>
+                                    <option value="stopped">已停止</option>
+                                </select>
+                            </div>
+                            <input type="text" placeholder="搜索模型..." class="search-input" id="model-search">
+                        </div>
+                    </div>
+                    
+                    <div class="models-grid">
+                        <div class="model-card active">
+                            <div class="model-header">
+                                <div class="model-info">
+                                    <h4>CPU异常检测模型</h4>
+                                    <span class="model-type">异常检测</span>
+                                </div>
+                                <div class="model-status">
+                                    <span class="status-indicator active"></span>
+                                    <span class="status-text">运行中</span>
+                                </div>
+                            </div>
+                            
+                            <div class="model-metrics">
+                                <div class="metric-row">
+                                    <span class="metric-label">准确率</span>
+                                    <span class="metric-value">96.5%</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">训练时间</span>
+                                    <span class="metric-value">2小时</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">最后更新</span>
+                                    <span class="metric-value">2小时前</span>
+                                </div>
+                            </div>
+                            
+                            <div class="model-actions">
+                                <button class="btn-icon" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-icon" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon" title="重新训练">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button class="btn-icon" title="停止">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="model-card training">
+                            <div class="model-header">
+                                <div class="model-info">
+                                    <h4>内存使用预测模型</h4>
+                                    <span class="model-type">性能预测</span>
+                                </div>
+                                <div class="model-status">
+                                    <span class="status-indicator training"></span>
+                                    <span class="status-text">训练中</span>
+                                </div>
+                            </div>
+                            
+                            <div class="training-progress">
+                                <div class="progress-info">
+                                    <span>训练进度</span>
+                                    <span>67%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 67%"></div>
+                                </div>
+                                <div class="progress-details">
+                                    <span>Epoch 67/100</span>
+                                    <span>预计剩余: 45分钟</span>
+                                </div>
+                            </div>
+                            
+                            <div class="model-actions">
+                                <button class="btn-icon" title="查看训练日志">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                                <button class="btn-icon" title="暂停训练">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                <button class="btn-icon" title="停止训练">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="model-card active">
+                            <div class="model-header">
+                                <div class="model-info">
+                                    <h4>网络流量分类模型</h4>
+                                    <span class="model-type">分类模型</span>
+                                </div>
+                                <div class="model-status">
+                                    <span class="status-indicator active"></span>
+                                    <span class="status-text">运行中</span>
+                                </div>
+                            </div>
+                            
+                            <div class="model-metrics">
+                                <div class="metric-row">
+                                    <span class="metric-label">准确率</span>
+                                    <span class="metric-value">92.8%</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">训练时间</span>
+                                    <span class="metric-value">4小时</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">最后更新</span>
+                                    <span class="metric-value">1天前</span>
+                                </div>
+                            </div>
+                            
+                            <div class="model-actions">
+                                <button class="btn-icon" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-icon" title="编辑">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-icon" title="重新训练">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button class="btn-icon" title="停止">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="model-card stopped">
+                            <div class="model-header">
+                                <div class="model-info">
+                                    <h4>磁盘容量预测模型</h4>
+                                    <span class="model-type">回归模型</span>
+                                </div>
+                                <div class="model-status">
+                                    <span class="status-indicator stopped"></span>
+                                    <span class="status-text">已停止</span>
+                                </div>
+                            </div>
+                            
+                            <div class="model-metrics">
+                                <div class="metric-row">
+                                    <span class="metric-label">准确率</span>
+                                    <span class="metric-value">89.2%</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">训练时间</span>
+                                    <span class="metric-value">3小时</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">最后更新</span>
+                                    <span class="metric-value">3天前</span>
+                                </div>
+                            </div>
+                            
+                            <div class="model-actions">
+                                <button class="btn-icon" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-icon" title="启动">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn-icon" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 模型性能图表 -->
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>模型性能监控</h3>
+                    </div>
+                    
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>模型准确率趋势</h4>
+                                <span class="current-value">94.2%</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="accuracy-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>预测响应时间</h4>
+                                <span class="current-value">125ms</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="response-time-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>模型使用频率</h4>
+                                <span class="current-value">1.2K/h</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="usage-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>异常检测统计</h4>
+                                <span class="current-value">23</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="anomaly-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 其他AI标签页占位符 -->
+            <!-- 模型训练标签页 -->
+            <div id="training-tab" class="ai-tab">
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>训练任务管理</h3>
+                        <button class="btn btn-primary" id="new-training-btn">
+                            <i class="fas fa-plus"></i>
+                            新建训练任务
+                        </button>
+                    </div>
+                    
+                    <div class="training-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-play"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>运行中</h4>
+                                <span class="stat-value">3</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>已完成</h4>
+                                <span class="stat-value">15</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-times"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>失败</h4>
+                                <span class="stat-value">2</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>平均时长</h4>
+                                <span class="stat-value">2.5h</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="training-list">
+                        <div class="training-item running">
+                            <div class="training-info">
+                                <h4>CPU异常检测模型 v2.0</h4>
+                                <div class="training-meta">
+                                    <span class="training-type">异常检测</span>
+                                    <span class="training-time">开始时间: 2024-01-20 14:30</span>
+                                </div>
+                            </div>
+                            <div class="training-progress">
+                                <div class="progress-info">
+                                    <span>Epoch 45/100</span>
+                                    <span>45%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 45%"></div>
+                                </div>
+                                <div class="progress-details">
+                                    <span>Loss: 0.0234</span>
+                                    <span>Accuracy: 94.2%</span>
+                                    <span>预计剩余: 1.2h</span>
+                                </div>
+                            </div>
+                            <div class="training-actions">
+                                <button class="btn-icon" title="查看日志">
+                                    <i class="fas fa-file-alt"></i>
+                                </button>
+                                <button class="btn-icon" title="暂停">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                                <button class="btn-icon" title="停止">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="training-item completed">
+                            <div class="training-info">
+                                <h4>内存使用预测模型</h4>
+                                <div class="training-meta">
+                                    <span class="training-type">性能预测</span>
+                                    <span class="training-time">完成时间: 2024-01-20 12:15</span>
+                                </div>
+                            </div>
+                            <div class="training-results">
+                                <div class="result-metric">
+                                    <span class="metric-label">最终准确率</span>
+                                    <span class="metric-value">96.8%</span>
+                                </div>
+                                <div class="result-metric">
+                                    <span class="metric-label">训练时长</span>
+                                    <span class="metric-value">2.3h</span>
+                                </div>
+                                <div class="result-metric">
+                                    <span class="metric-label">验证损失</span>
+                                    <span class="metric-value">0.0156</span>
+                                </div>
+                            </div>
+                            <div class="training-actions">
+                                <button class="btn-icon" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-icon" title="部署模型">
+                                    <i class="fas fa-rocket"></i>
+                                </button>
+                                <button class="btn-icon" title="下载模型">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模型部署标签页 -->
+            <div id="deployment-tab" class="ai-tab">
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>模型部署管理</h3>
+                        <button class="btn btn-primary" id="deploy-model-btn">
+                            <i class="fas fa-rocket"></i>
+                            部署模型
+                        </button>
+                    </div>
+                    
+                    <div class="deployment-grid">
+                        <div class="deployment-card active">
+                            <div class="deployment-header">
+                                <div class="deployment-info">
+                                    <h4>CPU异常检测服务</h4>
+                                    <span class="deployment-version">v1.2.3</span>
+                                </div>
+                                <div class="deployment-status">
+                                    <span class="status-indicator active"></span>
+                                    <span class="status-text">运行中</span>
+                                </div>
+                            </div>
+                            
+                            <div class="deployment-metrics">
+                                <div class="metric-row">
+                                    <span class="metric-label">请求数/分钟</span>
+                                    <span class="metric-value">1,234</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">平均响应时间</span>
+                                    <span class="metric-value">125ms</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">CPU使用率</span>
+                                    <span class="metric-value">45%</span>
+                                </div>
+                                <div class="metric-row">
+                                    <span class="metric-label">内存使用</span>
+                                    <span class="metric-value">2.1GB</span>
+                                </div>
+                            </div>
+                            
+                            <div class="deployment-actions">
+                                <button class="btn-icon" title="查看监控">
+                                    <i class="fas fa-chart-line"></i>
+                                </button>
+                                <button class="btn-icon" title="扩缩容">
+                                    <i class="fas fa-expand-arrows-alt"></i>
+                                </button>
+                                <button class="btn-icon" title="重启">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button class="btn-icon" title="停止">
+                                    <i class="fas fa-stop"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="deployment-card stopped">
+                            <div class="deployment-header">
+                                <div class="deployment-info">
+                                    <h4>网络流量分类服务</h4>
+                                    <span class="deployment-version">v2.1.0</span>
+                                </div>
+                                <div class="deployment-status">
+                                    <span class="status-indicator stopped"></span>
+                                    <span class="status-text">已停止</span>
+                                </div>
+                            </div>
+                            
+                            <div class="deployment-info-text">
+                                <p>服务已停止，点击启动按钮重新部署</p>
+                            </div>
+                            
+                            <div class="deployment-actions">
+                                <button class="btn-icon" title="启动">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <button class="btn-icon" title="配置">
+                                    <i class="fas fa-cog"></i>
+                                </button>
+                                <button class="btn-icon" title="删除">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 异常检测标签页 -->
+            <div id="anomaly-detection-tab" class="ai-tab">
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>异常检测概览</h3>
+                        <div class="section-actions">
+                            <select class="filter-select" id="anomaly-time-range">
+                                <option value="1h">最近1小时</option>
+                                <option value="6h">最近6小时</option>
+                                <option value="24h" selected>最近24小时</option>
+                                <option value="7d">最近7天</option>
+                            </select>
+                            <button class="btn btn-secondary" id="refresh-anomaly">
+                                <i class="fas fa-sync-alt"></i>
+                                刷新
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="anomaly-stats">
+                        <div class="stat-card critical">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>严重异常</h4>
+                                <span class="stat-value">3</span>
+                            </div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>警告异常</h4>
+                                <span class="stat-value">12</span>
+                            </div>
+                        </div>
+                        <div class="stat-card info">
+                            <div class="stat-icon">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>轻微异常</h4>
+                                <span class="stat-value">28</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>检测准确率</h4>
+                                <span class="stat-value">98.7%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="anomaly-chart-section">
+                        <h4>异常趋势图</h4>
+                        <canvas id="anomaly-trend-chart" width="800" height="300"></canvas>
+                    </div>
+                    
+                    <div class="anomaly-list">
+                        <h4>最新异常事件</h4>
+                        <div class="anomaly-item critical">
+                            <div class="anomaly-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="anomaly-info">
+                                <h5>服务器CPU使用率异常</h5>
+                                <p>服务器 web-01 的CPU使用率在过去5分钟内持续超过95%</p>
+                                <div class="anomaly-meta">
+                                    <span class="anomaly-time">2分钟前</span>
+                                    <span class="anomaly-confidence">置信度: 98.5%</span>
+                                </div>
+                            </div>
+                            <div class="anomaly-actions">
+                                <button class="btn-icon" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-icon" title="触发自愈">
+                                    <i class="fas fa-magic"></i>
+                                </button>
+                                <button class="btn-icon" title="忽略">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="anomaly-item warning">
+                            <div class="anomaly-icon">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="anomaly-info">
+                                <h5>数据库连接数异常</h5>
+                                <p>MySQL数据库连接数出现异常波动，可能影响服务性能</p>
+                                <div class="anomaly-meta">
+                                    <span class="anomaly-time">5分钟前</span>
+                                    <span class="anomaly-confidence">置信度: 87.2%</span>
+                                </div>
+                            </div>
+                            <div class="anomaly-actions">
+                                <button class="btn-icon" title="查看详情">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-icon" title="触发自愈">
+                                    <i class="fas fa-magic"></i>
+                                </button>
+                                <button class="btn-icon" title="忽略">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 容量规划标签页 -->
+            <div id="capacity-planning-tab" class="ai-tab">
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>容量规划分析</h3>
+                        <div class="section-actions">
+                            <select class="filter-select" id="capacity-resource">
+                                <option value="cpu">CPU</option>
+                                <option value="memory">内存</option>
+                                <option value="disk">磁盘</option>
+                                <option value="network">网络</option>
+                            </select>
+                            <select class="filter-select" id="capacity-timeframe">
+                                <option value="1m">未来1个月</option>
+                                <option value="3m" selected>未来3个月</option>
+                                <option value="6m">未来6个月</option>
+                                <option value="1y">未来1年</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="capacity-predictions">
+                        <div class="prediction-card">
+                            <div class="prediction-header">
+                                <h4>CPU容量预测</h4>
+                                <span class="prediction-confidence">置信度: 94%</span>
+                            </div>
+                            <div class="prediction-chart">
+                                <canvas id="cpu-capacity-chart" width="300" height="200"></canvas>
+                            </div>
+                            <div class="prediction-summary">
+                                <p>预计在<strong>2个月后</strong>CPU使用率将达到80%阈值</p>
+                                <p>建议提前扩容或优化现有服务</p>
+                            </div>
+                        </div>
+                        
+                        <div class="prediction-card">
+                            <div class="prediction-header">
+                                <h4>内存容量预测</h4>
+                                <span class="prediction-confidence">置信度: 91%</span>
+                            </div>
+                            <div class="prediction-chart">
+                                <canvas id="memory-capacity-chart" width="300" height="200"></canvas>
+                            </div>
+                            <div class="prediction-summary">
+                                <p>内存使用增长平稳，<strong>6个月内</strong>无需扩容</p>
+                                <p>当前配置可满足预期需求</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="capacity-recommendations">
+                        <h4>容量优化建议</h4>
+                        <div class="recommendation-list">
+                            <div class="recommendation-item high">
+                                <div class="recommendation-priority">高</div>
+                                <div class="recommendation-content">
+                                    <h5>增加Web服务器实例</h5>
+                                    <p>建议在未来4周内增加2台Web服务器实例，以应对预期的流量增长</p>
+                                </div>
+                            </div>
+                            <div class="recommendation-item medium">
+                                <div class="recommendation-priority">中</div>
+                                <div class="recommendation-content">
+                                    <h5>优化数据库查询</h5>
+                                    <p>部分数据库查询效率较低，建议优化索引以减少CPU和内存消耗</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 性能预测标签页 -->
+            <div id="performance-prediction-tab" class="ai-tab">
+                <div class="ai-section">
+                    <div class="section-header">
+                        <h3>性能预测分析</h3>
+                        <div class="section-actions">
+                            <select class="filter-select" id="prediction-service">
+                                <option value="all">所有服务</option>
+                                <option value="web">Web服务</option>
+                                <option value="api">API服务</option>
+                                <option value="db">数据库</option>
+                            </select>
+                            <select class="filter-select" id="prediction-metric">
+                                <option value="response_time">响应时间</option>
+                                <option value="throughput">吞吐量</option>
+                                <option value="error_rate">错误率</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="prediction-overview">
+                        <div class="prediction-stat">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>预测响应时间</h4>
+                                <span class="stat-value">145ms</span>
+                                <span class="stat-trend up">+12ms</span>
+                            </div>
+                        </div>
+                        <div class="prediction-stat">
+                            <div class="stat-icon">
+                                <i class="fas fa-tachometer-alt"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>预测吞吐量</h4>
+                                <span class="stat-value">1,250</span>
+                                <span class="stat-trend down">-50 req/min</span>
+                            </div>
+                        </div>
+                        <div class="prediction-stat">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>预测错误率</h4>
+                                <span class="stat-value">0.8%</span>
+                                <span class="stat-trend up">+0.2%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="prediction-chart-section">
+                        <h4>性能趋势预测</h4>
+                        <canvas id="performance-prediction-chart" width="800" height="400"></canvas>
+                    </div>
+                    
+                    <div class="prediction-alerts">
+                        <h4>性能预警</h4>
+                        <div class="alert-item warning">
+                            <div class="alert-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="alert-content">
+                                <h5>响应时间预警</h5>
+                                <p>预测在未来2小时内，API服务响应时间可能超过200ms阈值</p>
+                                <span class="alert-time">预计发生时间: 16:30</span>
+                            </div>
+                        </div>
+                        <div class="alert-item info">
+                            <div class="alert-icon">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div class="alert-content">
+                                <h5>流量高峰预测</h5>
+                                <p>预测今晚20:00-22:00将出现流量高峰，建议提前准备</p>
+                                <span class="alert-time">预计发生时间: 20:00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="decision-rules-tab" class="ai-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-sitemap"></i>
+                    <h2>决策规则</h2>
+                    <p>决策规则功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="automation-policies-tab" class="ai-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-cogs"></i>
+                    <h2>自动化策略</h2>
+                    <p>自动化策略功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="knowledge-base-tab" class="ai-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-book"></i>
+                    <h2>知识库</h2>
+                    <p>知识库功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="insights-tab" class="ai-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-lightbulb"></i>
+                    <h2>智能洞察</h2>
+                    <p>智能洞察功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="recommendations-tab" class="ai-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-thumbs-up"></i>
+                    <h2>优化建议</h2>
+                    <p>优化建议功能正在开发中...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 模型创建模态框 -->
+    <div id="create-model-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建新模型</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="create-model-form">
+                    <div class="form-group">
+                        <label for="model-name">模型名称</label>
+                        <input type="text" id="model-name" name="modelName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="model-type-select">模型类型</label>
+                        <select id="model-type-select" name="modelType" required>
+                            <option value="">请选择模型类型</option>
+                            <option value="anomaly">异常检测</option>
+                            <option value="prediction">性能预测</option>
+                            <option value="classification">分类模型</option>
+                            <option value="regression">回归模型</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="model-description">模型描述</label>
+                        <textarea id="model-description" name="modelDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="data-source">数据源</label>
+                        <select id="data-source" name="dataSource" required>
+                            <option value="">请选择数据源</option>
+                            <option value="metrics">系统指标</option>
+                            <option value="logs">日志数据</option>
+                            <option value="events">事件数据</option>
+                            <option value="custom">自定义数据</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-create">取消</button>
+                <button type="submit" class="btn btn-primary" form="create-model-form">创建模型</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本文件 -->
+    <script src="./assets/js/chart.min.js"></script>
+    <script src="scripts/main.js"></script>
+    <script src="scripts/charts.js"></script>
+    <script src="scripts/ai-engine.js"></script>
+    <script src="./components/navigation.js"></script>
+</body>
+</html>
+

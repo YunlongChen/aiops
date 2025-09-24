@@ -1,0 +1,1388 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>告警管理 - AIOps 智能运维平台</title>
+    <link rel="stylesheet" href="styles/main.css">`n    <link rel="stylesheet" href="./components/navigation.css">
+    <link rel="stylesheet" href="styles/alerting.css">
+    <link rel="stylesheet" href="./assets/fonts/fontawesome-all.min.css">
+    <link rel="stylesheet" href="./assets/fonts/inter.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-robot"></i>
+                <span>AIOps Platform</span>
+            </div>
+            
+            <div id="nav-container" data-nav-container data-current-page="alerting"></div>
+            
+            <div class="nav-user">
+                <div class="user-info">
+                    <img src="./assets/images/user-avatar.svg" alt="用户头像" class="user-avatar">
+                    <span class="user-name">管理员</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h3>告警管理</h3>
+        </div>
+        
+        <div class="sidebar-menu">
+            <div class="menu-group">
+                <div class="menu-title">告警概览</div>
+                <div class="menu-item active" data-tab="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>告警仪表板</span>
+                </div>
+                <div class="menu-item" data-tab="active-alerts">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>活跃告警</span>
+                    <span class="badge">12</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">告警配置</div>
+                <div class="menu-item" data-tab="rules">
+                    <i class="fas fa-list-ul"></i>
+                    <span>告警规则</span>
+                </div>
+                <div class="menu-item" data-tab="channels">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>通知渠道</span>
+                </div>
+                <div class="menu-item" data-tab="templates">
+                    <i class="fas fa-file-alt"></i>
+                    <span>消息模板</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">事件管理</div>
+                <div class="menu-item" data-tab="incidents">
+                    <i class="fas fa-fire"></i>
+                    <span>事件处理</span>
+                </div>
+                <div class="menu-item" data-tab="escalation">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>升级策略</span>
+                </div>
+                <div class="menu-item" data-tab="oncall">
+                    <i class="fas fa-phone"></i>
+                    <span>值班安排</span>
+                </div>
+            </div>
+            
+            <div class="menu-group">
+                <div class="menu-title">分析报告</div>
+                <div class="menu-item" data-tab="history">
+                    <i class="fas fa-history"></i>
+                    <span>告警历史</span>
+                </div>
+                <div class="menu-item" data-tab="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>告警分析</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主内容区域 -->
+    <main class="main-content">
+        <div class="content-header">
+            <div class="breadcrumb">
+                <span class="breadcrumb-item">告警管理</span>
+                <i class="fas fa-chevron-right"></i>
+                <span class="breadcrumb-item active" id="current-tab">告警仪表板</span>
+            </div>
+            
+            <div class="header-actions">
+                <button class="btn btn-secondary" id="refresh-btn">
+                    <i class="fas fa-sync-alt"></i>
+                    刷新
+                </button>
+                <button class="btn btn-primary" id="create-rule-btn">
+                    <i class="fas fa-plus"></i>
+                    创建规则
+                </button>
+            </div>
+        </div>
+
+        <!-- 告警管理内容容器 -->
+        <div class="alerting-container">
+            <!-- 告警仪表板标签页 -->
+            <div id="dashboard-tab" class="alert-tab active">
+                <!-- 告警统计概览 -->
+                <div class="alert-section">
+                    <div class="section-header">
+                        <h3>告警统计</h3>
+                        <div class="time-range-selector">
+                            <select id="time-range">
+                                <option value="1h">最近1小时</option>
+                                <option value="24h" selected>最近24小时</option>
+                                <option value="7d">最近7天</option>
+                                <option value="30d">最近30天</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card critical">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>严重告警</h4>
+                                <span class="stat-value">3</span>
+                                <span class="stat-change negative">+1</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card warning">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>警告告警</h4>
+                                <span class="stat-value">9</span>
+                                <span class="stat-change positive">-2</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card info">
+                            <div class="stat-icon">
+                                <i class="fas fa-info-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>信息告警</h4>
+                                <span class="stat-value">15</span>
+                                <span class="stat-change neutral">0</span>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card resolved">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h4>已解决</h4>
+                                <span class="stat-value">47</span>
+                                <span class="stat-change positive">+8</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 活跃告警列表 -->
+                <div class="alert-section">
+                    <div class="section-header">
+                        <h3>活跃告警</h3>
+                        <div class="section-actions">
+                            <div class="filter-group">
+                                <select class="filter-select" id="severity-filter">
+                                    <option value="">所有级别</option>
+                                    <option value="critical">严重</option>
+                                    <option value="warning">警告</option>
+                                    <option value="info">信息</option>
+                                </select>
+                                <select class="filter-select" id="source-filter">
+                                    <option value="">所有来源</option>
+                                    <option value="infrastructure">基础设施</option>
+                                    <option value="application">应用程序</option>
+                                    <option value="database">数据库</option>
+                                    <option value="network">网络</option>
+                                </select>
+                            </div>
+                            <input type="text" placeholder="搜索告警..." class="search-input" id="alert-search">
+                        </div>
+                    </div>
+                    
+                    <div class="alerts-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>级别</th>
+                                    <th>告警名称</th>
+                                    <th>来源</th>
+                                    <th>触发时间</th>
+                                    <th>持续时间</th>
+                                    <th>状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alerts-tbody">
+                                <tr class="alert-row critical">
+                                    <td>
+                                        <span class="severity-badge critical">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            严重
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="alert-title">CPU使用率过高</div>
+                                        <div class="alert-description">服务器 web-01 CPU使用率超过90%</div>
+                                    </td>
+                                    <td>
+                                        <span class="source-tag infrastructure">基础设施</span>
+                                    </td>
+                                    <td>2024-01-15 14:30:25</td>
+                                    <td>
+                                        <span class="duration">25分钟</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge firing">触发中</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="确认">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn-icon" title="静默">
+                                                <i class="fas fa-volume-mute"></i>
+                                            </button>
+                                            <button class="btn-icon" title="详情">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="alert-row critical">
+                                    <td>
+                                        <span class="severity-badge critical">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            严重
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="alert-title">数据库连接失败</div>
+                                        <div class="alert-description">MySQL主库连接超时</div>
+                                    </td>
+                                    <td>
+                                        <span class="source-tag database">数据库</span>
+                                    </td>
+                                    <td>2024-01-15 14:25:10</td>
+                                    <td>
+                                        <span class="duration">30分钟</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge acknowledged">已确认</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="解决">
+                                                <i class="fas fa-check-circle"></i>
+                                            </button>
+                                            <button class="btn-icon" title="静默">
+                                                <i class="fas fa-volume-mute"></i>
+                                            </button>
+                                            <button class="btn-icon" title="详情">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="alert-row warning">
+                                    <td>
+                                        <span class="severity-badge warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            警告
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="alert-title">内存使用率高</div>
+                                        <div class="alert-description">应用服务器内存使用率达到85%</div>
+                                    </td>
+                                    <td>
+                                        <span class="source-tag application">应用程序</span>
+                                    </td>
+                                    <td>2024-01-15 14:20:15</td>
+                                    <td>
+                                        <span class="duration">35分钟</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge firing">触发中</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="确认">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn-icon" title="静默">
+                                                <i class="fas fa-volume-mute"></i>
+                                            </button>
+                                            <button class="btn-icon" title="详情">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="alert-row warning">
+                                    <td>
+                                        <span class="severity-badge warning">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                            警告
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="alert-title">磁盘空间不足</div>
+                                        <div class="alert-description">/var/log 分区使用率超过80%</div>
+                                    </td>
+                                    <td>
+                                        <span class="source-tag infrastructure">基础设施</span>
+                                    </td>
+                                    <td>2024-01-15 14:15:30</td>
+                                    <td>
+                                        <span class="duration">40分钟</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge silenced">已静默</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="取消静默">
+                                                <i class="fas fa-volume-up"></i>
+                                            </button>
+                                            <button class="btn-icon" title="详情">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="alert-row info">
+                                    <td>
+                                        <span class="severity-badge info">
+                                            <i class="fas fa-info-circle"></i>
+                                            信息
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="alert-title">服务重启</div>
+                                        <div class="alert-description">Nginx服务已自动重启</div>
+                                    </td>
+                                    <td>
+                                        <span class="source-tag application">应用程序</span>
+                                    </td>
+                                    <td>2024-01-15 14:10:45</td>
+                                    <td>
+                                        <span class="duration">45分钟</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge firing">触发中</span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon" title="确认">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button class="btn-icon" title="详情">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 告警趋势图表 -->
+                <div class="alert-section">
+                    <div class="section-header">
+                        <h3>告警趋势</h3>
+                    </div>
+                    
+                    <div class="charts-grid">
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>告警数量趋势</h4>
+                                <span class="current-value">27</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="alert-trend-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>告警级别分布</h4>
+                                <span class="current-value">100%</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="severity-distribution-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>告警来源分析</h4>
+                                <span class="current-value">4类</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="source-analysis-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h4>平均解决时间</h4>
+                                <span class="current-value">15min</span>
+                            </div>
+                            <div class="chart-content">
+                                <canvas id="resolution-time-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 活跃告警标签页 -->
+            <div id="active-alerts-tab" class="alert-tab">
+                <!-- 活跃告警管理 -->
+                <div class="alert-section">
+                    <div class="section-header">
+                        <h3>活跃告警管理</h3>
+                        <div class="section-actions">
+                            <div class="filter-group">
+                                <select class="filter-select" id="active-severity-filter">
+                                    <option value="">所有级别</option>
+                                    <option value="critical">严重</option>
+                                    <option value="warning">警告</option>
+                                    <option value="info">信息</option>
+                                </select>
+                                <select class="filter-select" id="active-status-filter">
+                                    <option value="">所有状态</option>
+                                    <option value="firing">触发中</option>
+                                    <option value="acknowledged">已确认</option>
+                                    <option value="assigned">已分配</option>
+                                </select>
+                                <select class="filter-select" id="active-assignee-filter">
+                                    <option value="">所有处理人</option>
+                                    <option value="unassigned">未分配</option>
+                                    <option value="admin">管理员</option>
+                                    <option value="ops-team">运维团队</option>
+                                </select>
+                            </div>
+                            <div class="batch-actions">
+                                <button class="btn btn-secondary" id="batch-acknowledge-btn" disabled>
+                                    <i class="fas fa-check"></i>
+                                    批量确认
+                                </button>
+                                <button class="btn btn-primary" id="batch-assign-btn" disabled>
+                                    <i class="fas fa-user-plus"></i>
+                                    批量分配
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 告警统计栏 -->
+                    <div class="alert-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">总计</span>
+                            <span class="summary-value" id="total-alerts">12</span>
+                        </div>
+                        <div class="summary-item critical">
+                            <span class="summary-label">严重</span>
+                            <span class="summary-value" id="critical-alerts">3</span>
+                        </div>
+                        <div class="summary-item warning">
+                            <span class="summary-label">警告</span>
+                            <span class="summary-value" id="warning-alerts">7</span>
+                        </div>
+                        <div class="summary-item info">
+                            <span class="summary-label">信息</span>
+                            <span class="summary-value" id="info-alerts">2</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">未分配</span>
+                            <span class="summary-value" id="unassigned-alerts">8</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alerts-container">
+                        <!-- 严重告警卡片 -->
+                        <div class="alert-card critical" data-alert-id="alert-001">
+                            <div class="alert-header">
+                                <div class="alert-checkbox">
+                                    <input type="checkbox" id="alert-001-check" class="alert-select">
+                                </div>
+                                <div class="alert-priority">
+                                    <span class="priority-badge critical">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        严重
+                                    </span>
+                                </div>
+                                <div class="alert-status">
+                                    <span class="status-badge firing">触发中</span>
+                                </div>
+                                <div class="alert-duration">
+                                    <i class="fas fa-clock"></i>
+                                    <span>持续 25分钟</span>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-body">
+                                <div class="alert-main">
+                                    <h4 class="alert-title">CPU使用率过高</h4>
+                                    <p class="alert-description">服务器 web-01 CPU使用率达到 95%，已超过阈值 90%，持续时间超过 5 分钟</p>
+                                    
+                                    <div class="alert-metadata">
+                                        <div class="meta-item">
+                                            <i class="fas fa-server"></i>
+                                            <span>web-01.production.com</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-tag"></i>
+                                            <span>基础设施</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-clock"></i>
+                                            <span>2024-01-15 14:30:25</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-user"></i>
+                                            <span class="unassigned">未分配</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert-metrics">
+                                    <div class="metric-item">
+                                        <span class="metric-label">当前值</span>
+                                        <span class="metric-value critical">95.2%</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">阈值</span>
+                                        <span class="metric-value">90%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-actions">
+                                <div class="primary-actions">
+                                    <button class="btn btn-primary" onclick="acknowledgeAlert('alert-001')">
+                                        <i class="fas fa-check"></i>
+                                        确认告警
+                                    </button>
+                                    <button class="btn btn-success" onclick="assignAlert('alert-001')">
+                                        <i class="fas fa-user-plus"></i>
+                                        分配处理
+                                    </button>
+                                </div>
+                                <div class="secondary-actions">
+                                    <button class="btn btn-outline" onclick="viewAlertDetails('alert-001')">
+                                        <i class="fas fa-eye"></i>
+                                        查看详情
+                                    </button>
+                                    <button class="btn btn-outline" onclick="escalateAlert('alert-001')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        升级处理
+                                    </button>
+                                    <button class="btn btn-outline btn-warning" onclick="snoozeAlert('alert-001')">
+                                        <i class="fas fa-clock"></i>
+                                        暂缓处理
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 已确认的严重告警 -->
+                        <div class="alert-card critical acknowledged" data-alert-id="alert-002">
+                            <div class="alert-header">
+                                <div class="alert-checkbox">
+                                    <input type="checkbox" id="alert-002-check" class="alert-select">
+                                </div>
+                                <div class="alert-priority">
+                                    <span class="priority-badge critical">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        严重
+                                    </span>
+                                </div>
+                                <div class="alert-status">
+                                    <span class="status-badge acknowledged">已确认</span>
+                                </div>
+                                <div class="alert-duration">
+                                    <i class="fas fa-clock"></i>
+                                    <span>持续 30分钟</span>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-body">
+                                <div class="alert-main">
+                                    <h4 class="alert-title">数据库连接失败</h4>
+                                    <p class="alert-description">MySQL主库连接超时，应用程序无法正常访问数据库</p>
+                                    
+                                    <div class="alert-metadata">
+                                        <div class="meta-item">
+                                            <i class="fas fa-database"></i>
+                                            <span>mysql-master-01</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-tag"></i>
+                                            <span>数据库</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-clock"></i>
+                                            <span>2024-01-15 14:25:10</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-user"></i>
+                                            <span class="assigned">张三 (DBA)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert-progress">
+                                    <div class="progress-item">
+                                        <i class="fas fa-check-circle text-success"></i>
+                                        <span>已确认 - 张三 (5分钟前)</span>
+                                    </div>
+                                    <div class="progress-item current">
+                                        <i class="fas fa-cog fa-spin text-primary"></i>
+                                        <span>处理中 - 正在重启数据库服务</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-actions">
+                                <div class="primary-actions">
+                                    <button class="btn btn-success" onclick="resolveAlert('alert-002')">
+                                        <i class="fas fa-check-circle"></i>
+                                        标记解决
+                                    </button>
+                                    <button class="btn btn-primary" onclick="updateProgress('alert-002')">
+                                        <i class="fas fa-edit"></i>
+                                        更新进度
+                                    </button>
+                                </div>
+                                <div class="secondary-actions">
+                                    <button class="btn btn-outline" onclick="viewAlertDetails('alert-002')">
+                                        <i class="fas fa-eye"></i>
+                                        查看详情
+                                    </button>
+                                    <button class="btn btn-outline" onclick="reassignAlert('alert-002')">
+                                        <i class="fas fa-user-edit"></i>
+                                        重新分配
+                                    </button>
+                                    <button class="btn btn-outline btn-warning" onclick="escalateAlert('alert-002')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        升级处理
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 警告级别告警 -->
+                        <div class="alert-card warning" data-alert-id="alert-003">
+                            <div class="alert-header">
+                                <div class="alert-checkbox">
+                                    <input type="checkbox" id="alert-003-check" class="alert-select">
+                                </div>
+                                <div class="alert-priority">
+                                    <span class="priority-badge warning">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        警告
+                                    </span>
+                                </div>
+                                <div class="alert-status">
+                                    <span class="status-badge firing">触发中</span>
+                                </div>
+                                <div class="alert-duration">
+                                    <i class="fas fa-clock"></i>
+                                    <span>持续 35分钟</span>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-body">
+                                <div class="alert-main">
+                                    <h4 class="alert-title">内存使用率高</h4>
+                                    <p class="alert-description">应用服务器内存使用率达到85%，建议关注并考虑扩容</p>
+                                    
+                                    <div class="alert-metadata">
+                                        <div class="meta-item">
+                                            <i class="fas fa-server"></i>
+                                            <span>app-server-02</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-tag"></i>
+                                            <span>应用程序</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-clock"></i>
+                                            <span>2024-01-15 14:20:15</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-user"></i>
+                                            <span class="unassigned">未分配</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert-metrics">
+                                    <div class="metric-item">
+                                        <span class="metric-label">当前值</span>
+                                        <span class="metric-value warning">85.3%</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">阈值</span>
+                                        <span class="metric-value">80%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert-actions">
+                                <div class="primary-actions">
+                                    <button class="btn btn-primary" onclick="acknowledgeAlert('alert-003')">
+                                        <i class="fas fa-check"></i>
+                                        确认告警
+                                    </button>
+                                    <button class="btn btn-success" onclick="assignAlert('alert-003')">
+                                        <i class="fas fa-user-plus"></i>
+                                        分配处理
+                                    </button>
+                                </div>
+                                <div class="secondary-actions">
+                                    <button class="btn btn-outline" onclick="viewAlertDetails('alert-003')">
+                                        <i class="fas fa-eye"></i>
+                                        查看详情
+                                    </button>
+                                    <button class="btn btn-outline btn-secondary" onclick="silenceAlert('alert-003')">
+                                        <i class="fas fa-volume-mute"></i>
+                                        静默告警
+                                    </button>
+                                    <button class="btn btn-outline btn-warning" onclick="snoozeAlert('alert-003')">
+                                        <i class="fas fa-clock"></i>
+                                        暂缓处理
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                                    <i class="fas fa-bell-slash"></i>
+                                    静默
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert-item warning">
+                            <div class="alert-status">
+                                <div class="status-indicator warning"></div>
+                                <span class="status-text">警告</span>
+                            </div>
+                            <div class="alert-content">
+                                <h4 class="alert-title">内存使用率较高</h4>
+                                <p class="alert-description">数据库服务器 db-01 内存使用率达到 85%</p>
+                                <div class="alert-meta">
+                                    <span class="alert-time">
+                                        <i class="fas fa-clock"></i>
+                                        2025-01-19 14:25:10
+                                    </span>
+                                    <span class="alert-source">
+                                        <i class="fas fa-database"></i>
+                                        db-01
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="alert-actions">
+                                <button class="btn btn-sm btn-primary" onclick="acknowledgeAlert('alert-002')">
+                                    <i class="fas fa-check"></i>
+                                    确认
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="viewAlertDetails('alert-002')">
+                                    <i class="fas fa-eye"></i>
+                                    详情
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="silenceAlert('alert-002')">
+                                    <i class="fas fa-bell-slash"></i>
+                                    静默
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert-item info">
+                            <div class="alert-status">
+                                <div class="status-indicator info"></div>
+                                <span class="status-text">信息</span>
+                            </div>
+                            <div class="alert-content">
+                                <h4 class="alert-title">服务重启完成</h4>
+                                <p class="alert-description">应用服务 app-service 重启完成，服务状态正常</p>
+                                <div class="alert-meta">
+                                    <span class="alert-time">
+                                        <i class="fas fa-clock"></i>
+                                        2025-01-19 14:20:45
+                                    </span>
+                                    <span class="alert-source">
+                                        <i class="fas fa-cogs"></i>
+                                        app-service
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="alert-actions">
+                                <button class="btn btn-sm btn-primary" onclick="acknowledgeAlert('alert-003')">
+                                    <i class="fas fa-check"></i>
+                                    确认
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="viewAlertDetails('alert-003')">
+                                    <i class="fas fa-eye"></i>
+                                    详情
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="rules-tab" class="alert-tab">
+                <!-- 告警规则配置 -->
+                <div class="alert-section">
+                    <div class="section-header">
+                        <h3>告警规则管理</h3>
+                        <div class="section-actions">
+                            <button class="btn btn-secondary" id="import-rules-btn">
+                                <i class="fas fa-upload"></i>
+                                导入规则
+                            </button>
+                            <button class="btn btn-primary" id="create-rule-btn">
+                                <i class="fas fa-plus"></i>
+                                创建规则
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="rules-list">
+                        <div class="rule-item">
+                            <div class="rule-status">
+                                <div class="status-toggle">
+                                    <input type="checkbox" id="rule-001" checked>
+                                    <label for="rule-001" class="toggle-label"></label>
+                                </div>
+                                <span class="rule-enabled">已启用</span>
+                            </div>
+                            <div class="rule-content">
+                                <h4 class="rule-name">CPU使用率告警</h4>
+                                <p class="rule-description">当服务器CPU使用率超过90%且持续5分钟时触发告警</p>
+                                <div class="rule-details">
+                                    <span class="rule-metric">
+                                        <i class="fas fa-chart-line"></i>
+                                        cpu_usage > 90%
+                                    </span>
+                                    <span class="rule-duration">
+                                        <i class="fas fa-clock"></i>
+                                        持续 5m
+                                    </span>
+                                    <span class="rule-severity critical">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        严重
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="rule-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="editRule('rule-001')">
+                                    <i class="fas fa-edit"></i>
+                                    编辑
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="testRule('rule-001')">
+                                    <i class="fas fa-play"></i>
+                                    测试
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteRule('rule-001')">
+                                    <i class="fas fa-trash"></i>
+                                    删除
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <div class="rule-status">
+                                <div class="status-toggle">
+                                    <input type="checkbox" id="rule-002" checked>
+                                    <label for="rule-002" class="toggle-label"></label>
+                                </div>
+                                <span class="rule-enabled">已启用</span>
+                            </div>
+                            <div class="rule-content">
+                                <h4 class="rule-name">内存使用率告警</h4>
+                                <p class="rule-description">当服务器内存使用率超过85%时触发告警</p>
+                                <div class="rule-details">
+                                    <span class="rule-metric">
+                                        <i class="fas fa-chart-line"></i>
+                                        memory_usage > 85%
+                                    </span>
+                                    <span class="rule-duration">
+                                        <i class="fas fa-clock"></i>
+                                        持续 3m
+                                    </span>
+                                    <span class="rule-severity warning">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        警告
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="rule-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="editRule('rule-002')">
+                                    <i class="fas fa-edit"></i>
+                                    编辑
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="testRule('rule-002')">
+                                    <i class="fas fa-play"></i>
+                                    测试
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteRule('rule-002')">
+                                    <i class="fas fa-trash"></i>
+                                    删除
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <div class="rule-status">
+                                <div class="status-toggle">
+                                    <input type="checkbox" id="rule-003">
+                                    <label for="rule-003" class="toggle-label"></label>
+                                </div>
+                                <span class="rule-disabled">已禁用</span>
+                            </div>
+                            <div class="rule-content">
+                                <h4 class="rule-name">磁盘空间告警</h4>
+                                <p class="rule-description">当磁盘使用率超过80%时触发告警</p>
+                                <div class="rule-details">
+                                    <span class="rule-metric">
+                                        <i class="fas fa-chart-line"></i>
+                                        disk_usage > 80%
+                                    </span>
+                                    <span class="rule-duration">
+                                        <i class="fas fa-clock"></i>
+                                        持续 1m
+                                    </span>
+                                    <span class="rule-severity warning">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        警告
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="rule-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="editRule('rule-003')">
+                                    <i class="fas fa-edit"></i>
+                                    编辑
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="testRule('rule-003')">
+                                    <i class="fas fa-play"></i>
+                                    测试
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteRule('rule-003')">
+                                    <i class="fas fa-trash"></i>
+                                    删除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="channels-tab" class="alert-tab">
+                <!-- 通知渠道配置 -->
+                <div class="alert-section">
+                    <div class="section-header">
+                        <h3>通知渠道管理</h3>
+                        <div class="section-actions">
+                            <button class="btn btn-primary" id="add-channel-btn">
+                                <i class="fas fa-plus"></i>
+                                添加渠道
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="channels-grid">
+                        <div class="channel-card">
+                            <div class="channel-header">
+                                <div class="channel-icon email">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <div class="channel-info">
+                                    <h4 class="channel-name">邮件通知</h4>
+                                    <p class="channel-description">通过SMTP发送邮件告警</p>
+                                </div>
+                                <div class="channel-status">
+                                    <div class="status-toggle">
+                                        <input type="checkbox" id="channel-email" checked>
+                                        <label for="channel-email" class="toggle-label"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="channel-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">SMTP服务器:</span>
+                                    <span class="detail-value">smtp.company.com:587</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">发送邮箱:</span>
+                                    <span class="detail-value">alerts@company.com</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">接收人数:</span>
+                                    <span class="detail-value">5 人</span>
+                                </div>
+                            </div>
+                            <div class="channel-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="editChannel('email')">
+                                    <i class="fas fa-edit"></i>
+                                    编辑
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="testChannel('email')">
+                                    <i class="fas fa-paper-plane"></i>
+                                    测试
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="channel-card">
+                            <div class="channel-header">
+                                <div class="channel-icon sms">
+                                    <i class="fas fa-sms"></i>
+                                </div>
+                                <div class="channel-info">
+                                    <h4 class="channel-name">短信通知</h4>
+                                    <p class="channel-description">通过短信平台发送告警</p>
+                                </div>
+                                <div class="channel-status">
+                                    <div class="status-toggle">
+                                        <input type="checkbox" id="channel-sms" checked>
+                                        <label for="channel-sms" class="toggle-label"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="channel-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">短信平台:</span>
+                                    <span class="detail-value">阿里云短信</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">模板ID:</span>
+                                    <span class="detail-value">SMS_123456789</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">接收号码:</span>
+                                    <span class="detail-value">3 个</span>
+                                </div>
+                            </div>
+                            <div class="channel-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="editChannel('sms')">
+                                    <i class="fas fa-edit"></i>
+                                    编辑
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="testChannel('sms')">
+                                    <i class="fas fa-paper-plane"></i>
+                                    测试
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="channel-card">
+                            <div class="channel-header">
+                                <div class="channel-icon webhook">
+                                    <i class="fab fa-slack"></i>
+                                </div>
+                                <div class="channel-info">
+                                    <h4 class="channel-name">Slack通知</h4>
+                                    <p class="channel-description">发送消息到Slack频道</p>
+                                </div>
+                                <div class="channel-status">
+                                    <div class="status-toggle">
+                                        <input type="checkbox" id="channel-slack">
+                                        <label for="channel-slack" class="toggle-label"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="channel-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">Webhook URL:</span>
+                                    <span class="detail-value">https://hooks.slack.com/...</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">频道:</span>
+                                    <span class="detail-value">#alerts</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">状态:</span>
+                                    <span class="detail-value status-disabled">未配置</span>
+                                </div>
+                            </div>
+                            <div class="channel-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="editChannel('slack')">
+                                    <i class="fas fa-edit"></i>
+                                    编辑
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="testChannel('slack')" disabled>
+                                    <i class="fas fa-paper-plane"></i>
+                                    测试
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="templates-tab" class="alert-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-file-alt"></i>
+                    <h2>消息模板</h2>
+                    <p>消息模板管理功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="incidents-tab" class="alert-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-fire"></i>
+                    <h2>事件处理</h2>
+                    <p>事件处理功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="escalation-tab" class="alert-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-arrow-up"></i>
+                    <h2>升级策略</h2>
+                    <p>升级策略配置功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="oncall-tab" class="alert-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-phone"></i>
+                    <h2>值班安排</h2>
+                    <p>值班安排功能正在开发中...</p>
+                </div>
+            </div>
+
+            <div id="history-tab" class="alert-tab">
+                <!-- 告警历史记录 -->
+                <div class="alert-section">
+                    <div class="section-header">
+                        <h3>告警历史记录</h3>
+                        <div class="section-actions">
+                            <select class="filter-select" id="history-time-range">
+                                <option value="1h">最近1小时</option>
+                                <option value="24h" selected>最近24小时</option>
+                                <option value="7d">最近7天</option>
+                                <option value="30d">最近30天</option>
+                            </select>
+                            <button class="btn btn-secondary" id="export-history-btn">
+                                <i class="fas fa-download"></i>
+                                导出
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="history-table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>告警时间</th>
+                                    <th>告警名称</th>
+                                    <th>级别</th>
+                                    <th>来源</th>
+                                    <th>状态</th>
+                                    <th>持续时间</th>
+                                    <th>处理人</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>2025-01-19 14:30:25</td>
+                                    <td>CPU使用率过高</td>
+                                    <td><span class="severity-badge critical">严重</span></td>
+                                    <td>web-01</td>
+                                    <td><span class="status-badge resolved">已解决</span></td>
+                                    <td>15分钟</td>
+                                    <td>张三</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="viewHistoryDetails('hist-001')">
+                                            <i class="fas fa-eye"></i>
+                                            详情
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2025-01-19 14:25:10</td>
+                                    <td>内存使用率较高</td>
+                                    <td><span class="severity-badge warning">警告</span></td>
+                                    <td>db-01</td>
+                                    <td><span class="status-badge acknowledged">已确认</span></td>
+                                    <td>8分钟</td>
+                                    <td>李四</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="viewHistoryDetails('hist-002')">
+                                            <i class="fas fa-eye"></i>
+                                            详情
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2025-01-19 14:20:45</td>
+                                    <td>服务重启完成</td>
+                                    <td><span class="severity-badge info">信息</span></td>
+                                    <td>app-service</td>
+                                    <td><span class="status-badge resolved">已解决</span></td>
+                                    <td>2分钟</td>
+                                    <td>系统</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="viewHistoryDetails('hist-003')">
+                                            <i class="fas fa-eye"></i>
+                                            详情
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2025-01-19 13:45:30</td>
+                                    <td>网络连接异常</td>
+                                    <td><span class="severity-badge critical">严重</span></td>
+                                    <td>network-switch-01</td>
+                                    <td><span class="status-badge resolved">已解决</span></td>
+                                    <td>25分钟</td>
+                                    <td>王五</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="viewHistoryDetails('hist-004')">
+                                            <i class="fas fa-eye"></i>
+                                            详情
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>2025-01-19 13:30:15</td>
+                                    <td>磁盘空间不足</td>
+                                    <td><span class="severity-badge warning">警告</span></td>
+                                    <td>storage-01</td>
+                                    <td><span class="status-badge silenced">已静默</span></td>
+                                    <td>45分钟</td>
+                                    <td>赵六</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="viewHistoryDetails('hist-005')">
+                                            <i class="fas fa-eye"></i>
+                                            详情
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="pagination">
+                        <button class="btn btn-sm btn-secondary" disabled>
+                            <i class="fas fa-chevron-left"></i>
+                            上一页
+                        </button>
+                        <span class="pagination-info">第 1 页，共 3 页</span>
+                        <button class="btn btn-sm btn-secondary">
+                            下一页
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="analytics-tab" class="alert-tab">
+                <div class="tab-placeholder">
+                    <i class="fas fa-chart-bar"></i>
+                    <h2>告警分析</h2>
+                    <p>告警分析报告功能正在开发中...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 创建规则模态框 -->
+    <div id="create-rule-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建告警规则</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="create-rule-form">
+                    <div class="form-group">
+                        <label for="rule-name">规则名称</label>
+                        <input type="text" id="rule-name" name="ruleName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="rule-description">规则描述</label>
+                        <textarea id="rule-description" name="ruleDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="metric-source">监控指标</label>
+                        <select id="metric-source" name="metricSource" required>
+                            <option value="">请选择监控指标</option>
+                            <option value="cpu">CPU使用率</option>
+                            <option value="memory">内存使用率</option>
+                            <option value="disk">磁盘使用率</option>
+                            <option value="network">网络流量</option>
+                            <option value="response_time">响应时间</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="condition">条件</label>
+                            <select id="condition" name="condition" required>
+                                <option value="gt">大于</option>
+                                <option value="lt">小于</option>
+                                <option value="eq">等于</option>
+                                <option value="gte">大于等于</option>
+                                <option value="lte">小于等于</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="threshold">阈值</label>
+                            <input type="number" id="threshold" name="threshold" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="severity">告警级别</label>
+                        <select id="severity" name="severity" required>
+                            <option value="info">信息</option>
+                            <option value="warning">警告</option>
+                            <option value="critical">严重</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-create">取消</button>
+                <button type="submit" class="btn btn-primary" form="create-rule-form">创建规则</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 脚本文件 -->
+    <script src="./assets/js/chart.min.js"></script>`n    <script src="./components/navigation.js"></script>
+    <script src="scripts/main.js"></script>
+    <script src="scripts/charts.js"></script>
+    <script src="scripts/alerting.js"></script>
+</body>
+</html>
+
+
