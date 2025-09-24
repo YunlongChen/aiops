@@ -2,32 +2,14 @@
 //! 
 //! 定义运行时管理器的数据结构和数据库操作
 
-use super::{RuntimeType, PaginationParams, PaginatedResponse};
+use super::{RuntimeType, PaginationParams, PaginatedResponse, PaginationInfo};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool, Row, Pool, Sqlite};
 use uuid::Uuid;
+use utoipa::{ToSchema, IntoParams};
 
-/// 分页信息结构
-#[derive(Debug, Clone, Serialize)]
-pub struct PaginationInfo {
-    pub page: u32,
-    pub per_page: u32,
-    pub total: u64,
-    pub total_pages: u32,
-}
 
-impl PaginationInfo {
-    pub fn new(page: u32, per_page: u32, total: u64) -> Self {
-        let total_pages = ((total as f64) / (per_page as f64)).ceil() as u32;
-        Self {
-            page,
-            per_page,
-            total,
-            total_pages,
-        }
-    }
-}
 
 /// 运行时管理器状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -88,14 +70,19 @@ pub struct UpdateRuntimeManagerRequest {
 }
 
 /// 运行时管理器查询参数
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct RuntimeManagerQuery {
     #[serde(flatten)]
+    /// 分页参数
     pub pagination: PaginationParams,
-    pub runtime_type: Option<RuntimeType>,
-    pub status: Option<ManagerStatus>,
+    /// 按名称筛选
     pub name: Option<String>,
-    pub tags: Option<String>, // 逗号分隔的标签列表
+    /// 按运行时类型筛选
+    pub runtime_type: Option<RuntimeType>,
+    /// 按状态筛选
+    pub status: Option<String>,
+    /// 按标签筛选（逗号分隔的标签列表）
+    pub tags: Option<String>,
 }
 
 /// 运行时管理器查询结果

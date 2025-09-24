@@ -9,6 +9,7 @@ use axum::{
 };
 use uuid::Uuid;
 use serde_json::{json, Value};
+use utoipa;
 use crate::{
     AppState,
     models::{
@@ -22,6 +23,18 @@ use crate::{
 };
 
 /// 分页获取运行时管理器列表
+#[utoipa::path(
+    get,
+    path = "/api/v1/runtime-managers",
+    tag = "runtime-managers",
+    params(
+        PaginationParams,
+        RuntimeManagerQuery
+    ),
+    responses(
+        (status = 200, description = "Runtime managers list", body = PaginatedResponse<RuntimeManager>)
+    )
+)]
 pub async fn list_managers(
     Query(params): Query<PaginationParams>,
     Query(query): Query<RuntimeManagerQuery>,
@@ -41,7 +54,7 @@ pub async fn list_managers(
                 data: result.data,
                 pagination: crate::models::PaginationInfo {
                     page: result.pagination.page,
-                    limit: result.pagination.per_page,
+                    limit: result.pagination.limit,
                     total: result.pagination.total,
                     total_pages: result.pagination.total_pages,
                     has_next: result.pagination.page < result.pagination.total_pages,
@@ -58,6 +71,16 @@ pub async fn list_managers(
 }
 
 /// 创建新的运行时管理器
+#[utoipa::path(
+    post,
+    path = "/api/v1/runtime-managers",
+    tag = "runtime-managers",
+    request_body = CreateRuntimeManagerRequest,
+    responses(
+        (status = 200, description = "Created successfully", body = ApiResponse<RuntimeManager>),
+        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>)
+    )
+)]
 pub async fn create_manager(
     State(state): State<AppState>,
     Json(request): Json<CreateRuntimeManagerRequest>,
@@ -85,6 +108,18 @@ pub async fn create_manager(
 }
 
 /// 根据ID获取运行时管理器详情
+#[utoipa::path(
+    get,
+    path = "/api/v1/runtime-managers/{id}",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    responses(
+        (status = 200, description = "Runtime manager details", body = ApiResponse<RuntimeManager>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn get_manager(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -100,6 +135,20 @@ pub async fn get_manager(
 }
 
 /// 更新运行时管理器
+#[utoipa::path(
+    put,
+    path = "/api/v1/runtime-managers/{id}",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    request_body = UpdateRuntimeManagerRequest,
+    responses(
+        (status = 200, description = "Updated successfully", body = ApiResponse<RuntimeManager>),
+        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn update_manager(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -138,6 +187,19 @@ pub async fn update_manager(
 }
 
 /// 删除运行时管理器
+#[utoipa::path(
+    delete,
+    path = "/api/v1/runtime-managers/{id}",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    responses(
+        (status = 200, description = "Deleted successfully", body = ApiResponse<String>),
+        (status = 400, description = "Manager is in use", body = ApiResponse<String>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn delete_manager(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -167,6 +229,18 @@ pub async fn delete_manager(
 }
 
 /// 发送心跳信号
+#[utoipa::path(
+    post,
+    path = "/api/v1/runtime-managers/{id}/heartbeat",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    responses(
+        (status = 200, description = "Heartbeat received", body = ApiResponse<String>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn heartbeat(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -184,6 +258,18 @@ pub async fn heartbeat(
 }
 
 /// 测试连接
+#[utoipa::path(
+    post,
+    path = "/api/v1/runtime-managers/{id}/test",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    responses(
+        (status = 200, description = "Connection test result", body = ApiResponse<Value>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn test_connection(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -192,7 +278,7 @@ pub async fn test_connection(
     let manager = if let Ok(Some(manager)) = RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
         manager
     } else if let Ok(None) = RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
-        return Ok(Json(ApiResponse::error("运行时管理器不存在".to_string())))
+        return Ok(Json(ApiResponse::<Value>::error("运行时管理器不存在".to_string())))
     } else if let Err(e) = RuntimeManager::get_by_id(state.db.pool(), &id.to_string()).await {
         tracing::error!("获取运行时管理器失败: {}", e);
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
@@ -222,16 +308,37 @@ pub async fn test_connection(
         tracing::error!("更新管理器状态失败: {}", e);
     }
 
-    Ok(Json(ApiResponse::success(test_result)))
+    Ok(Json(ApiResponse::<Value>::success(test_result)))
 }
 
 /// 获取平台信息和环境检测
+/// 获取平台信息
+#[utoipa::path(
+    get,
+    path = "/api/v1/runtime-managers/platform-info",
+    tag = "runtime-managers",
+    responses(
+        (status = 200, description = "Platform information", body = ApiResponse<Value>)
+    )
+)]
 pub async fn get_platform_info() -> Result<Json<ApiResponse<Value>>, StatusCode> {
     let platform_info = detect_platform_capabilities().await;
     Ok(Json(ApiResponse::success(platform_info)))
 }
 
-/// 获取运行时接入指引
+/// 获取设置指引
+#[utoipa::path(
+    get,
+    path = "/api/v1/runtime-managers/setup-guide/{runtime_type}",
+    tag = "runtime-managers",
+    params(
+        ("runtime_type" = String, Path, description = "Runtime type")
+    ),
+    responses(
+        (status = 200, description = "Setup guide", body = ApiResponse<Value>),
+        (status = 400, description = "Invalid runtime type", body = ApiResponse<String>)
+    )
+)]
 pub async fn get_setup_guide(
     Path(runtime_type): Path<String>,
 ) -> Result<Json<ApiResponse<Value>>, StatusCode> {
@@ -245,7 +352,19 @@ pub async fn get_setup_guide(
     Ok(Json(ApiResponse::success(guide)))
 }
 
-/// 运行时健康检查
+/// 健康检查
+#[utoipa::path(
+    post,
+    path = "/api/v1/runtime-managers/{id}/health-check",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    responses(
+        (status = 200, description = "Health check result", body = ApiResponse<Value>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn health_check(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -264,6 +383,18 @@ pub async fn health_check(
 }
 
 /// 获取运行时信息
+#[utoipa::path(
+    get,
+    path = "/api/v1/runtime-managers/{id}/info",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    responses(
+        (status = 200, description = "Runtime information", body = ApiResponse<Value>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn get_runtime_info(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -282,6 +413,18 @@ pub async fn get_runtime_info(
 }
 
 /// 获取运行时资源使用情况
+#[utoipa::path(
+    get,
+    path = "/api/v1/runtime-managers/{id}/resources",
+    tag = "runtime-managers",
+    params(
+        ("id" = Uuid, Path, description = "Runtime manager ID")
+    ),
+    responses(
+        (status = 200, description = "Resource usage information", body = ApiResponse<Value>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn get_runtime_resources(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,

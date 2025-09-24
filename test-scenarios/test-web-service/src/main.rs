@@ -7,20 +7,26 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::Json,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use serde_json::{json, Value};
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
-use tower_http::cors::CorsLayer;
-use tower_http::services::ServeDir;
+use tower::ServiceBuilder;
+use tower_http::{
+    cors::CorsLayer,
+    services::ServeDir,
+    trace::TraceLayer,
+};
 use tracing::{info, warn};
 use tracing_subscriber;
+use utoipa;
 
 mod api;
 mod config;
 mod database;
+mod docs;
 mod execution;
 mod handlers;
 mod models;
@@ -37,12 +43,20 @@ pub struct AppState {
 }
 
 /// 健康检查端点
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "system",
+    responses(
+        (status = 200, description = "服务健康", body = Value),
+        (status = 500, description = "服务异常")
+    )
+)]
 async fn health_check() -> Result<Json<Value>, StatusCode> {
     Ok(Json(json!({
         "status": "healthy",
-        "service": "aiops-web-service",
-        "version": env!("CARGO_PKG_VERSION"),
-        "timestamp": chrono::Utc::now().to_rfc3339()
+        "timestamp": chrono::Utc::now(),
+        "service": "aiops-web-service"
     })))
 }
 
@@ -88,14 +102,17 @@ async fn main() -> anyhow::Result<()> {
         config: config.clone(),
     };
 
-    // 构建路由
+    // 创建应用路由
     let app = Router::new()
-        .route("/", get(service_info))
         .route("/health", get(health_check))
         .nest("/api/v1", api::routes())
         .nest_service("/static", ServeDir::new("static"))
-        .fallback_service(ServeDir::new("static").append_index_html_on_directories(true))
-        .layer(CorsLayer::permissive())
+        .merge(docs::create_swagger_ui())
+        .layer(
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(CorsLayer::permissive())
+        )
         .with_state(app_state);
 
     // 启动服务器

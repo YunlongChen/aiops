@@ -8,6 +8,7 @@ use axum::{
     response::Json,
 };
 use uuid::Uuid;
+use utoipa;
 use crate::{
     AppState,
     models::{
@@ -19,6 +20,16 @@ use crate::{
 };
 
 /// 分页获取测试用例列表
+#[utoipa::path(
+    get,
+    path = "/api/v1/test-cases",
+    tag = "test-cases",
+    params(TestCaseQuery),
+    responses(
+        (status = 200, description = "Test case list", body = PaginatedResponse<TestCase>),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn list_test_cases(
     Query(params): Query<PaginationParams>,
     Query(query): Query<TestCaseQuery>,
@@ -37,13 +48,24 @@ pub async fn list_test_cases(
 }
 
 /// 创建新的测试用例
+#[utoipa::path(
+    post,
+    path = "/api/v1/test-cases",
+    tag = "test-cases",
+    request_body = CreateTestCaseRequest,
+    responses(
+        (status = 201, description = "Test case created", body = ApiResponse<TestCase>),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn create_test_case(
     State(state): State<AppState>,
     Json(request): Json<CreateTestCaseRequest>,
 ) -> Result<Json<ApiResponse<TestCase>>, StatusCode> {
     // 验证请求数据
     if let Err(e) = validate_create_request(&request) {
-        return Ok(Json(ApiResponse::error(e)));
+        return Ok(Json(ApiResponse::<TestCase>::error(e)));
     }
 
     match TestCase::create(state.db.pool(), request).await {
@@ -55,7 +77,7 @@ pub async fn create_test_case(
             tracing::error!("创建测试用例失败: {}", e);
             match e.to_string().as_str() {
                 s if s.contains("UNIQUE constraint failed") => {
-                    Ok(Json(ApiResponse::error("测试用例名称已存在".to_string())))
+                    Ok(Json(ApiResponse::<TestCase>::error("测试用例名称已存在".to_string())))
                 }
                 _ => Err(StatusCode::INTERNAL_SERVER_ERROR)
             }
@@ -64,13 +86,26 @@ pub async fn create_test_case(
 }
 
 /// 根据ID获取测试用例详情
+#[utoipa::path(
+    get,
+    path = "/api/v1/test-cases/{id}",
+    tag = "test-cases",
+    params(
+        ("id" = Uuid, Path, description = "Test case ID")
+    ),
+    responses(
+        (status = 200, description = "Test case details", body = ApiResponse<TestCase>),
+        (status = 404, description = "Test case not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn get_test_case(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
 ) -> Result<Json<ApiResponse<TestCase>>, StatusCode> {
     match TestCase::get_by_id(state.db.pool(), &id.to_string()).await {
         Ok(Some(test_case)) => Ok(Json(ApiResponse::success(test_case))),
-        Ok(None) => Ok(Json(ApiResponse::error("测试用例不存在".to_string()))),
+        Ok(None) => Ok(Json(ApiResponse::<TestCase>::error("测试用例不存在".to_string()))),
         Err(e) => {
             tracing::error!("获取测试用例失败: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -79,6 +114,21 @@ pub async fn get_test_case(
 }
 
 /// 更新测试用例
+#[utoipa::path(
+    put,
+    path = "/api/v1/test-cases/{id}",
+    tag = "test-cases",
+    params(
+        ("id" = Uuid, Path, description = "Test case ID")
+    ),
+    request_body = UpdateTestCaseRequest,
+    responses(
+        (status = 200, description = "Test case updated", body = ApiResponse<TestCase>),
+        (status = 404, description = "Test case not found"),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn update_test_case(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -117,6 +167,19 @@ pub async fn update_test_case(
 }
 
 /// 删除测试用例
+#[utoipa::path(
+    delete,
+    path = "/api/v1/test-cases/{id}",
+    tag = "test-cases",
+    params(
+        ("id" = Uuid, Path, description = "Test case ID")
+    ),
+    responses(
+        (status = 200, description = "Test case deleted", body = ApiResponse<String>),
+        (status = 404, description = "Test case not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn delete_test_case(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -145,7 +208,22 @@ pub async fn delete_test_case(
     }
 }
 
-/// 运行指定的测试用例
+/// 运行测试用例
+#[utoipa::path(
+    post,
+    path = "/api/v1/test-cases/{id}/run",
+    tag = "test-cases",
+    params(
+        ("id" = Uuid, Path, description = "Test case ID")
+    ),
+    request_body = RunTestCaseRequest,
+    responses(
+        (status = 200, description = "Test case run started", body = ApiResponse<TestRun>),
+        (status = 404, description = "Test case not found"),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 pub async fn run_test_case(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,

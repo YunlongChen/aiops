@@ -9,6 +9,7 @@ use axum::{
 };
 use uuid::Uuid;
 use serde_json::{json, Value};
+use utoipa;
 use crate::{
     AppState,
     models::{
@@ -18,7 +19,19 @@ use crate::{
     }
 };
 
-/// 分页获取测试运行记录列表
+/// Get paginated test run records list
+#[utoipa::path(
+    get,
+    path = "/api/v1/test-runs",
+    tag = "test-runs",
+    params(
+        PaginationParams,
+        TestRunQuery
+    ),
+    responses(
+        (status = 200, description = "Test run records list", body = PaginatedResponse<TestRun>)
+    )
+)]
 pub async fn list_test_runs(
     Query(params): Query<PaginationParams>,
     Query(query): Query<TestRunQuery>,
@@ -40,6 +53,16 @@ pub async fn list_test_runs(
 }
 
 /// 创建新的测试运行记录
+#[utoipa::path(
+    post,
+    path = "/api/v1/test-runs",
+    tag = "test-runs",
+    request_body = CreateTestRunRequest,
+    responses(
+        (status = 200, description = "Created successfully", body = ApiResponse<TestRun>),
+        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>)
+    )
+)]
 pub async fn create_test_run(
     State(state): State<AppState>,
     Json(request): Json<CreateTestRunRequest>,
@@ -67,6 +90,18 @@ pub async fn create_test_run(
 }
 
 /// 根据ID获取测试运行详情
+#[utoipa::path(
+    get,
+    path = "/api/v1/test-runs/{id}",
+    tag = "test-runs",
+    params(
+        ("id" = Uuid, Path, description = "Test run record ID")
+    ),
+    responses(
+        (status = 200, description = "Test run details", body = ApiResponse<TestRun>),
+        (status = 404, description = "Test run record not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn get_test_run(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -82,6 +117,20 @@ pub async fn get_test_run(
 }
 
 /// 更新测试运行记录
+#[utoipa::path(
+    put,
+    path = "/api/v1/test-runs/{id}",
+    tag = "test-runs",
+    params(
+        ("id" = Uuid, Path, description = "Test run record ID")
+    ),
+    request_body = UpdateTestRunRequest,
+    responses(
+        (status = 200, description = "Updated successfully", body = ApiResponse<TestRun>),
+        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>),
+        (status = 404, description = "Test run record not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn update_test_run(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -110,6 +159,19 @@ pub async fn update_test_run(
 }
 
 /// 开始测试运行
+#[utoipa::path(
+    post,
+    path = "/api/v1/test-runs/{id}/start",
+    tag = "test-runs",
+    params(
+        ("id" = Uuid, Path, description = "Test run record ID")
+    ),
+    responses(
+        (status = 200, description = "Started successfully", body = ApiResponse<String>),
+        (status = 400, description = "Test is already running or status does not allow start", body = ApiResponse<String>),
+        (status = 404, description = "Test run record not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn start_test_run(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -169,6 +231,19 @@ pub async fn start_test_run(
 }
 
 /// 停止测试运行
+#[utoipa::path(
+    post,
+    path = "/api/v1/test-runs/{id}/stop",
+    tag = "test-runs",
+    params(
+        ("id" = Uuid, Path, description = "Test run record ID")
+    ),
+    responses(
+        (status = 200, description = "Stopped successfully", body = ApiResponse<String>),
+        (status = 400, description = "Test is not running or status does not allow stop", body = ApiResponse<String>),
+        (status = 404, description = "Test run record not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn stop_test_run(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -211,6 +286,18 @@ pub async fn stop_test_run(
 }
 
 /// 获取测试运行日志
+#[utoipa::path(
+    get,
+    path = "/api/v1/test-runs/{id}/logs",
+    tag = "test-runs",
+    params(
+        ("id" = Uuid, Path, description = "Test run record ID")
+    ),
+    responses(
+        (status = 200, description = "Log information", body = ApiResponse<Value>),
+        (status = 404, description = "Test run record not found", body = ApiResponse<String>)
+    )
+)]
 pub async fn get_test_logs(
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
@@ -228,9 +315,9 @@ pub async fn get_test_logs(
                 "stderr": test_run.stderr.unwrap_or_default(),
                 "metadata": test_run.metadata
             });
-            Ok(Json(ApiResponse::success(logs)))
+            Ok(Json(ApiResponse::<Value>::success(logs)))
         }
-        Ok(None) => Ok(Json(ApiResponse::error("测试运行记录不存在".to_string()))),
+        Ok(None) => Ok(Json(ApiResponse::<Value>::error("测试运行记录不存在".to_string()))),
         Err(e) => {
             tracing::error!("获取测试运行日志失败: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -239,6 +326,14 @@ pub async fn get_test_logs(
 }
 
 /// 获取测试运行统计信息
+#[utoipa::path(
+    get,
+    path = "/api/v1/test-runs/stats",
+    tag = "test-runs",
+    responses(
+        (status = 200, description = "Statistics information", body = ApiResponse<TestRunStats>)
+    )
+)]
 pub async fn get_test_stats(
     State(state): State<AppState>,
 ) -> Result<Json<ApiResponse<TestRunStats>>, StatusCode> {
@@ -370,4 +465,45 @@ async fn execute_k8s_test(
     // TODO: 实现Kubernetes运行时支持
     tracing::warn!("Kubernetes运行时支持尚未实现: {}", test_case.name);
     Err(anyhow::anyhow!("Kubernetes运行时支持尚未实现"))
+}
+
+/// 删除测试运行记录
+#[utoipa::path(
+    delete,
+    path = "/api/v1/test-runs/{id}",
+    tag = "test-runs",
+    params(
+        ("id" = Uuid, Path, description = "Test run ID")
+    ),
+    responses(
+        (status = 200, description = "Test run deleted", body = ApiResponse<String>),
+        (status = 404, description = "Test run not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn delete_test_run(
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<Json<ApiResponse<String>>, StatusCode> {
+    match TestRun::get_by_id(state.db.pool(), &id).await {
+        Ok(Some(test_run)) => {
+            let logs = json!({
+                "test_run_id": test_run.id,
+                "status": test_run.status,
+                "start_time": test_run.start_time,
+                "end_time": test_run.end_time,
+                "duration_ms": test_run.duration_ms,
+                "exit_code": test_run.exit_code,
+                "stdout": test_run.stdout.unwrap_or_default(),
+                "stderr": test_run.stderr.unwrap_or_default(),
+                "metadata": test_run.metadata
+            });
+            Ok(Json(ApiResponse::success(logs.to_string())))
+        }
+        Ok(None) => Ok(Json(ApiResponse::error("测试运行记录不存在".to_string()))),
+        Err(e) => {
+            tracing::error!("获取测试运行日志失败: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }

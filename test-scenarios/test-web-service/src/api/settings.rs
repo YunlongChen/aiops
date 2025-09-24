@@ -182,7 +182,7 @@ pub async fn get_settings_by_category(
         .filter(|s| s.category == category)
         .collect();
     
-    Ok(Json(ApiResponse::success(filtered_settings)))
+    Ok(Json(ApiResponse::<Vec<Setting>>::success(filtered_settings)))
 }
 
 /// 获取单个设置
@@ -215,7 +215,7 @@ pub async fn get_setting(
         updated_at: chrono::Utc::now().to_rfc3339(),
     };
     
-    Ok(Json(ApiResponse::success(setting)))
+    Ok(Json(ApiResponse::<Setting>::success(setting)))
 }
 
 /// 更新设置
@@ -243,7 +243,7 @@ pub async fn update_setting(
     };
     
     tracing::info!("更新设置成功: {} = {:?}", key, setting.value);
-    Ok(Json(ApiResponse::success(setting)))
+    Ok(Json(ApiResponse::<Setting>::success(setting)))
 }
 
 /// 批量更新设置
@@ -257,7 +257,7 @@ pub async fn batch_update_settings(
         tracing::info!("批量更新设置: {} = {:?}", key, value);
     }
     
-    Ok(Json(ApiResponse::success(format!("成功更新 {} 个设置项", count))))
+    Ok(Json(ApiResponse::<String>::success(format!("成功更新 {} 个设置项", count))))
 }
 
 /// 重置设置为默认值
@@ -293,7 +293,7 @@ pub async fn reset_setting(
     };
     
     tracing::info!("重置设置为默认值: {}", key);
-    Ok(Json(ApiResponse::success(setting)))
+    Ok(Json(ApiResponse::<Setting>::success(setting)))
 }
 
 /// 获取用户偏好设置
@@ -327,7 +327,7 @@ pub async fn get_user_preferences(
         },
     ];
     
-    Ok(Json(ApiResponse::success(preferences)))
+    Ok(Json(ApiResponse::<Vec<UserPreference>>::success(preferences)))
 }
 
 /// 更新用户偏好设置
@@ -345,7 +345,7 @@ pub async fn update_user_preference(
     };
     
     tracing::info!("更新用户偏好设置: {} = {:?}", request.key, preference.value);
-    Ok(Json(ApiResponse::success(preference)))
+    Ok(Json(ApiResponse::<UserPreference>::success(preference)))
 }
 
 /// 获取系统配置概览
@@ -382,7 +382,7 @@ pub async fn get_system_config(
         }
     });
     
-    Ok(Json(ApiResponse::success(config)))
+    Ok(Json(ApiResponse::<Value>::success(config)))
 }
 
 /// 更新系统配置
@@ -410,5 +410,5 @@ pub async fn update_system_config(
         "config": config
     });
     
-    Ok(Json(ApiResponse::success(response_data)))
+    Ok(Json(ApiResponse::<Value>::success(response_data)))
 }

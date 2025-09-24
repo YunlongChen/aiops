@@ -7,58 +7,87 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 use uuid::Uuid;
+use utoipa::{ToSchema, IntoParams};
 
 /// 测试用例模型
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct TestCase {
+    /// 测试用例ID
     pub id: String,
+    /// 测试用例名称
     pub name: String,
+    /// 测试用例描述
     pub description: Option<String>,
+    /// 脚本路径
     pub script_path: String,
+    /// 配置文件路径
     pub config_path: Option<String>,
+    /// 运行时类型
     pub runtime_type: String,
+    /// 标签（JSON字符串）
     pub tags: Option<String>,
+    /// 创建时间
     pub created_at: DateTime<Utc>,
+    /// 更新时间
     pub updated_at: DateTime<Utc>,
 }
 
 /// 创建测试用例请求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateTestCaseRequest {
+    /// 测试用例名称
     pub name: String,
+    /// 测试用例描述
     pub description: Option<String>,
+    /// 脚本路径
     pub script_path: String,
+    /// 配置文件路径
     pub config_path: Option<String>,
+    /// 运行时类型
     pub runtime_type: RuntimeType,
+    /// 标签列表
     pub tags: Option<Vec<String>>,
 }
 
 /// 更新测试用例请求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateTestCaseRequest {
+    /// 测试用例名称
     pub name: Option<String>,
+    /// 测试用例描述
     pub description: Option<String>,
+    /// 脚本路径
     pub script_path: Option<String>,
+    /// 配置文件路径
     pub config_path: Option<String>,
+    /// 运行时类型
     pub runtime_type: Option<RuntimeType>,
+    /// 标签列表
     pub tags: Option<Vec<String>>,
 }
 
 /// 运行测试用例请求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RunTestCaseRequest {
+    /// 运行时类型
     pub runtime_type: Option<RuntimeType>,
+    /// 配置覆盖
     pub config_override: Option<String>,
+    /// 元数据
     pub metadata: Option<serde_json::Value>,
 }
 
 /// 测试用例查询参数
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct TestCaseQuery {
     #[serde(flatten)]
+    /// 分页参数
     pub pagination: PaginationParams,
+    /// 按名称筛选
     pub name: Option<String>,
+    /// 按运行时类型筛选
     pub runtime_type: Option<RuntimeType>,
+    /// 按标签筛选
     pub tags: Option<String>,
 }
 

@@ -96,9 +96,9 @@ pub async fn login(
             expires_in: 3600, // 1小时
         };
         
-        Ok(Json(ApiResponse::success(response)))
+        Ok(Json(ApiResponse::<LoginResponse>::success(response)))
     } else {
-        Ok(Json(ApiResponse::error("用户名或密码错误".to_string())))
+        Ok(Json(ApiResponse::<LoginResponse>::error("用户名或密码错误".to_string())))
     }
 }
 
@@ -106,7 +106,7 @@ pub async fn login(
 pub async fn logout(
     State(_state): State<AppState>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
-    Ok(Json(ApiResponse::success("登出成功".to_string())))
+    Ok(Json(ApiResponse::<String>::success("登出成功".to_string())))
 }
 
 /// 刷新令牌
@@ -118,7 +118,7 @@ pub async fn refresh_token(
         "expires_in": 3600
     });
     
-    Ok(Json(ApiResponse::success(response)))
+    Ok(Json(ApiResponse::<Value>::success(response)))
 }
 
 /// 获取当前用户信息
@@ -137,7 +137,7 @@ pub async fn get_current_user(
         last_login: Some(chrono::Utc::now().to_rfc3339()),
     };
     
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::<User>::success(user)))
 }
 
 /// 获取用户列表
@@ -203,7 +203,7 @@ pub async fn create_user(
     };
     
     tracing::info!("创建用户成功: {} ({})", user.username, user.id);
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::<User>::success(user)))
 }
 
 /// 获取用户详情
@@ -223,7 +223,7 @@ pub async fn get_user(
         last_login: None,
     };
     
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::<User>::success(user)))
 }
 
 /// 更新用户
@@ -260,7 +260,7 @@ pub async fn update_user(
     user.updated_at = chrono::Utc::now().to_rfc3339();
     
     tracing::info!("更新用户成功: {} ({})", user.username, user.id);
-    Ok(Json(ApiResponse::success(user)))
+    Ok(Json(ApiResponse::<User>::success(user)))
 }
 
 /// 删除用户
@@ -269,7 +269,7 @@ pub async fn delete_user(
     State(_state): State<AppState>,
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     tracing::info!("删除用户: {}", id);
-    Ok(Json(ApiResponse::success("用户删除成功".to_string())))
+    Ok(Json(ApiResponse::<String>::success("用户删除成功".to_string())))
 }
 
 /// 修改密码
@@ -280,9 +280,9 @@ pub async fn change_password(
     // 模拟密码验证
     if request.old_password == "admin123" {
         tracing::info!("用户密码修改成功");
-        Ok(Json(ApiResponse::success("密码修改成功".to_string())))
+        Ok(Json(ApiResponse::<String>::success("密码修改成功".to_string())))
     } else {
-        Ok(Json(ApiResponse::error("原密码错误".to_string())))
+        Ok(Json(ApiResponse::<String>::error("原密码错误".to_string())))
     }
 }
 
@@ -293,5 +293,5 @@ pub async fn reset_password(
 ) -> Result<Json<ApiResponse<String>>, StatusCode> {
     let new_password = "temp123456";
     tracing::info!("重置用户密码: {}, 新密码: {}", id, new_password);
-    Ok(Json(ApiResponse::success(format!("密码已重置为: {}", new_password))))
+    Ok(Json(ApiResponse::<String>::success(format!("密码已重置为: {}", new_password))))
 }

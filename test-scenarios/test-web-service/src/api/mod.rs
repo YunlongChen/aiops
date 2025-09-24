@@ -7,12 +7,12 @@ use axum::{
     Router,
 };
 
-mod test_cases;
-mod test_runs;
-mod runtime_managers;
-mod system;
-mod users;
-mod settings;
+pub mod system;
+pub mod test_cases;
+pub mod test_runs;
+pub mod runtime_managers;
+pub mod users;
+pub mod settings;
 
 use crate::AppState;
 use crate::handlers::test_script_handler;
@@ -21,9 +21,9 @@ use crate::handlers::test_script_handler;
 pub fn routes() -> Router<AppState> {
     Router::new()
         // 系统相关路由
-        .route("/docs", get(system::api_docs))
-        .route("/stats", get(system::system_stats))
-        .route("/version", get(system::version_info))
+        .route("/docs", get(system::get_info))
+        .route("/stats", get(system::get_stats))
+        .route("/version", get(system::get_version))
         
         // 测试用例管理路由
         .route("/test-cases", get(test_cases::list_test_cases))

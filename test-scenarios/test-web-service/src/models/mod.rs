@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use utoipa::{ToSchema, IntoParams};
 
 // 子模块
 pub mod test_case;
@@ -19,7 +20,7 @@ pub use runtime_manager::*;
 pub use test_script::*;
 
 /// 运行时类型枚举
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum RuntimeType {
     /// 本地运行时
@@ -54,7 +55,7 @@ impl std::str::FromStr for RuntimeType {
 }
 
 /// 测试状态枚举
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum TestStatus {
     /// 等待中
@@ -85,11 +86,13 @@ impl std::fmt::Display for TestStatus {
 }
 
 /// 分页请求参数
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct PaginationParams {
     #[serde(default = "default_page", deserialize_with = "deserialize_string_to_u32")]
+    /// 页码，从1开始
     pub page: u32,
     #[serde(default = "default_limit", deserialize_with = "deserialize_string_to_u32")]
+    /// 每页数量，最大100
     pub limit: u32,
 }
 
@@ -110,11 +113,15 @@ where
             formatter.write_str("a string or number that can be converted to u32")
         }
 
-        fn visit_str<E>(self, value: &str) -> Result<u32, E>
+        fn visit_i64<E>(self, value: i64) -> Result<u32, E>
         where
             E: de::Error,
         {
-            value.parse().map_err(de::Error::custom)
+            if value >= 0 && value <= u32::MAX as i64 {
+                Ok(value as u32)
+            } else {
+                Err(de::Error::custom(format!("u32 out of range: {}", value)))
+            }
         }
 
         fn visit_u64<E>(self, value: u64) -> Result<u32, E>
@@ -128,15 +135,11 @@ where
             }
         }
 
-        fn visit_i64<E>(self, value: i64) -> Result<u32, E>
+        fn visit_str<E>(self, value: &str) -> Result<u32, E>
         where
             E: de::Error,
         {
-            if value >= 0 && value <= u32::MAX as i64 {
-                Ok(value as u32)
-            } else {
-                Err(de::Error::custom(format!("u32 out of range: {}", value)))
-            }
+            value.parse().map_err(de::Error::custom)
         }
     }
 
@@ -167,21 +170,29 @@ impl PaginationParams {
     }
 }
 
-/// 分页响应结构
-#[derive(Debug, Serialize)]
+/// 分页响应数据
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PaginatedResponse<T> {
+    /// 数据列表
     pub data: Vec<T>,
+    /// 分页信息
     pub pagination: PaginationInfo,
 }
 
 /// 分页信息
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PaginationInfo {
+    /// 当前页码
     pub page: u32,
+    /// 每页数量
     pub limit: u32,
+    /// 总记录数
     pub total: u64,
+    /// 总页数
     pub total_pages: u32,
+    /// 是否有下一页
     pub has_next: bool,
+    /// 是否有上一页
     pub has_prev: bool,
 }
 
@@ -200,11 +211,15 @@ impl PaginationInfo {
 }
 
 /// API响应结构
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ApiResponse<T> {
+    /// 请求是否成功
     pub success: bool,
+    /// 响应数据
     pub data: Option<T>,
+    /// 错误消息
     pub message: Option<String>,
+    /// 响应时间戳
     pub timestamp: DateTime<Utc>,
 }
 

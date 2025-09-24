@@ -7,60 +7,93 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 use uuid::Uuid;
+use utoipa::{ToSchema, IntoParams};
 
 /// 测试运行记录模型
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct TestRun {
+    /// 测试运行ID
     pub id: String,
+    /// 测试用例ID
     pub test_case_id: String,
+    /// 运行状态
     pub status: String,
+    /// 开始时间
     pub start_time: Option<DateTime<Utc>>,
+    /// 结束时间
     pub end_time: Option<DateTime<Utc>>,
+    /// 运行时长（毫秒）
     pub duration_ms: Option<i64>,
+    /// 退出码
     pub exit_code: Option<i32>,
+    /// 标准输出
     pub stdout: Option<String>,
+    /// 标准错误
     pub stderr: Option<String>,
+    /// 元数据（JSON字符串）
     pub metadata: Option<String>,
+    /// 创建时间
     pub created_at: DateTime<Utc>,
 }
 
 /// 创建测试运行请求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateTestRunRequest {
+    /// 测试用例ID
     pub test_case_id: String,
+    /// 元数据
     pub metadata: Option<serde_json::Value>,
 }
 
 /// 更新测试运行状态请求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateTestRunRequest {
+    /// 运行状态
     pub status: Option<TestStatus>,
+    /// 退出码
     pub exit_code: Option<i32>,
+    /// 标准输出
     pub stdout: Option<String>,
+    /// 标准错误
     pub stderr: Option<String>,
+    /// 元数据
     pub metadata: Option<serde_json::Value>,
 }
 
 /// 测试运行查询参数
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
 pub struct TestRunQuery {
     #[serde(flatten)]
+    /// 分页参数
     pub pagination: PaginationParams,
+    /// 按测试用例ID筛选
     pub test_case_id: Option<String>,
+    /// 按状态筛选
     pub status: Option<TestStatus>,
+    /// 按运行时管理器ID筛选
+    pub runtime_manager_id: Option<String>,
+    /// 开始日期筛选
     pub start_date: Option<DateTime<Utc>>,
+    /// 结束日期筛选
     pub end_date: Option<DateTime<Utc>>,
 }
 
 /// 测试运行统计信息
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct TestRunStats {
+    /// 总运行次数
     pub total_runs: u64,
+    /// 成功运行次数
     pub success_runs: u64,
+    /// 失败运行次数
     pub failed_runs: u64,
+    /// 正在运行次数
     pub running_runs: u64,
+    /// 等待运行次数
     pub pending_runs: u64,
+    /// 成功率
     pub success_rate: f64,
+    /// 平均运行时长（毫秒）
     pub average_duration_ms: Option<f64>,
 }
 

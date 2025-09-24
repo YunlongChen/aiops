@@ -8,10 +8,20 @@ use axum::{
     response::Json,
 };
 use serde_json::{json, Value};
+use utoipa;
 use crate::{AppState, models::ApiResponse};
 
-/// API文档端点
-pub async fn api_docs() -> Result<Json<Value>, StatusCode> {
+/// 获取API文档
+#[utoipa::path(
+    get,
+    path = "/api/v1/docs",
+    tag = "system",
+    responses(
+        (status = 200, description = "API documentation", body = Value),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn get_info() -> Result<Json<Value>, StatusCode> {
     let docs = json!({
         "title": "AIOps测试管理API",
         "version": "v1",
@@ -134,10 +144,19 @@ pub async fn api_docs() -> Result<Json<Value>, StatusCode> {
     Ok(Json(docs))
 }
 
-/// 系统统计信息端点
-pub async fn system_stats(State(state): State<AppState>) -> Result<Json<ApiResponse<Value>>, StatusCode> {
+/// 获取系统统计信息
+#[utoipa::path(
+    get,
+    path = "/api/v1/stats",
+    tag = "system",
+    responses(
+        (status = 200, description = "System statistics", body = ApiResponse<Value>),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn get_stats(State(state): State<AppState>) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     match get_system_stats(&state).await {
-        Ok(stats) => Ok(Json(ApiResponse::success(stats))),
+        Ok(stats) => Ok(Json(ApiResponse::<Value>::success(stats))),
         Err(e) => {
             tracing::error!("获取系统统计信息失败: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -145,8 +164,17 @@ pub async fn system_stats(State(state): State<AppState>) -> Result<Json<ApiRespo
     }
 }
 
-/// 版本信息端点
-pub async fn version_info() -> Result<Json<ApiResponse<Value>>, StatusCode> {
+/// 获取版本信息
+#[utoipa::path(
+    get,
+    path = "/api/v1/version",
+    tag = "system",
+    responses(
+        (status = 200, description = "Version information", body = ApiResponse<Value>),
+        (status = 500, description = "Internal server error")
+    )
+)]
+pub async fn get_version() -> Result<Json<ApiResponse<Value>>, StatusCode> {
     let version_info = json!({
         "service_name": "aiops-web-service",
         "version": env!("CARGO_PKG_VERSION"),
@@ -164,7 +192,7 @@ pub async fn version_info() -> Result<Json<ApiResponse<Value>>, StatusCode> {
         "documentation": "/api/v1/docs"
     });
 
-    Ok(Json(ApiResponse::success(version_info)))
+    Ok(Json(ApiResponse::<Value>::success(version_info)))
 }
 
 /// 获取系统统计信息
