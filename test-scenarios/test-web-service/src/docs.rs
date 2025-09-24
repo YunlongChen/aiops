@@ -10,6 +10,7 @@ use crate::models::{
     RuntimeType, TestStatus,
     test_case::{TestCase, CreateTestCaseRequest, UpdateTestCaseRequest, RunTestCaseRequest, TestCaseQuery},
     test_run::{TestRun, CreateTestRunRequest, UpdateTestRunRequest, TestRunQuery, TestRunStats},
+    TestCaseApiResponse, TestCasePaginatedResponse, TestRunApiResponse, StringApiResponse,
 };
 
 /// API文档结构定义
@@ -58,12 +59,10 @@ use crate::models::{
     ),
     components(
         schemas(
-            ApiResponse<String>,
-            ApiResponse<TestCase>,
-            ApiResponse<TestRun>,
-            ApiResponse<TestRunStats>,
-            PaginatedResponse<TestCase>,
-            PaginatedResponse<TestRun>,
+            StringApiResponse,
+            TestCaseApiResponse,
+            TestRunApiResponse,
+            TestCasePaginatedResponse,
             PaginationInfo,
             PaginationParams,
             RuntimeType,

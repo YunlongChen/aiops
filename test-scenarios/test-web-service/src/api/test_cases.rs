@@ -15,7 +15,8 @@ use crate::{
         ApiResponse, PaginationParams, PaginatedResponse,
         test_case::{TestCase, CreateTestCaseRequest, UpdateTestCaseRequest, TestCaseQuery, RunTestCaseRequest},
         test_run::{TestRun, CreateTestRunRequest},
-        TestStatus, RuntimeType
+        TestStatus, RuntimeType,
+        TestCaseApiResponse, TestCasePaginatedResponse, TestRunApiResponse, StringApiResponse
     }
 };
 
@@ -26,7 +27,7 @@ use crate::{
     tag = "test-cases",
     params(TestCaseQuery),
     responses(
-        (status = 200, description = "Test case list", body = PaginatedResponse<TestCase>),
+        (status = 200, description = "Test case list", body = TestCasePaginatedResponse),
         (status = 500, description = "Internal server error")
     )
 )]
@@ -54,7 +55,7 @@ pub async fn list_test_cases(
     tag = "test-cases",
     request_body = CreateTestCaseRequest,
     responses(
-        (status = 201, description = "Test case created", body = ApiResponse<TestCase>),
+        (status = 201, description = "Test case created", body = TestCaseApiResponse),
         (status = 400, description = "Invalid request"),
         (status = 500, description = "Internal server error")
     )
@@ -94,7 +95,7 @@ pub async fn create_test_case(
         ("id" = Uuid, Path, description = "Test case ID")
     ),
     responses(
-        (status = 200, description = "Test case details", body = ApiResponse<TestCase>),
+        (status = 200, description = "Test case details", body = TestCaseApiResponse),
         (status = 404, description = "Test case not found"),
         (status = 500, description = "Internal server error")
     )
@@ -123,7 +124,7 @@ pub async fn get_test_case(
     ),
     request_body = UpdateTestCaseRequest,
     responses(
-        (status = 200, description = "Test case updated", body = ApiResponse<TestCase>),
+        (status = 200, description = "Test case updated", body = TestCaseApiResponse),
         (status = 404, description = "Test case not found"),
         (status = 400, description = "Invalid request"),
         (status = 500, description = "Internal server error")
@@ -175,7 +176,7 @@ pub async fn update_test_case(
         ("id" = Uuid, Path, description = "Test case ID")
     ),
     responses(
-        (status = 200, description = "Test case deleted", body = ApiResponse<String>),
+        (status = 200, description = "Test case deleted", body = StringApiResponse),
         (status = 404, description = "Test case not found"),
         (status = 500, description = "Internal server error")
     )
@@ -218,7 +219,7 @@ pub async fn delete_test_case(
     ),
     request_body = RunTestCaseRequest,
     responses(
-        (status = 200, description = "Test case run started", body = ApiResponse<TestRun>),
+        (status = 200, description = "Test case run started", body = TestRunApiResponse),
         (status = 404, description = "Test case not found"),
         (status = 400, description = "Invalid request"),
         (status = 500, description = "Internal server error")

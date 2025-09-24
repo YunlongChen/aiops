@@ -170,8 +170,8 @@ impl PaginationParams {
     }
 }
 
-/// 分页响应数据
-#[derive(Debug, Serialize, ToSchema)]
+/// 分页响应结构
+#[derive(Debug, Serialize)]
 pub struct PaginatedResponse<T> {
     /// 数据列表
     pub data: Vec<T>,
@@ -211,15 +211,63 @@ impl PaginationInfo {
 }
 
 /// API响应结构
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize)]
 pub struct ApiResponse<T> {
-    /// 请求是否成功
+    /// 是否成功
     pub success: bool,
     /// 响应数据
     pub data: Option<T>,
-    /// 错误消息
+    /// 响应消息
     pub message: Option<String>,
-    /// 响应时间戳
+    /// 时间戳
+    pub timestamp: DateTime<Utc>,
+}
+
+/// 测试用例API响应
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestCaseApiResponse {
+    /// 是否成功
+    pub success: bool,
+    /// 响应数据
+    pub data: Option<TestCase>,
+    /// 响应消息
+    pub message: Option<String>,
+    /// 时间戳
+    pub timestamp: DateTime<Utc>,
+}
+
+/// 测试用例分页响应
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestCasePaginatedResponse {
+    /// 数据列表
+    pub data: Vec<TestCase>,
+    /// 分页信息
+    pub pagination: PaginationInfo,
+}
+
+/// 测试运行API响应
+#[derive(Debug, Serialize, ToSchema)]
+pub struct TestRunApiResponse {
+    /// 是否成功
+    pub success: bool,
+    /// 响应数据
+    pub data: Option<TestRun>,
+    /// 响应消息
+    pub message: Option<String>,
+    /// 时间戳
+    pub timestamp: DateTime<Utc>,
+}
+
+/// 字符串API响应
+#[derive(Debug, Serialize, ToSchema)]
+pub struct StringApiResponse {
+    /// 是否成功
+    pub success: bool,
+    /// 响应数据
+    pub data: Option<String>,
+    /// 响应消息
+    pub message: Option<String>,
+    /// 时间戳
     pub timestamp: DateTime<Utc>,
 }
 
