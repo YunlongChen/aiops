@@ -14,7 +14,7 @@ use crate::{AppState, models::ApiResponse};
 /// 获取API文档
 #[utoipa::path(
     get,
-    path = "/api/v1/docs",
+    path = "/info",
     tag = "system",
     responses(
         (status = 200, description = "API documentation", body = Value),
@@ -147,7 +147,7 @@ pub async fn get_info() -> Result<Json<Value>, StatusCode> {
 /// 获取系统统计信息
 #[utoipa::path(
     get,
-    path = "/api/v1/stats",
+    path = "/stats",
     tag = "system",
     responses(
         (status = 200, description = "System statistics", body = ApiResponse<Value>),
@@ -167,7 +167,7 @@ pub async fn get_stats(State(state): State<AppState>) -> Result<Json<ApiResponse
 /// 获取版本信息
 #[utoipa::path(
     get,
-    path = "/api/v1/version",
+    path = "/version",
     tag = "system",
     responses(
         (status = 200, description = "Version information", body = ApiResponse<Value>),

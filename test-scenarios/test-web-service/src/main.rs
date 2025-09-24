@@ -11,7 +11,7 @@ use axum::{
     Router,
 };
 use serde_json::{json, Value};
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -19,9 +19,8 @@ use tower_http::{
     services::ServeDir,
     trace::TraceLayer,
 };
-use tracing::{info, error};
+use tracing::info;
 use axum::middleware::from_fn;
-use tracing_subscriber::EnvFilter;
 
 mod api;
 mod config;

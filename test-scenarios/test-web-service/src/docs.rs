@@ -99,16 +99,16 @@ use crate::models::{
         )
     ),
     servers(
-        (url = "http://localhost:3000", description = "本地开发环境"),
-        (url = "https://api.aiops.example.com", description = "生产环境")
+        (url = "http://localhost:8888/api/v1", description = "本地开发环境"),
+        (url = "https://api.aiops.stanic.xyz/v1", description = "生产环境")
     )
 )]
 pub struct ApiDoc;
 
 /// 创建Swagger UI服务
 pub fn create_swagger_ui() -> SwaggerUi {
-    SwaggerUi::new("/swagger-ui")
-        .url("/api-docs/openapi.json", ApiDoc::openapi())
+    SwaggerUi::new("/api/v1/docs")
+        .url("/api/v1/docs/openapi.json", ApiDoc::openapi())
 }
 
 /// 获取OpenAPI JSON文档
