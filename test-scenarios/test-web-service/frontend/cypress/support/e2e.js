@@ -22,7 +22,7 @@ import './commands'
 // Mock API responses for testing
 Cypress.Commands.add('mockApiResponses', () => {
   // Mock user login
-  cy.intercept('POST', '/api/auth/login', {
+  cy.intercept('POST', '/api/v1/auth/login', {
     statusCode: 200,
     body: {
       token: 'mock-jwt-token',
@@ -35,7 +35,7 @@ Cypress.Commands.add('mockApiResponses', () => {
   }).as('login')
 
   // Mock user list
-  cy.intercept('GET', '/api/users', {
+  cy.intercept('GET', '/api/v1/users', {
     statusCode: 200,
     body: [
       { id: 1, username: 'testuser', email: 'test@example.com', role: 'admin' },
@@ -44,7 +44,7 @@ Cypress.Commands.add('mockApiResponses', () => {
   }).as('getUsers')
 
   // Mock settings
-  cy.intercept('GET', '/api/settings', {
+  cy.intercept('GET', '/api/v1/settings', {
     statusCode: 200,
     body: {
       theme: 'light',
@@ -54,7 +54,7 @@ Cypress.Commands.add('mockApiResponses', () => {
   }).as('getSettings')
 
   // Mock runtime managers
-  cy.intercept('GET', '/api/runtime-managers', {
+  cy.intercept('GET', '/api/v1/runtime-managers', {
     statusCode: 200,
     body: [
       {
@@ -75,7 +75,7 @@ Cypress.Commands.add('mockApiResponses', () => {
   }).as('getRuntimeManagers')
 
   // Mock test cases
-  cy.intercept('GET', '/api/test-cases', {
+  cy.intercept('GET', '/api/v1/test-cases', {
     statusCode: 200,
     body: [
       {

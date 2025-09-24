@@ -25,14 +25,12 @@ use crate::{
 /// 分页获取运行时管理器列表
 #[utoipa::path(
     get,
-    path = "/api/v1/runtime-managers",
+    path = "/runtime-managers",
     tag = "runtime-managers",
-    params(
-        PaginationParams,
-        RuntimeManagerQuery
-    ),
+    params(PaginationParams),
     responses(
-        (status = 200, description = "Runtime managers list", body = PaginatedResponse<RuntimeManager>)
+        (status = 200, description = "Runtime managers list", body = PaginatedResponse<RuntimeManager>),
+        (status = 500, description = "Internal server error")
     )
 )]
 pub async fn list_managers(
@@ -73,12 +71,13 @@ pub async fn list_managers(
 /// 创建新的运行时管理器
 #[utoipa::path(
     post,
-    path = "/api/v1/runtime-managers",
+    path = "/runtime-managers",
     tag = "runtime-managers",
     request_body = CreateRuntimeManagerRequest,
     responses(
-        (status = 200, description = "Created successfully", body = ApiResponse<RuntimeManager>),
-        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>)
+        (status = 201, description = "Runtime manager created", body = ApiResponse<RuntimeManager>),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Internal server error")
     )
 )]
 pub async fn create_manager(
@@ -110,7 +109,7 @@ pub async fn create_manager(
 /// 根据ID获取运行时管理器详情
 #[utoipa::path(
     get,
-    path = "/api/v1/runtime-managers/{id}",
+    path = "/runtime-managers/{id}",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")
@@ -137,16 +136,16 @@ pub async fn get_manager(
 /// 更新运行时管理器
 #[utoipa::path(
     put,
-    path = "/api/v1/runtime-managers/{id}",
+    path = "/runtime-managers/{id}",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")
     ),
     request_body = UpdateRuntimeManagerRequest,
     responses(
-        (status = 200, description = "Updated successfully", body = ApiResponse<RuntimeManager>),
-        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>),
-        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
+        (status = 200, description = "Runtime manager updated", body = ApiResponse<RuntimeManager>),
+        (status = 404, description = "Runtime manager not found", body = ApiResponse<String>),
+        (status = 400, description = "Invalid request", body = ApiResponse<String>)
     )
 )]
 pub async fn update_manager(
@@ -189,14 +188,13 @@ pub async fn update_manager(
 /// 删除运行时管理器
 #[utoipa::path(
     delete,
-    path = "/api/v1/runtime-managers/{id}",
+    path = "/runtime-managers/{id}",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")
     ),
     responses(
-        (status = 200, description = "Deleted successfully", body = ApiResponse<String>),
-        (status = 400, description = "Manager is in use", body = ApiResponse<String>),
+        (status = 200, description = "Runtime manager deleted", body = ApiResponse<String>),
         (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
     )
 )]
@@ -231,13 +229,13 @@ pub async fn delete_manager(
 /// 发送心跳信号
 #[utoipa::path(
     post,
-    path = "/api/v1/runtime-managers/{id}/heartbeat",
+    path = "/runtime-managers/{id}/heartbeat",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")
     ),
     responses(
-        (status = 200, description = "Heartbeat received", body = ApiResponse<String>),
+        (status = 200, description = "Heartbeat sent", body = ApiResponse<Value>),
         (status = 404, description = "Runtime manager not found", body = ApiResponse<String>)
     )
 )]
@@ -260,7 +258,7 @@ pub async fn heartbeat(
 /// 测试连接
 #[utoipa::path(
     post,
-    path = "/api/v1/runtime-managers/{id}/test",
+    path = "/runtime-managers/{id}/test",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")
@@ -315,7 +313,7 @@ pub async fn test_connection(
 /// 获取平台信息
 #[utoipa::path(
     get,
-    path = "/api/v1/runtime-managers/platform-info",
+    path = "/runtime-managers/platform-info",
     tag = "runtime-managers",
     responses(
         (status = 200, description = "Platform information", body = ApiResponse<Value>)
@@ -329,7 +327,7 @@ pub async fn get_platform_info() -> Result<Json<ApiResponse<Value>>, StatusCode>
 /// 获取设置指引
 #[utoipa::path(
     get,
-    path = "/api/v1/runtime-managers/setup-guide/{runtime_type}",
+    path = "/runtime-managers/setup-guide/{runtime_type}",
     tag = "runtime-managers",
     params(
         ("runtime_type" = String, Path, description = "Runtime type")
@@ -355,7 +353,7 @@ pub async fn get_setup_guide(
 /// 健康检查
 #[utoipa::path(
     post,
-    path = "/api/v1/runtime-managers/{id}/health-check",
+    path = "/runtime-managers/{id}/health-check",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")
@@ -385,7 +383,7 @@ pub async fn health_check(
 /// 获取运行时信息
 #[utoipa::path(
     get,
-    path = "/api/v1/runtime-managers/{id}/info",
+    path = "/runtime-managers/{id}/info",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")
@@ -415,7 +413,7 @@ pub async fn get_runtime_info(
 /// 获取运行时资源使用情况
 #[utoipa::path(
     get,
-    path = "/api/v1/runtime-managers/{id}/resources",
+    path = "/runtime-managers/{id}/resources",
     tag = "runtime-managers",
     params(
         ("id" = Uuid, Path, description = "Runtime manager ID")

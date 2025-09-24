@@ -22,7 +22,7 @@ use crate::{
 /// 分页获取测试用例列表
 #[utoipa::path(
     get,
-    path = "/api/v1/test-cases",
+    path = "/test-cases",
     tag = "test-cases",
     params(TestCaseQuery),
     responses(
@@ -50,7 +50,7 @@ pub async fn list_test_cases(
 /// 创建新的测试用例
 #[utoipa::path(
     post,
-    path = "/api/v1/test-cases",
+    path = "/test-cases",
     tag = "test-cases",
     request_body = CreateTestCaseRequest,
     responses(
@@ -88,7 +88,7 @@ pub async fn create_test_case(
 /// 根据ID获取测试用例详情
 #[utoipa::path(
     get,
-    path = "/api/v1/test-cases/{id}",
+    path = "/test-cases/{id}",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")
@@ -116,7 +116,7 @@ pub async fn get_test_case(
 /// 更新测试用例
 #[utoipa::path(
     put,
-    path = "/api/v1/test-cases/{id}",
+    path = "/test-cases/{id}",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")
@@ -169,7 +169,7 @@ pub async fn update_test_case(
 /// 删除测试用例
 #[utoipa::path(
     delete,
-    path = "/api/v1/test-cases/{id}",
+    path = "/test-cases/{id}",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")
@@ -211,7 +211,7 @@ pub async fn delete_test_case(
 /// 运行测试用例
 #[utoipa::path(
     post,
-    path = "/api/v1/test-cases/{id}/run",
+    path = "/test-cases/{id}/run",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")

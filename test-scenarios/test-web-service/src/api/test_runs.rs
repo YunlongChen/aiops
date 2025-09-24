@@ -19,17 +19,15 @@ use crate::{
     }
 };
 
-/// Get paginated test run records list
+/// 分页获取测试运行记录列表
 #[utoipa::path(
     get,
-    path = "/api/v1/test-runs",
+    path = "/test-runs",
     tag = "test-runs",
-    params(
-        PaginationParams,
-        TestRunQuery
-    ),
+    params(TestRunQuery),
     responses(
-        (status = 200, description = "Test run records list", body = PaginatedResponse<TestRun>)
+        (status = 200, description = "Test run list", body = PaginatedResponse<TestRun>),
+        (status = 500, description = "Internal server error")
     )
 )]
 pub async fn list_test_runs(
@@ -55,7 +53,7 @@ pub async fn list_test_runs(
 /// 创建新的测试运行记录
 #[utoipa::path(
     post,
-    path = "/api/v1/test-runs",
+    path = "/test-runs",
     tag = "test-runs",
     request_body = CreateTestRunRequest,
     responses(
@@ -92,7 +90,7 @@ pub async fn create_test_run(
 /// 根据ID获取测试运行详情
 #[utoipa::path(
     get,
-    path = "/api/v1/test-runs/{id}",
+    path = "/test-runs/{id}",
     tag = "test-runs",
     params(
         ("id" = Uuid, Path, description = "Test run record ID")
@@ -119,7 +117,7 @@ pub async fn get_test_run(
 /// 更新测试运行记录
 #[utoipa::path(
     put,
-    path = "/api/v1/test-runs/{id}",
+    path = "/test-runs/{id}",
     tag = "test-runs",
     params(
         ("id" = Uuid, Path, description = "Test run record ID")
@@ -127,8 +125,8 @@ pub async fn get_test_run(
     request_body = UpdateTestRunRequest,
     responses(
         (status = 200, description = "Updated successfully", body = ApiResponse<TestRun>),
-        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>),
-        (status = 404, description = "Test run record not found", body = ApiResponse<String>)
+        (status = 404, description = "Test run record not found", body = ApiResponse<String>),
+        (status = 400, description = "Invalid request parameters", body = ApiResponse<String>)
     )
 )]
 pub async fn update_test_run(
@@ -161,7 +159,7 @@ pub async fn update_test_run(
 /// 开始测试运行
 #[utoipa::path(
     post,
-    path = "/api/v1/test-runs/{id}/start",
+    path = "/test-runs/{id}/start",
     tag = "test-runs",
     params(
         ("id" = Uuid, Path, description = "Test run record ID")
@@ -233,7 +231,7 @@ pub async fn start_test_run(
 /// 停止测试运行
 #[utoipa::path(
     post,
-    path = "/api/v1/test-runs/{id}/stop",
+    path = "/test-runs/{id}/stop",
     tag = "test-runs",
     params(
         ("id" = Uuid, Path, description = "Test run record ID")
@@ -288,13 +286,13 @@ pub async fn stop_test_run(
 /// 获取测试运行日志
 #[utoipa::path(
     get,
-    path = "/api/v1/test-runs/{id}/logs",
+    path = "/test-runs/{id}/logs",
     tag = "test-runs",
     params(
         ("id" = Uuid, Path, description = "Test run record ID")
     ),
     responses(
-        (status = 200, description = "Log information", body = ApiResponse<Value>),
+        (status = 200, description = "Test run logs", body = ApiResponse<String>),
         (status = 404, description = "Test run record not found", body = ApiResponse<String>)
     )
 )]
@@ -328,10 +326,10 @@ pub async fn get_test_logs(
 /// 获取测试运行统计信息
 #[utoipa::path(
     get,
-    path = "/api/v1/test-runs/stats",
+    path = "/test-runs/stats",
     tag = "test-runs",
     responses(
-        (status = 200, description = "Statistics information", body = ApiResponse<TestRunStats>)
+        (status = 200, description = "Test run statistics", body = ApiResponse<TestRunStats>)
     )
 )]
 pub async fn get_test_stats(
@@ -470,15 +468,14 @@ async fn execute_k8s_test(
 /// 删除测试运行记录
 #[utoipa::path(
     delete,
-    path = "/api/v1/test-runs/{id}",
+    path = "/test-runs/{id}",
     tag = "test-runs",
     params(
-        ("id" = Uuid, Path, description = "Test run ID")
+        ("id" = Uuid, Path, description = "Test run record ID")
     ),
     responses(
-        (status = 200, description = "Test run deleted", body = ApiResponse<String>),
-        (status = 404, description = "Test run not found"),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "Deleted successfully", body = ApiResponse<String>),
+        (status = 404, description = "Test run record not found", body = ApiResponse<String>)
     )
 )]
 pub async fn delete_test_run(

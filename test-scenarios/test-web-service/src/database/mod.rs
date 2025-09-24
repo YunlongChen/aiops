@@ -4,7 +4,7 @@
 
 use sqlx::{sqlite::SqlitePool, Row, Sqlite};
 use std::path::Path;
-use tracing::{info, warn};
+use tracing::{info, error, warn};
 
 /// 数据库连接管理器
 #[derive(Debug, Clone)]
@@ -15,17 +15,26 @@ pub struct Database {
 impl Database {
     /// 创建新的数据库连接
     pub async fn new(database_url: &str) -> anyhow::Result<Self> {
+        info!("正在连接数据库: {}", database_url);
+        
         // 确保数据库文件目录存在
         if database_url.starts_with("sqlite:") {
             let db_path = database_url.strip_prefix("sqlite:").unwrap_or(database_url);
             if let Some(parent) = Path::new(db_path).parent() {
+                info!("创建数据库目录: {:?}", parent);
                 tokio::fs::create_dir_all(parent).await?;
             }
         }
 
         // 创建连接池
-        let pool = SqlitePool::connect(database_url).await?;
+        info!("创建数据库连接池...");
+        let pool = SqlitePool::connect(database_url).await
+            .map_err(|e| {
+                error!("数据库连接失败: {}", e);
+                e
+            })?;
         
+        info!("数据库连接池创建成功");
         let db = Self { pool };
         
         // 初始化数据库表
@@ -155,12 +164,26 @@ impl Database {
 
     /// 检查数据库连接状态
     pub async fn health_check(&self) -> anyhow::Result<bool> {
+        info!("执行数据库健康检查...");
+        
         let result = sqlx::query("SELECT 1 as test")
             .fetch_one(&self.pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                error!("数据库健康检查失败: {}", e);
+                e
+            })?;
         
         let test_value: i32 = result.get("test");
-        Ok(test_value == 1)
+        let is_healthy = test_value == 1;
+        
+        if is_healthy {
+            info!("数据库健康检查通过");
+        } else {
+            warn!("数据库健康检查异常: 期望值1，实际值{}", test_value);
+        }
+        
+        Ok(is_healthy)
     }
 
     /// 获取数据库统计信息
