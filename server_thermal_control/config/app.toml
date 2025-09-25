@@ -1,0 +1,98 @@
+# 服务器热控制系统配置文件
+
+[server]
+host = "127.0.0.1"
+port = 8081
+workers = 4
+keep_alive = 75
+client_timeout = 5000
+client_shutdown = 5000
+cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8081", "http://127.0.0.1:8081"]
+
+[database]
+url = "sqlite:data/thermal_control.db"
+max_connections = 10
+min_connections = 1
+connect_timeout = 30
+idle_timeout = 600
+
+[redis]
+url = "redis://localhost:6379/0"
+max_connections = 10
+connect_timeout = 5
+command_timeout = 5
+
+[ipmi]
+host = "192.168.3.48"
+username = "root"
+password = "4745701816long"
+interface = "lanplus"
+timeout = 10
+retries = 3
+
+[monitoring]
+enabled = true
+interval = 30
+retention_days = 30
+alert_threshold_temp = 80.0
+alert_threshold_fan = 1000
+
+[control]
+enabled = true
+mode = "auto"
+temp_target = 65.0
+temp_hysteresis = 2.0
+fan_min_speed = 1000
+fan_max_speed = 5000
+update_interval = 10
+
+[alert]
+enabled = true
+
+[alert.email]
+enabled = false
+smtp_host = ""
+smtp_port = 587
+username = ""
+password = ""
+from = ""
+to = ""
+
+[alert.webhook]
+enabled = false
+url = ""
+
+[logging]
+level = "info"
+format = "json"
+file_enabled = true
+file_path = "logs/app.log"
+file_max_size = "10MB"
+file_max_files = 5
+
+[analytics]
+enabled = false
+interval = 300
+history_days = 30
+prediction_enabled = false
+ml_model_path = ""
+
+[cache]
+ttl = 300
+max_size = 1000
+enabled = true
+
+[security]
+jwt_secret = "your-secret-key-change-in-production"
+jwt_expiration = 86400
+api_key = "your-api-key-for-external-access"
+cors_origins = ["http://localhost:3000", "http://localhost:8081"]
+rate_limit_requests = 100
+rate_limit_window = 60
+
+[performance]
+worker_threads = 4
+max_request_size = "1MB"
+request_timeout = 30
+keep_alive_timeout = 5
+graceful_shutdown_timeout = 30

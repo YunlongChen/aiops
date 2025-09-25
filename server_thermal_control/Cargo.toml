@@ -1,0 +1,77 @@
+[package]
+name = "server_thermal_control"
+version = "0.1.0"
+edition = "2021"
+authors = ["AIOps Team <aiops@example.com>"]
+description = "智能服务器温度控制系统 - 基于Rust Actix框架的自动化温度管理解决方案"
+license = "MIT"
+repository = "https://github.com/aiops/server_thermal_control"
+keywords = ["server", "thermal", "control", "ipmi", "actix"]
+categories = ["hardware-support", "web-programming::http-server"]
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "2.0.16"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["chrono", "env-filter"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+reqwest = { version = "0.12.23", features = ["json"] }
+clap = { version = "4.0", features = ["derive"] }
+config = "0.15.17"
+futures = "0.3"
+log = "0.4"
+regex = "1.0"
+base64 = "0.22.1"
+sha2 = "0.10"
+hmac = "0.12"
+argon2 = "0.5"
+actix-web = "4.0"
+actix-rt = "2.0"
+
+# 命令行执行
+tokio-process = "0.2"
+
+# OpenAPI文档生成
+utoipa = { version = "5.4.0", features = ["actix_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
+
+# 数学计算
+nalgebra = "0.34.1"
+
+# 中间件和工具
+actix-cors = "0.7"
+actix-limitation = "0.5"
+futures-util = "0.3"
+parking_lot = "0.12"
+
+# 加密和安全
+jsonwebtoken = "9.0"
+bcrypt = "0.17.1"
+rand = "0.9.2"
+
+# 系统监控
+
+# CPU核心数
+num_cpus = "1.0"
+tempfile = "3.8"
+toml = "0.8"
+dotenvy = "0.15.7"
+
+[dev-dependencies]
+actix-test = "0.1"
+tokio-test = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
