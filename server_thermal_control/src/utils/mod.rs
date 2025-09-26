@@ -11,7 +11,7 @@ pub mod config;
 /// 日志工具模块
 ///
 /// 提供日志记录和管理功能
-pub mod logger;
+// pub mod logger;
 
 /// 数学工具模块
 ///

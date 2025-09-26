@@ -1,11 +1,10 @@
 // use crate::controllers::control_controller::FanCurve;
-use crate::controllers::fan_controller::FanQueryParams;
 use crate::models::{
     config::MonitoringConfig,
     error::{AppError, AppResult},
     fan::*,
 };
-use crate::services::ipmi_service::IpmiService;
+use crate::services::ipmi_service::{FanSensor, IpmiService};
 use crate::utils::{
     ipmi::IpmiClient,
     math::{MathUtils, PidController},
@@ -14,6 +13,7 @@ use crate::utils::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -61,29 +61,35 @@ impl FanService {
     /// # 参数
     /// * `fan_id` - 风扇ID，None表示获取所有风扇
     pub async fn get_current_fan_status(&self, fan_id: Option<&str>) -> AppResult<Vec<FanReading>> {
-        let fans = self.ipmi_service.get_all_fan_status().await?;
+        let result = self.ipmi_service.get_fan_sensors();
         let mut readings = Vec::new();
 
-        for (id, fan_data) in fans {
-            // 如果指定了风扇ID，只返回匹配的风扇
-            if let Some(target_id) = fan_id {
-                if id != target_id {
-                    continue;
+        match result {
+            Ok(fans) => {
+                for fan_data in fans {
+                    // 如果指定了风扇ID，只返回匹配的风扇
+                    if let Some(target_id) = fan_id {
+                        if fan_data.fan_id != target_id {
+                            continue;
+                        }
+                    }
+
+                    let config = self.get_fan_config(&id).await;
+                    let status = self.determine_fan_status(&fan_data, config.as_ref());
+
+                    let reading = FanReading::new(
+                        id.clone(),
+                        fan_data.speed_rpm.unwrap_or(0),
+                        fan_data.speed_percent.unwrap_or(0.0),
+                        status,
+                    );
+
+                    readings.push(reading);
                 }
             }
-
-            let config = self.get_fan_config(&id).await;
-            let status = self.determine_fan_status(&fan_data, config.as_ref());
-
-            let reading = FanReading::new(
-                id.clone(),
-                fan_data.speed_rpm.unwrap_or(0),
-                fan_data.speed_percent.unwrap_or(0.0),
-                status,
-            );
-
-            readings.push(reading);
+            Err(_) => {}
         }
+
 
         // 更新历史数据
         self.update_fan_history(&readings).await;
@@ -412,7 +418,7 @@ impl FanService {
     pub async fn test_fan(&self, fan_id: &str) -> AppResult<FanTestResult> {
         let initial_reading = self.get_current_fan_status(Some(fan_id)).await?;
         if initial_reading.is_empty() {
-            return Err(AppError::not_found(&format!("风扇 {} 不存在", fan_id)));
+            return Err(AppError::NotFoundError(format!("风扇 {} 不存在", fan_id), fan_id));
         }
 
         let initial_speed = initial_reading[0].speed_percent;

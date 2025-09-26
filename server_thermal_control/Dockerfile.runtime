@@ -1,0 +1,21 @@
+# 运行时基础镜像
+FROM debian:bookworm-slim
+
+# 更换为阿里云镜像源
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libsqlite3-0 \
+    ipmitool \
+    lm-sensors \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建应用用户
+RUN useradd -r -s /bin/false -m -d /app thermal
+
+WORKDIR /app

@@ -267,7 +267,7 @@ impl FanStatus {
     /// # 参数
     /// * `current_rpm` - 当前转速
     /// * `target_rpm` - 目标转速
-    fn determine_status(current_rpm: f32, target_rpm: f32) -> FanOperationStatus {
+    fn determine_status(current_rpm: f32, _target_rpm: f32) -> FanOperationStatus {
         if current_rpm <= 0f32 {
             FanOperationStatus::Offline
         } else if current_rpm > 4000f32 {

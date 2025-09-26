@@ -1,22 +1,22 @@
+use crate::{models, AppState};
 use actix_web::{web, HttpResponse, Result};
 use chrono::Utc;
 use serde_json::json;
-use crate::{models, AppState};
 
 /// 获取所有风扇数据
 /// 
 /// 从IPMI服务获取真实的风扇状态和转速数据
 pub async fn list_fan_data(data: web::Data<AppState>) -> Result<HttpResponse> {
-    match data.ipmi_service.get_fan_data().await {
+    match data.ipmi_service.get_fan_sensors() {
         Ok(fans) => {
             let fan_data: Vec<_> = fans.into_iter().map(|fan| {
                 json!({
                     "id": uuid::Uuid::new_v4().to_string(),
-                    "fan_id": fan.name,
-                    "rpm": fan.rpm,
+                    "fan_id": fan.id,
+                    "rpm": fan.speed_rpm,
                     "speed_percent": fan.speed_percent,
                     "status": fan.status,
-                    "location": fan.name,
+                    "location": fan.location,
                     "timestamp": Utc::now().to_rfc3339()
                 })
             }).collect();
@@ -32,9 +32,10 @@ pub async fn list_fan_data(data: web::Data<AppState>) -> Result<HttpResponse> {
             )))
         }
         Err(e) => {
-            Ok(HttpResponse::InternalServerError().json(models::ApiResponse::error(
+            let api_response: models::ApiResponse<()> = models::ApiResponse::error(
                 &format!("Failed to retrieve fan data: {}", e)
-            )))
+            );
+            Ok(HttpResponse::InternalServerError().json(api_response))
         }
     }
 }

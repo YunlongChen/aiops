@@ -1,21 +1,22 @@
+use crate::models::api::ApiResponse;
+use crate::{models, AppState};
 use actix_web::{web, HttpResponse, Result};
 use chrono::Utc;
 use serde_json::json;
-use crate::{models, AppState};
 
 /// 获取所有温度数据
 /// 
 /// 从IPMI服务获取真实的温度传感器数据
 pub async fn list_temperature_data(data: web::Data<AppState>) -> Result<HttpResponse> {
-    match data.ipmi_service.get_temperature_sensors().await {
+    match data.ipmi_service.get_temperature_sensors() {
         Ok(sensors) => {
             let temperature_data: Vec<_> = sensors.into_iter().map(|sensor| {
                 json!({
                     "id": uuid::Uuid::new_v4().to_string(),
-                    "sensor_id": sensor.name,
-                    "temperature": sensor.value,
+                    "sensor_id": sensor.sensor_id,
+                    "temperature": sensor.temperature,
                     "unit": "°C",
-                    "location": sensor.name,
+                    "location": sensor.location,
                     "status": sensor.status,
                     "timestamp": Utc::now().to_rfc3339()
                 })
@@ -32,9 +33,10 @@ pub async fn list_temperature_data(data: web::Data<AppState>) -> Result<HttpResp
             )))
         }
         Err(e) => {
-            Ok(HttpResponse::InternalServerError().json(models::ApiResponse::error(
+            let response: ApiResponse<()> = ApiResponse::error(
                 &format!("Failed to retrieve temperature data: {}", e)
-            )))
+            );
+            Ok(HttpResponse::InternalServerError().json(response))
         }
     }
 }
@@ -47,16 +49,16 @@ pub async fn get_sensor_temperature(
     data: web::Data<AppState>
 ) -> Result<HttpResponse> {
     let sensor_id = path.into_inner();
-    
-    match data.ipmi_service.get_temperature_sensors().await {
+
+    match data.ipmi_service.get_temperature_sensors() {
         Ok(sensors) => {
-            if let Some(sensor) = sensors.into_iter().find(|s| s.name == sensor_id) {
+            if let Some(sensor) = sensors.into_iter().find(|s| s.sensor_id == sensor_id) {
                 let sensor_data = json!({
                     "id": uuid::Uuid::new_v4().to_string(),
-                    "sensor_id": sensor.name,
-                    "temperature": sensor.value,
+                    "sensor_id": sensor.sensor_id,
+                    "temperature": sensor.temperature,
                     "unit": "°C",
-                    "location": sensor.name,
+                    "location": sensor.location,
                     "status": sensor.status,
                     "timestamp": Utc::now().to_rfc3339(),
                     "history": []
@@ -67,15 +69,17 @@ pub async fn get_sensor_temperature(
                     &format!("Temperature data for sensor {} retrieved successfully", sensor_id)
                 )))
             } else {
-                Ok(HttpResponse::NotFound().json(models::ApiResponse::error(
+                let response: ApiResponse<()> = ApiResponse::error(
                     &format!("Sensor {} not found", sensor_id)
-                )))
+                );
+                Ok(HttpResponse::NotFound().json(response))
             }
         }
         Err(e) => {
-            Ok(HttpResponse::InternalServerError().json(models::ApiResponse::error(
+            let response: ApiResponse<()> = ApiResponse::error(
                 &format!("Failed to retrieve temperature data: {}", e)
-            )))
+            );
+            Ok(HttpResponse::InternalServerError().json(response))
         }
     }
 }

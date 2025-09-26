@@ -218,33 +218,33 @@ async fn main() -> std::io::Result<()> {
                         web::get().to(handlers::temperature_stats),
                     )
                     .route("/stats/fan", web::get().to(handlers::fan_stats))
-                    .service(
-                        web::scope("/temperature")
-                            .route(
-                                "",
-                                web::get().to(handlers::temperature::list_temperature_data),
-                            )
-                            .route(
-                                "/{sensor_id}",
-                                web::get().to(handlers::temperature::get_sensor_temperature),
-                            ),
+            )
+            .service(
+                web::scope("/temperature")
+                    .route(
+                        "",
+                        web::get().to(handlers::temperature::list_temperature_data),
                     )
-                    .service(
-                        web::scope("/fans")
-                            .route("", web::get().to(handlers::fan::list_fan_data))
-                            .route(
-                                "/{fan_id}/speed",
-                                web::post().to(handlers::fan::set_fan_speed),
-                            ),
-                    )
-                    // .service(
-                    //     web::scope("/alerts")
-                    //         .route("", web::get().to(handlers::alert::list_alerts))
-                    //         .route(
-                    //             "/{alert_id}/acknowledge",
-                    //             web::post().to(handlers::alert::acknowledge_alert),
-                    //         ),
-                    // ),
+                    .route(
+                        "/{sensor_id}",
+                        web::get().to(handlers::temperature::get_sensor_temperature),
+                    ),
+            )
+            .service(
+                web::scope("/fans")
+                    .route("", web::get().to(handlers::fan::list_fan_data))
+                    .route(
+                        "/{fan_id}/speed",
+                        web::post().to(handlers::fan::set_fan_speed),
+                    ),
+            )
+            .service(
+                web::scope("/alerts")
+                    .route("", web::get().to(handlers::alert::list_alerts))
+                    .route(
+                        "/{alert_id}/acknowledge",
+                        web::post().to(handlers::alert::acknowledge_alert),
+                    ),
             )
     })
     .workers(workers)

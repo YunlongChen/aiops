@@ -523,6 +523,33 @@ impl HttpClient {
     }
 }
 
+/// 检查网络连接性
+///
+/// # 参数
+/// * `host` - 主机地址
+/// * `port` - 端口号
+///
+/// # 返回
+/// * `AppResult<bool>` - 连接性检查结果
+pub async fn check_connectivity(host: &str, port: u16) -> AppResult<bool> {
+    let result = NetworkUtils::check_host_reachable(host, port, 5000).await;
+    Ok(result)
+}
+
+/// 发送通知
+///
+/// # 参数
+/// * `message` - 通知消息
+/// * `recipient` - 接收者
+///
+/// # 返回
+/// * `AppResult<()>` - 发送结果
+pub async fn send_notification(message: &str, recipient: &str) -> AppResult<()> {
+    // 这里可以实现具体的通知发送逻辑，比如邮件、短信、Webhook等
+    tracing::info!("发送通知给 {}: {}", recipient, message);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -602,31 +629,4 @@ mod tests {
         let open_ports = NetworkUtils::scan_ports("127.0.0.1", 20, 25, 100, 5).await;
         println!("Open ports on localhost (20-25): {:?}", open_ports);
     }
-}
-
-/// 检查网络连接性
-///
-/// # 参数
-/// * `host` - 主机地址
-/// * `port` - 端口号
-///
-/// # 返回
-/// * `AppResult<bool>` - 连接性检查结果
-pub async fn check_connectivity(host: &str, port: u16) -> AppResult<bool> {
-    let result = NetworkUtils::check_host_reachable(host, port, 5000).await;
-    Ok(result)
-}
-
-/// 发送通知
-///
-/// # 参数
-/// * `message` - 通知消息
-/// * `recipient` - 接收者
-///
-/// # 返回
-/// * `AppResult<()>` - 发送结果
-pub async fn send_notification(message: &str, recipient: &str) -> AppResult<()> {
-    // 这里可以实现具体的通知发送逻辑，比如邮件、短信、Webhook等
-    tracing::info!("发送通知给 {}: {}", recipient, message);
-    Ok(())
 }

@@ -6,6 +6,7 @@ use serde_json::json;
 
 // pub mod alert;
 pub mod fan;
+pub mod alert;
 pub mod temperature;
 
 /// 健康检查处理器
@@ -22,7 +23,7 @@ pub async fn system_info(data: web::Data<AppState>) -> Result<HttpResponse> {
     let cpu_count = num_cpus::get();
 
     // 尝试获取IPMI系统信息
-    let ipmi_info = match data.ipmi_service.get_system_info().await {
+    let ipmi_info = match data.ipmi_service.get_system_info() {
         Ok(info) => Some(info),
         Err(e) => {
             tracing::warn!("Failed to get IPMI system info: {}", e);
@@ -60,9 +61,9 @@ pub async fn system_health(data: web::Data<AppState>) -> Result<HttpResponse> {
     let mut issues = Vec::new();
 
     // 检查IPMI连接状态
-    let ipmi_status = if let Ok(_) = data.ipmi_service.test_connection().await {
+    let ipmi_status = if let Ok(_) = data.ipmi_service.test_connection() {
         "connected"
-    } else if let Err(e) = data.ipmi_service.test_connection().await {
+    } else if let Err(e) = data.ipmi_service.test_connection() {
         tracing::warn!("IPMI connection test failed: {}", e);
         issues.push(format!("IPMI connection issue: {}", e));
         overall_status = "warning";
@@ -72,20 +73,20 @@ pub async fn system_health(data: web::Data<AppState>) -> Result<HttpResponse> {
     };
 
     // 检查温度传感器状态
-    let temperature_status = match data.ipmi_service.get_temperature_sensors().await {
+    let temperature_status = match data.ipmi_service.get_temperature_sensors() {
         Ok(sensors) => {
             let mut temp_issues = Vec::new();
             for sensor in sensors {
-                if sensor.value > 80.0 {
+                if sensor.temperature > 80.0 {
                     temp_issues.push(format!(
                         "High temperature on {}: {:.1}°C",
-                        sensor.name, sensor.value
+                        sensor.sensor_id, sensor.temperature
                     ));
                     overall_status = "critical";
-                } else if sensor.value > 70.0 {
+                } else if sensor.temperature > 70.0 {
                     temp_issues.push(format!(
                         "Elevated temperature on {}: {:.1}°C",
-                        sensor.name, sensor.value
+                        sensor.sensor_id, sensor.temperature
                     ));
                     if overall_status == "healthy" {
                         overall_status = "warning";
@@ -109,22 +110,22 @@ pub async fn system_health(data: web::Data<AppState>) -> Result<HttpResponse> {
     };
 
     // 检查风扇状态
-    let fan_status = match data.ipmi_service.get_fan_sensors().await {
+    let fan_status = match data.ipmi_service.get_fan_sensors() {
         Ok(fans) => {
             let mut fan_issues = Vec::new();
             for fan in fans {
-                if fan.rpm == 0 {
-                    fan_issues.push(format!("Fan {} not running", fan.name));
+                if fan.speed_rpm == 0 {
+                    fan_issues.push(format!("Fan {} not running", fan.fan_id));
                     overall_status = "critical";
-                } else if fan.rpm < 500 {
-                    fan_issues.push(format!("Fan {} running slow: {} RPM", fan.name, fan.rpm));
+                } else if fan.speed_rpm < 500 {
+                    fan_issues.push(format!("Fan {} running slow: {} RPM", fan.fan_id, fan.speed_rpm));
                     if overall_status == "healthy" {
                         overall_status = "warning";
                     }
                 }
             }
-            issues.extend(fan_issues);
             if fan_issues.is_empty() {
+                issues.extend(fan_issues);
                 "operational"
             } else {
                 "issues"

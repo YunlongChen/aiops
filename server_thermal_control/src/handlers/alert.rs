@@ -1,8 +1,9 @@
+use crate::models::AlertStatus;
+use crate::{models, AppState};
 use actix_web::{web, HttpResponse, Result};
 use chrono::Utc;
 use serde_json::json;
 use uuid;
-use crate::{models, AppState};
 
 /// 获取告警列表
 pub async fn list_alerts(
@@ -19,7 +20,7 @@ pub async fn list_alerts(
             message: "CPU temperature exceeded 80°C".to_string(),
             source: "CPU_TEMP_1".to_string(),
             source_id: "sensor_001".to_string(),
-            status: "active".to_string(),
+            status: AlertStatus::Ignored,
             acknowledged: false,
             acknowledged_by: None,
             acknowledged_at: None,

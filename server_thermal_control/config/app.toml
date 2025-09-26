@@ -1,8 +1,8 @@
 # 服务器热控制系统配置文件
 
 [server]
-host = "127.0.0.1"
-port = 8081
+host = "0.0.0.0"
+port = 8083
 workers = 4
 keep_alive = 75
 client_timeout = 5000
@@ -10,14 +10,14 @@ client_shutdown = 5000
 cors_origins = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8081", "http://127.0.0.1:8081"]
 
 [database]
-url = "sqlite:data/thermal_control.db"
+url = "postgresql://thermal_user:thermal_pass@postgres:5432/thermal_control"
 max_connections = 10
 min_connections = 1
 connect_timeout = 30
 idle_timeout = 600
 
 [redis]
-url = "redis://localhost:6379/0"
+url = "redis://redis:6379/0"
 max_connections = 10
 connect_timeout = 5
 command_timeout = 5

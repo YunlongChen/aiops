@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
-use uuid::Uuid;
 
 /// API响应结构
 /// 
@@ -366,21 +365,6 @@ impl<T> ApiResponse<T> {
     }
 
     /// 创建错误响应
-    /// 
-    /// # 参数
-    /// * `error` - 错误信息
-    pub fn error(error: String) -> Self {
-        Self {
-            success: false,
-            data: None,
-            error: Some(error),
-            message: None,
-            timestamp: Utc::now(),
-        }
-    }
-
-        /// 创建错误响应
-    /// 
     /// # 参数
     /// * `error` - 错误信息
     pub fn error(error: &str) -> Self {

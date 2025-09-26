@@ -62,7 +62,7 @@ impl FanController {
         let fan_status = if let Some(fan_ids) = params.fan_ids {
             let mut results = Vec::new();
             for fan_id in fan_ids {
-                if let Ok(status) = service.get_fan_status(&fan_id).await {
+                if let Ok(status) = service.get_fan_list(&fan_id).await {
                     results.push(status);
                 }
             }
@@ -515,7 +515,7 @@ pub struct OptimizeFanCurvesRequest {
 #[derive(Debug, Deserialize)]
 pub struct ApplyFanCurvesRequest {
     /// 风扇曲线列表
-    pub curves: Vec<crate::controllers::control_controller::FanCurve>,
+    pub curves: Vec<FanCurve>,
 }
 
 /// 清理请求

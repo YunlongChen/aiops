@@ -1,0 +1,22 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: thermal_control
+    user: thermal_user
+    secureJsonData:
+      password: thermal_pass
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+    isDefault: true
+
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: false

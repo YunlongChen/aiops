@@ -10,13 +10,12 @@ pub mod control;
 pub mod alert;
 pub mod api;
 
-pub use analytics::*;
+pub use alert::AlertStatus;
 pub use config::*;
 pub use error::*;
 pub use fan::*;
 pub use sensor::*;
 pub use thermal::*;
-pub use alert::AlertStatus;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

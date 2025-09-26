@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: 'thermal-control-dashboards'
+    orgId: 1
+    folder: 'Thermal Control'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

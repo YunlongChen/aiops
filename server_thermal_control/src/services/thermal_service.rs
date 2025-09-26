@@ -245,6 +245,7 @@ impl ThermalService {
                 TemperatureStatus::Normal => normal_count += 1,
                 TemperatureStatus::Warning => warning_count += 1,
                 TemperatureStatus::Critical => critical_count += 1,
+                _ => {}
             }
         }
 

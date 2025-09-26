@@ -1,0 +1,37 @@
+# 基础镜像 - 预装所有依赖
+FROM rust:1.80-slim AS rust-base
+
+# 更换为阿里云镜像源
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libsqlite3-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 运行时基础镜像
+FROM debian:bookworm-slim AS runtime-base
+
+# 更换为阿里云镜像源
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libsqlite3-0 \
+    ipmitool \
+    lm-sensors \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# 创建应用用户
+RUN useradd -r -s /bin/false -m -d /app thermal
+
+WORKDIR /app
