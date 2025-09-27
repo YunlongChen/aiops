@@ -2,7 +2,7 @@
 
 [server]
 host = "0.0.0.0"
-port = 8083
+port = 8080
 workers = 4
 keep_alive = 75
 client_timeout = 5000

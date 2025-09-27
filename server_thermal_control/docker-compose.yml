@@ -1,24 +1,17 @@
-version: '3.8'
-
 services:
-  # 服务器热控制系统主服务
   thermal-control:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: thermal-control-server
-    restart: unless-stopped
     ports:
       - "8083:8080"
     volumes:
       - ./config:/app/config:ro
-      - thermal_data:/app/data
-      - thermal_logs:/app/logs
-    #      - /dev:/dev:ro  # 访问硬件设备
+      - ./data:/app/data
     environment:
       - RUST_LOG=info
-      - CONFIG_PATH=/app/config/app.toml
-    privileged: true  # 需要特权模式访问硬件
+      - APP_ENV=production
     networks:
       - thermal-network
     healthcheck:
@@ -27,16 +20,27 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    restart: unless-stopped
+
+  web-ui:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+    container_name: thermal-control-web-ui
+    ports:
+      - "8084:80"
+    depends_on:
+      - thermal-control
+    networks:
+      - thermal-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
 networks:
   thermal-network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
-
-volumes:
-  thermal_data:
-    driver: local
-  thermal_logs:
-    driver: local

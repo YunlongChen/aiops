@@ -1,0 +1,282 @@
+/**
+ * 主样式文件
+ * 定义全局样式、变量和通用组件样式
+ */
+
+// CSS变量定义
+:root {
+  // 主题色彩
+  --primary-color: #409eff;
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+  
+  // 状态指示色
+  --status-online: #67c23a;
+  --status-offline: #f56c6c;
+  --status-warning: #e6a23c;
+  --status-unknown: #909399;
+  
+  // 间距
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  // 圆角
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  
+  // 阴影
+  --shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.15);
+  --shadow-heavy: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+// 通用工具类
+.flex {
+  display: flex;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.full-height {
+  height: 100%;
+}
+
+// 状态指示器样式
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  
+  &::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  
+  &.online::before {
+    background-color: var(--status-online);
+    box-shadow: 0 0 4px var(--status-online);
+  }
+  
+  &.offline::before {
+    background-color: var(--status-offline);
+  }
+  
+  &.warning::before {
+    background-color: var(--status-warning);
+  }
+  
+  &.unknown::before {
+    background-color: var(--status-unknown);
+  }
+}
+
+// 卡片样式
+.dashboard-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-light);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+  }
+  
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+  }
+  
+  .card-content {
+    flex: 1;
+  }
+}
+
+// 指标卡片样式
+.metric-card {
+  @extend .dashboard-card;
+  text-align: center;
+  min-height: 120px;
+  
+  .metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: var(--spacing-sm) 0;
+    
+    &.success {
+      color: var(--success-color);
+    }
+    
+    &.warning {
+      color: var(--warning-color);
+    }
+    
+    &.danger {
+      color: var(--danger-color);
+    }
+  }
+  
+  .metric-label {
+    font-size: 14px;
+    color: var(--el-text-color-regular);
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .metric-unit {
+    font-size: 1rem;
+    color: var(--el-text-color-secondary);
+  }
+}
+
+// 按钮组样式
+.button-group {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  
+  &.vertical {
+    flex-direction: column;
+  }
+}
+
+// 响应式网格
+.grid {
+  display: grid;
+  gap: var(--spacing-md);
+  
+  &.grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+  
+  &.grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  
+  &.grid-4 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+// 加载状态
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  
+  .loading-text {
+    color: var(--el-text-color-secondary);
+  }
+}
+
+// 空状态
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: var(--spacing-md);
+  color: var(--el-text-color-secondary);
+  
+  .empty-icon {
+    font-size: 48px;
+    opacity: 0.5;
+  }
+}
+
+// 响应式设计
+@media (max-width: 1200px) {
+  .grid-4 {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-card {
+    padding: var(--spacing-md);
+  }
+  
+  .metric-card .metric-value {
+    font-size: 2rem;
+  }
+  
+  .grid {
+    gap: var(--spacing-sm);
+    
+    &.grid-2,
+    &.grid-3,
+    &.grid-4 {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  .button-group {
+    &:not(.vertical) {
+      flex-direction: column;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-card {
+    padding: var(--spacing-sm);
+  }
+  
+  .metric-card .metric-value {
+    font-size: 1.5rem;
+  }
+}
