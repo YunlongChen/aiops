@@ -15,11 +15,11 @@
             </div>
             <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
               <router-link
-                v-for="item in navigation"
-                :key="item.name"
-                :to="item.href"
-                class="inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200"
-                :class="[
+                  v-for="item in navigation"
+                  :key="item.name"
+                  :to="item.href"
+                  class="inline-flex items-center px-1 pt-1 text-sm font-medium transition-colors duration-200"
+                  :class="[
                   $route.path === item.href
                     ? 'border-b-2 border-primary-500 text-gray-900'
                     : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -32,7 +32,8 @@
           <div class="flex items-center">
             <div class="flex items-center space-x-4">
               <span class="text-sm text-gray-500">系统状态:</span>
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <span
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                 运行中
               </span>
             </div>
@@ -43,16 +44,17 @@
 
     <!-- 主内容区域 -->
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <router-view />
+      <router-view/>
     </main>
-    
+
     <!-- 全局错误提示组件 -->
-    <GlobalErrorToast />
+    <GlobalErrorToast/>
   </div>
 </template>
 
 <script>
 import GlobalErrorToast from '@/components/GlobalErrorToast.vue'
+import {supabase} from '@/utils/supabase'
 
 /**
  * 根组件逻辑
@@ -67,16 +69,40 @@ export default {
     return {
       // 导航菜单配置
       navigation: [
-        { name: '仪表板', href: '/' },
-        { name: '测试用例', href: '/test-cases' },
-        { name: '测试脚本', href: '/test-scripts' },
-        { name: '测试运行', href: '/test-runs' },
-        { name: '运行时管理', href: '/runtime-managers' },
-        { name: '系统设置', href: '/settings' },
+        {name: '仪表板', href: '/'},
+        {name: '测试用例', href: '/test-cases'},
+        {name: '测试脚本', href: '/test-scripts'},
+        {name: '测试运行', href: '/test-runs'},
+        {name: '运行时管理', href: '/runtime-managers'},
+        {name: '系统设置', href: '/settings'},
       ],
     }
   },
+  mounted() {
+    getTodos()
+  }
 }
+
+async function getTodos() {
+  const {data} = await supabase.from('todos').select()
+  console.log(data)
+
+  const {userinfo, err} = supabase.auth.signUp(
+      {
+        email: "1576302867@qq.com",
+        password: "4745701816@Long"
+      }
+  )
+
+  console.log(userinfo)
+  console.log(err)
+
+  const {data_rs, error} = supabase.auth.signInWithPassword({email: "1576302867@qq.com", password: "4745701816@Long"})
+
+  console.log(data_rs)
+}
+
+
 </script>
 
 <style scoped>

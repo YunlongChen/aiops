@@ -21,7 +21,7 @@ use crate::handlers::test_script_handler;
 pub fn routes() -> Router<AppState> {
     Router::new()
         // 系统相关路由
-        .route("/info", get(system::get_info))
+        .route("/docs", get(system::get_info))
         .route("/stats", get(system::get_stats))
         .route("/version", get(system::get_version))
         

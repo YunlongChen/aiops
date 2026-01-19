@@ -14,11 +14,12 @@ use crate::{AppState, models::ApiResponse};
 /// 获取API文档
 #[utoipa::path(
     get,
-    path = "/info",
+    path = "/api/v1/docs",
     tag = "system",
+    summary = "Get API documentation",
+    description = "Get system API documentation information",
     responses(
-        (status = 200, description = "API documentation", body = Value),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "API documentation information", body = Value)
     )
 )]
 pub async fn get_info() -> Result<Json<Value>, StatusCode> {
@@ -147,8 +148,10 @@ pub async fn get_info() -> Result<Json<Value>, StatusCode> {
 /// 获取系统统计信息
 #[utoipa::path(
     get,
-    path = "/stats",
+    path = "/api/v1/stats",
     tag = "system",
+    summary = "Get system statistics",
+    description = "Get system runtime statistics including test case counts and run records",
     responses(
         (status = 200, description = "System statistics", body = ApiResponse<Value>),
         (status = 500, description = "Internal server error")
@@ -156,7 +159,7 @@ pub async fn get_info() -> Result<Json<Value>, StatusCode> {
 )]
 pub async fn get_stats(State(state): State<AppState>) -> Result<Json<ApiResponse<Value>>, StatusCode> {
     match get_system_stats(&state).await {
-        Ok(stats) => Ok(Json(ApiResponse::<Value>::success(stats))),
+        Ok(stats) => Ok(Json(ApiResponse::success(stats))),
         Err(e) => {
             tracing::error!("获取系统统计信息失败: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -166,12 +169,26 @@ pub async fn get_stats(State(state): State<AppState>) -> Result<Json<ApiResponse
 
 /// 获取版本信息
 #[utoipa::path(
-    get,
-    path = "/version",
-    tag = "system",
+    post,
+    operation_id = "custom_post_pet",
+    path = "/pet",
+    tag = "pet_handlers",
+    request_body(content = Pet, description = "Pet to store the database", content_type = "application/json"),
     responses(
-        (status = 200, description = "Version information", body = ApiResponse<Value>),
-        (status = 500, description = "Internal server error")
+        (status = 200, description = "Pet stored successfully", body = Pet, content_type = "application/json",
+            headers(
+                ("x-cache-len" = String, description = "Cache length")
+            ),
+            example = json!({"id": 1, "name": "bob the cat"})
+        ),
+    ),
+    params(
+     ("x-csrf-token" = String, Header, deprecated, description = "Current csrf token of user"),
+    ),
+    security(
+       (),
+       ("my_auth" = ["read:items", "edit:items"]),
+       ("token_jwt" = [])
     )
 )]
 pub async fn get_version() -> Result<Json<ApiResponse<Value>>, StatusCode> {
@@ -192,7 +209,7 @@ pub async fn get_version() -> Result<Json<ApiResponse<Value>>, StatusCode> {
         "documentation": "/api/v1/docs"
     });
 
-    Ok(Json(ApiResponse::<Value>::success(version_info)))
+    Ok(Json(ApiResponse::success(version_info)))
 }
 
 /// 获取系统统计信息

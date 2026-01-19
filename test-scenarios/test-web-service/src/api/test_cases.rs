@@ -15,19 +15,18 @@ use crate::{
         ApiResponse, PaginationParams, PaginatedResponse,
         test_case::{TestCase, CreateTestCaseRequest, UpdateTestCaseRequest, TestCaseQuery, RunTestCaseRequest},
         test_run::{TestRun, CreateTestRunRequest},
-        TestStatus, RuntimeType,
-        TestCaseApiResponse, TestCasePaginatedResponse, TestRunApiResponse, StringApiResponse
+        TestStatus, RuntimeType
     }
 };
 
 /// 分页获取测试用例列表
 #[utoipa::path(
     get,
-    path = "/test-cases",
+    path = "/api/v1/test-cases",
     tag = "test-cases",
     params(TestCaseQuery),
     responses(
-        (status = 200, description = "Test case list", body = TestCasePaginatedResponse),
+        (status = 200, description = "Test case list", body = PaginatedResponse<TestCase>),
         (status = 500, description = "Internal server error")
     )
 )]
@@ -51,11 +50,11 @@ pub async fn list_test_cases(
 /// 创建新的测试用例
 #[utoipa::path(
     post,
-    path = "/test-cases",
+    path = "/api/v1/test-cases",
     tag = "test-cases",
     request_body = CreateTestCaseRequest,
     responses(
-        (status = 201, description = "Test case created", body = TestCaseApiResponse),
+        (status = 201, description = "Test case created", body = ApiResponse<TestCase>),
         (status = 400, description = "Invalid request"),
         (status = 500, description = "Internal server error")
     )
@@ -89,13 +88,13 @@ pub async fn create_test_case(
 /// 根据ID获取测试用例详情
 #[utoipa::path(
     get,
-    path = "/test-cases/{id}",
+    path = "/api/v1/test-cases/{id}",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")
     ),
     responses(
-        (status = 200, description = "Test case details", body = TestCaseApiResponse),
+        (status = 200, description = "Test case details", body = ApiResponse<TestCase>),
         (status = 404, description = "Test case not found"),
         (status = 500, description = "Internal server error")
     )
@@ -117,14 +116,14 @@ pub async fn get_test_case(
 /// 更新测试用例
 #[utoipa::path(
     put,
-    path = "/test-cases/{id}",
+    path = "/api/v1/test-cases/{id}",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")
     ),
     request_body = UpdateTestCaseRequest,
     responses(
-        (status = 200, description = "Test case updated", body = TestCaseApiResponse),
+        (status = 200, description = "Test case updated", body = ApiResponse<TestCase>),
         (status = 404, description = "Test case not found"),
         (status = 400, description = "Invalid request"),
         (status = 500, description = "Internal server error")
@@ -170,13 +169,13 @@ pub async fn update_test_case(
 /// 删除测试用例
 #[utoipa::path(
     delete,
-    path = "/test-cases/{id}",
+    path = "/api/v1/test-cases/{id}",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")
     ),
     responses(
-        (status = 200, description = "Test case deleted", body = StringApiResponse),
+        (status = 200, description = "Test case deleted", body = ApiResponse<String>),
         (status = 404, description = "Test case not found"),
         (status = 500, description = "Internal server error")
     )
@@ -212,14 +211,14 @@ pub async fn delete_test_case(
 /// 运行测试用例
 #[utoipa::path(
     post,
-    path = "/test-cases/{id}/run",
+    path = "/api/v1/test-cases/{id}/run",
     tag = "test-cases",
     params(
         ("id" = Uuid, Path, description = "Test case ID")
     ),
     request_body = RunTestCaseRequest,
     responses(
-        (status = 200, description = "Test case run started", body = TestRunApiResponse),
+        (status = 200, description = "Test case run started", body = ApiResponse<TestRun>),
         (status = 404, description = "Test case not found"),
         (status = 400, description = "Invalid request"),
         (status = 500, description = "Internal server error")

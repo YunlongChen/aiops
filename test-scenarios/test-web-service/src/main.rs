@@ -11,7 +11,7 @@ use axum::{
     Router,
 };
 use serde_json::{json, Value};
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -19,8 +19,9 @@ use tower_http::{
     services::ServeDir,
     trace::TraceLayer,
 };
-use tracing::info;
-use axum::middleware::from_fn;
+use tracing::{info, warn};
+use tracing_subscriber;
+use utoipa;
 
 mod api;
 mod config;
@@ -28,7 +29,6 @@ mod database;
 mod docs;
 mod execution;
 mod handlers;
-mod middleware;
 mod models;
 mod services;
 
@@ -47,6 +47,8 @@ pub struct AppState {
     get,
     path = "/health",
     tag = "system",
+    summary = "健康检查",
+    description = "检查服务健康状态",
     responses(
         (status = 200, description = "服务健康", body = Value),
         (status = 500, description = "服务异常")
@@ -80,18 +82,10 @@ async fn service_info(State(_state): State<AppState>) -> Result<Json<Value>, Sta
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // 初始化日志系统，支持环境变量配置和SQL日志
+    // 初始化日志
     tracing_subscriber::fmt()
-        .with_target(true)  // 显示日志目标模块
-        .with_level(true)   // 显示日志级别
-        .with_thread_ids(true)  // 显示线程ID
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| {
-                    // 默认配置：显示INFO级别日志，启用sqlx的DEBUG日志用于SQL查询
-                    "info,sqlx::query=debug,tower_http=debug".into()
-                })
-        )
+        .with_target(false)
+        .compact()
         .init();
 
     info!("启动AIOps测试管理Web服务...");
@@ -116,13 +110,14 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api/v1", api::routes())
         .nest_service("/static", ServeDir::new("static"))
         .merge(docs::create_swagger_ui())
+        .route("/api-docs/openapi.json", get(|| async {
+            Json(docs::get_openapi_json())
+        }))
         .layer(
-                ServiceBuilder::new()
-                .layer(from_fn(middleware::request_logger_middleware))
-                .layer(from_fn(middleware::error_handler_middleware))
+            ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(CorsLayer::permissive())
-            )
+        )
         .with_state(app_state);
 
     // 启动服务器
